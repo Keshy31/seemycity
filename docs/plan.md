@@ -19,26 +19,23 @@
 #### Phases and Tasks
 
 ##### Phase 1: Initial Frontend Setup & Deployment
-- **Goal**: Get a basic web version live on Fly.io ASAP for early visibility.  
-- **Tasks**:  
-  1. **Initialize SvelteKit Project**:  
-     - [x] Run `npm create svelte@latest`.  
-     - [x] Confirm/complete setup with Tailwind CSS, svelte-leaflet, and Iconify.  
-     - [x] Create basic routes: `/` (map placeholder). (+layout.svelte, +page.svelte created)
-     - [x] Create route: `/[id]` (single placeholder).  
-     - [x] Basic styling applied (Ubuntu font, background color).
-  2. **Setup Fly.io Deployment**:  
-     - [ ] Install Fly.io CLI, run `fly launch` for SvelteKit app.  
-     - [ ] Configure `fly.toml` for static output (`npm run build`).  
-     - [ ] Deploy initial static site (`fly deploy`) with dummy data (e.g., hardcoded “Cape Town: 84”).  
-  3. **Basic Map View**:  
-     - [ ] Add Leaflet.js via `svelte-leaflet`, render a static SA map (hardcoded GeoJSON or simple polygon).  
-     - [ ] Style with Tailwind (teal buttons) - *Cream background & Ubuntu font done*.  
-     - [ ] Deploy update to Fly.io.  
-- **Note on Prerendering (Initial Deployment):**
-    *   For the initial static deployment (Phase 1), global prerendering (`export const prerender = true;` in `src/routes/+layout.ts`) has been *disabled*, and `@sveltejs/adapter-static` is configured with `strict: false` in `svelte.config.js`.
+
+- **Goal**: Get a basic web version live on Fly.io ASAP for early visibility.
+- **Tasks**:
+  1.  **Initialize SvelteKit Project**: `npm create svelte@latest seemycity-frontend` - 
+  2.  **Basic Routing**: Setup `src/routes/+page.svelte` (homepage) and `src/routes/[id]/+page.svelte` (detail page placeholder) - 
+  3.  **Static Adapter**: Configure `@sveltejs/adapter-static` in `svelte.config.js`. - 
+  4.  **Dockerfile**: Create `Dockerfile` using Node base image for build stage and Nginx for serving. - 
+  5.  **Fly.io Setup**: Create `fly.toml`, launch app `fly launch --no-deploy`. - 
+  6.  **Initial Deploy**: Run `fly deploy`. Debug Dockerfile/Nginx issues until homepage is served. - 
+  7.  **Styling (Basic)**: Apply background, text color, and Ubuntu font globally via `+layout.svelte`. - 
+  8.  **TODO**: Configure Tailwind CSS.
+  9.  **TODO**: Add Leaflet map placeholder.
+- **Milestone**: Basic Web Up. - **Achieved**
+- **Note on Prerendering (Initial Deployment)**:
+    *   For the initial static deployment (Phase 1), global prerendering (`export const prerender = true;` in `src/routes/+layout.ts`) has been *disabled*, and `@sveltejs/adapter-static` is configured with `strict: false` in `svelte.config.js`. The homepage (`/`) is explicitly prerendered via `src/routes/+page.ts`.
     *   This avoids build errors caused by the dynamic `/[id]` route before we have data or links to generate specific municipality pages.
-    *   Prerendering for `/[id]` pages will need to be re-enabled/configured later (likely Phase 5 or 6) once the backend API or build-time data source can provide the list of municipality IDs needed to generate the individual static pages. The `strict: true` setting should also be reconsidered then.
+    *   Prerendering for `/[id]` pages will need to be re-enabled/configured later (likely Phase 5 or 6) once the backend API or build-time data source can provide the list of municipality IDs needed to generate the individual static pages. The `strict: true` setting should also be reconsidered then. Alternatively, SPA fallback mode could be configured.
 
 ##### Phase 2: Database Setup on Fly.io
 - **Goal**: Establish Postgres on Fly.io for data storage and manual access.  
@@ -132,7 +129,7 @@
 6. **Polish**: Final UX tweaks and testing.
 
 #### Milestones
-- **Basic Web Up**: After Phase 1—live placeholder site.  
+- **Basic Web Up**: After Phase 1—live placeholder site. - **Achieved**
 - **DB Ready**: After Phase 2—Postgres populated.  
 - **Full UI**: After Phase 3—interactive dummy version.  
 - **Real Data**: After Phase 5—backend integration complete.  
