@@ -6,23 +6,19 @@
 app = 'seemycity-frontend'
 primary_region = 'jnb'
 
-# Remove the build section as we build locally for static deployment
-# [build]
+# Use the default build section, Fly will use the Dockerfile
+[build]
 
-# Remove the http_service section, replaced by statics
-# [http_service]
-#   internal_port = 3000
-#   force_https = true
-#   auto_stop_machines = 'stop'
-#   auto_start_machines = true
-#   min_machines_running = 0
-#   processes = ['app']
+# Use http_service as the Dockerfile now runs Nginx on port 80
+[http_service]
+  internal_port = 80 # Nginx default port
+  force_https = true
+  auto_stop_machines = false # Stop machines when idle
+  auto_start_machines = true # Start machines on new requests
+  min_machines_running = 1 # Allow scaling to zero
+  processes = ["app"] # Matches the default process group
 
-# Add static file serving configuration
-[[statics]]
-  guest_path = "/usr/share/nginx/html" # Standard path for static files in the Fly image
-  url_prefix = "/" # Serve files from the root URL
-
+# Keep the vm section for defining machine resources
 [[vm]]
   memory = '1gb'
   cpu_kind = 'shared'

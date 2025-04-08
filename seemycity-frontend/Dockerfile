@@ -34,14 +34,14 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 
-# Final stage for app image
-FROM base
+# Final stage for app image - Use Nginx to serve static files
+FROM nginx:1.25-alpine AS final
 
-# Copy built application
-COPY --from=build /app/build /app/build
-COPY --from=build /app/node_modules /app/node_modules
-COPY --from=build /app/package.json /app
+# Copy static assets from build stage to Nginx html directory
+COPY --from=build /app/build /usr/share/nginx/html
 
-# Start the server by default, this can be overwritten at runtime
-EXPOSE 3000
-CMD [ "node", "./build/index.js" ]
+# Expose Nginx default port
+EXPOSE 80
+
+# Nginx runs automatically when the container starts, no CMD needed explicitly here
+# CMD ["nginx", "-g", "daemon off;"] # Default Nginx command

@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-node';
+import adapter from '@sveltejs/adapter-static'; 
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -13,7 +13,8 @@ const config = {
 			pages: 'build',
 			assets: 'build',
 			fallback: null, // or 'index.html' or '200.html' if needed for SPA routing
-			precompress: false
+			precompress: false,
+			strict: true // Recommended, ensures all routes are prerenderable
 		})
 	}
 };
