@@ -1,0 +1,40 @@
+# WindsurfRules for Svelte + Rust Project
+
+# Build Settings
+[build]
+  svelte-kit = "npm run build"
+  rust = "cargo build --release"
+
+# Deployment
+[deploy]
+  provider = "fly.io"
+  region = "jnb"
+  
+# Database
+[database]
+  type = "postgres"
+  extensions = ["postgis"]
+  
+# API Endpoints
+[api]
+  base = "/api"
+  rate_limit = 100
+  cache_ttl = 3600
+
+# UI Settings
+[ui]
+  theme = "warm"
+  primary_color = "#008080"
+  background = "#FDF6E3"
+  text = "#3C2F2F"
+  
+# Map Configuration
+[map]
+  provider = "leaflet"
+  center = "-30.5595, 22.9375"
+  zoom = 6
+  
+# Performance
+[performance]
+  target_load_time = 2000
+  target_api_time = 5000

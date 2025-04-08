@@ -1,0 +1,14 @@
+# frontend
+/node_modules
+/public/build
+
+# backend
+/target
+
+# editor
+.vscode
+
+# misc
+.env
+.env.local
+
