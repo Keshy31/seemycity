@@ -37,6 +37,9 @@ RUN npm prune --omit=dev
 # Final stage for app image - Use Nginx to serve static files
 FROM nginx:1.25-alpine AS final
 
+# Remove default nginx static assets
+RUN rm -rf /usr/share/nginx/html/*
+
 # Copy static assets from build stage to Nginx html directory
 COPY --from=build /app/build /usr/share/nginx/html
 
