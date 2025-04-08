@@ -22,16 +22,19 @@
 - **Goal**: Get a basic web version live on Fly.io ASAP for early visibility.  
 - **Tasks**:  
   1. **Initialize SvelteKit Project**:  
-     - Run `npm create svelte@latest`, set up with Tailwind CSS, svelte-leaflet, and Iconify.  
-     - Create basic routes: `/` (map placeholder), `/[id]` (single placeholder).  
+     - [x] Run `npm create svelte@latest`.  
+     - [ ] Confirm/complete setup with Tailwind CSS, svelte-leaflet, and Iconify.  
+     - [x] Create basic routes: `/` (map placeholder). (+layout.svelte, +page.svelte created)
+     - [ ] Create route: `/[id]` (single placeholder).  
+     - [x] Basic styling applied (Ubuntu font, background color).
   2. **Setup Fly.io Deployment**:  
-     - Install Fly.io CLI, run `fly init` for SvelteKit app.  
-     - Configure `fly.toml` for static output (`npm run build`).  
-     - Deploy initial static site (`fly deploy`) with dummy data (e.g., hardcoded “Cape Town: 84”).  
+     - [ ] Install Fly.io CLI, run `fly init` for SvelteKit app.  
+     - [ ] Configure `fly.toml` for static output (`npm run build`).  
+     - [ ] Deploy initial static site (`fly deploy`) with dummy data (e.g., hardcoded “Cape Town: 84”).  
   3. **Basic Map View**:  
-     - Add Leaflet.js via `svelte-leaflet`, render a static SA map (hardcoded GeoJSON or simple polygon).  
-     - Style with Tailwind (cream bg, teal buttons) and Ubuntu font.  
-     - Deploy update to Fly.io.  
+     - [ ] Add Leaflet.js via `svelte-leaflet`, render a static SA map (hardcoded GeoJSON or simple polygon).  
+     - [ ] Style with Tailwind (teal buttons) - *Cream background & Ubuntu font done*.  
+     - [ ] Deploy update to Fly.io.  
 
 ##### Phase 2: Database Setup on Fly.io
 - **Goal**: Establish Postgres on Fly.io for data storage and manual access.  
