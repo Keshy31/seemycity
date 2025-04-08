@@ -1,0 +1,29 @@
+# fly.toml app configuration file generated for seemycity-frontend on 2025-04-08T20:40:36+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'seemycity-frontend'
+primary_region = 'jnb'
+
+# Remove the build section as we build locally for static deployment
+# [build]
+
+# Remove the http_service section, replaced by statics
+# [http_service]
+#   internal_port = 3000
+#   force_https = true
+#   auto_stop_machines = 'stop'
+#   auto_start_machines = true
+#   min_machines_running = 0
+#   processes = ['app']
+
+# Add static file serving configuration
+[[statics]]
+  guest_path = "/usr/share/nginx/html" # Standard path for static files in the Fly image
+  url_prefix = "/" # Serve files from the root URL
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

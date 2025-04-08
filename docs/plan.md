@@ -23,12 +23,12 @@
 - **Tasks**:  
   1. **Initialize SvelteKit Project**:  
      - [x] Run `npm create svelte@latest`.  
-     - [ ] Confirm/complete setup with Tailwind CSS, svelte-leaflet, and Iconify.  
+     - [x] Confirm/complete setup with Tailwind CSS, svelte-leaflet, and Iconify.  
      - [x] Create basic routes: `/` (map placeholder). (+layout.svelte, +page.svelte created)
-     - [ ] Create route: `/[id]` (single placeholder).  
+     - [x] Create route: `/[id]` (single placeholder).  
      - [x] Basic styling applied (Ubuntu font, background color).
   2. **Setup Fly.io Deployment**:  
-     - [ ] Install Fly.io CLI, run `fly init` for SvelteKit app.  
+     - [ ] Install Fly.io CLI, run `fly launch` for SvelteKit app.  
      - [ ] Configure `fly.toml` for static output (`npm run build`).  
      - [ ] Deploy initial static site (`fly deploy`) with dummy data (e.g., hardcoded “Cape Town: 84”).  
   3. **Basic Map View**:  
