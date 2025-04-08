@@ -14,7 +14,7 @@ const config = {
 			assets: 'build',
 			fallback: null, // or 'index.html' or '200.html' if needed for SPA routing
 			precompress: false,
-			strict: true // Recommended, ensures all routes are prerenderable
+			strict: false // Recommended, ensures all routes are prerenderable
 		})
 	}
 };

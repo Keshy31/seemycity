@@ -18,7 +18,7 @@
 
 #### Phases and Tasks
 
-##### Phase 1: Initial Frontend Setup and Deployment
+##### Phase 1: Initial Frontend Setup & Deployment
 - **Goal**: Get a basic web version live on Fly.io ASAP for early visibility.  
 - **Tasks**:  
   1. **Initialize SvelteKit Project**:  
@@ -35,6 +35,10 @@
      - [ ] Add Leaflet.js via `svelte-leaflet`, render a static SA map (hardcoded GeoJSON or simple polygon).  
      - [ ] Style with Tailwind (teal buttons) - *Cream background & Ubuntu font done*.  
      - [ ] Deploy update to Fly.io.  
+- **Note on Prerendering (Initial Deployment):**
+    *   For the initial static deployment (Phase 1), global prerendering (`export const prerender = true;` in `src/routes/+layout.ts`) has been *disabled*, and `@sveltejs/adapter-static` is configured with `strict: false` in `svelte.config.js`.
+    *   This avoids build errors caused by the dynamic `/[id]` route before we have data or links to generate specific municipality pages.
+    *   Prerendering for `/[id]` pages will need to be re-enabled/configured later (likely Phase 5 or 6) once the backend API or build-time data source can provide the list of municipality IDs needed to generate the individual static pages. The `strict: true` setting should also be reconsidered then.
 
 ##### Phase 2: Database Setup on Fly.io
 - **Goal**: Establish Postgres on Fly.io for data storage and manual access.  
