@@ -43,6 +43,9 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy static assets from build stage to Nginx html directory
 COPY --from=build /app/build /usr/share/nginx/html
 
+# Ensure nginx user can read the files
+RUN chown -R nginx:nginx /usr/share/nginx/html && chmod -R 755 /usr/share/nginx/html
+
 # Expose Nginx default port
 EXPOSE 80
 
