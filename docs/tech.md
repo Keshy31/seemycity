@@ -118,6 +118,22 @@
 
 ---
 
+#### Project Structure
+
+The project is organized into the following main directories at the root (`c:\Users\kesha\CascadeProjects\seemycity`):
+
+*   **/seemycity-frontend**: Contains the SvelteKit frontend application code. All frontend-related commands (like `npm install`, `npm run dev`) should be run from within this directory.
+*   **/seemycity-backend** (Planned): This directory will house the Rust (Actix Web) backend application code.
+*   **/docs**: Contains project documentation files like `plan.md` and `tech.md`.
+*   **/database** (Potential): May be used later for database-specific files like migrations or more complex seeding scripts. (Currently, `schema.sql` resides in the root).
+*   **.gitignore**: Specifies intentionally untracked files that Git should ignore.
+*   **schema.sql**: Defines the initial database schema.
+*   **README.md** (To be created): General project overview and setup instructions.
+
+This structure separates the frontend and backend concerns clearly.
+
+---
+
 #### Technical Approach
 
 ##### Data Sources
