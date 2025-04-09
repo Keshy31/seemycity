@@ -54,7 +54,7 @@
 - **Status**: **In Progress**
 - **Tasks**:
     - [x] **Configure CSS/SCSS**: Basic setup with `sass` installed and global `app.scss` imported. Component styling will follow.
-    - [ ] **Add MapLibre GL JS Map**: Integrate `maplibre-gl`, display basic map.
+    - [x] **Add MapLibre GL JS Map**: Integrated `maplibre-gl`, displaying basic map on homepage.
     - [ ] **Enhance Map View**: Fetch static GeoJSON (or use dummy), render choropleth with dummy scores, add tooltips, filters. Deploy.
     - [ ] **Build Single View**: Fetch dummy data for `/[id]`, display score badge, metric cards, expandable details. Deploy.
     - [ ] **Build Comparison View**: Route `/compare/[ids]`, show dummy side-by-side table, add interaction buttons. Deploy.

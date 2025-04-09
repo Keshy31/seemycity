@@ -1,82 +1,92 @@
 <script lang="ts">
 	// Revert to default import + destructuring as suggested by the Vite error for CJS compatibility
-	import maplibregl from 'maplibre-gl';
-	const { Map, NavigationControl } = maplibregl;
-	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { onMount, onDestroy } from 'svelte'; // Add onDestroy for cleanup consistency
+	import { browser } from '$app/environment';
+	import MapComponent from '$lib/components/MapComponent.svelte'; // Import the new component
+	import { onMount, onDestroy } from 'svelte'; // Add onDestroy
 
-	let mapContainer: HTMLDivElement;
-	let map: Map | undefined; // Initialize map as undefined
+	let mapWrapperElement: HTMLElement | undefined = undefined;
+	let isWrapperReady = false; // Flag to control MapComponent rendering
+	let resizeObserver: ResizeObserver | null = null;
 
-	// Define basic options (style, center, zoom) - container is set dynamically
-	const mapOptions = { // Type inference will handle this now
-		style: 'https://demotiles.maplibre.org/style.json', // Use a basic style URL initially
-		center: [22.9375, -30.5595] as [number, number], // Explicitly type as a tuple
-		zoom: 5
-	};
+	// Note: onMount runs *after* the initial render where bind:this happens
+	console.log('Page mounted.');
 
-	onMount(() => { // Make sure onMount is synchronous
-		if (!mapContainer) {
-			console.error('Map container not found on mount');
-			return;
-		}
+	// Use a reactive statement to set up the observer once mapWrapperElement is bound
+	$: if (browser && mapWrapperElement && !resizeObserver) {
+		console.log('Page.svelte: mapWrapperElement bound, setting up ResizeObserver.');
+		resizeObserver = new ResizeObserver(entries => {
+			if (!entries || entries.length === 0) return;
+			const { width, height } = entries[0].contentRect;
+			// console.log(`Page.svelte ResizeObserver: Wrapper dimensions ${width.toFixed(0)}x${height.toFixed(0)}`); // Verbose log
 
-		// Initialize map directly inside onMount
-		map = new Map({
-			container: mapContainer,
-			...mapOptions
+			if (width > 0 && height > 0 && !isWrapperReady) { // Only update if not already ready
+				console.log('Page.svelte ResizeObserver: Valid dimensions detected. Setting isWrapperReady=true.');
+				isWrapperReady = true;
+				// Optional: Stop observing once ready
+				// resizeObserver?.unobserve(mapWrapperElement);
+				// resizeObserver?.disconnect();
+				// resizeObserver = null;
+			} else if ((width <= 0 || height <= 0) && isWrapperReady) {
+				// Optional: Handle if it becomes zero AFTER being ready
+				console.warn('Page.svelte ResizeObserver: Wrapper dimensions became invalid.');
+				// isWrapperReady = false; // Reset if needed
+			}
 		});
+		resizeObserver.observe(mapWrapperElement);
+	}
 
-		map.addControl(new NavigationControl(), 'top-right');
-
-		// The onMount return function IS the cleanup
-		return () => {
-			map?.remove();
-		};
+	// Cleanup function when the component is destroyed
+	onDestroy(() => {
+		console.log('Page.svelte onDestroy: Disconnecting ResizeObserver.');
+		resizeObserver?.disconnect();
+		resizeObserver = null; // Clear the observer instance
 	});
 
-	// TODO: Fetch GeoJSON data and add as source/layer
-	// TODO: Implement choropleth styling based on scores
-	// TODO: Add tooltips/popups on hover/click
 </script>
 
 <svelte:head>
 	<title>SeeMyCity - Map</title>
-	<meta name="description" content="Interactive map of South African municipal financial health" />
+	<meta name="description" content="Map view of Municipal Financial Health" />
 </svelte:head>
 
-<section class="map-container">
+<div class="page-content">
 	<h1>Municipal Financial Health Map</h1>
-	<div class="map" bind:this={mapContainer}></div>
-</section>
+	
+	<!-- Map wrapper with fixed height -->
+	<div class="map-wrapper"> 
+		<MapComponent /> <!-- Render directly -->
+	</div>
 
+	<!-- Other page content can go here -->
+
+</div>
+
+<!-- Styles -->
 <style lang="scss">
-	.map-container {
-		width: 100%;
-		height: calc(100vh - 60px); // Adjust based on header/footer height if any
+	/* Styles for the main content area of this specific page */
+	.page-content {
+		padding: 1rem; /* Restore padding here */
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-
-		h1 {
-			margin: 1rem 0;
-			// Add styling from ux.md if needed
-		}
+		flex-grow: 1; /* Make this container grow to fill main */
+		min-height: 0; /* Help flex calculations */
 	}
 
-	.map {
-		width: 100%;
-		height: 100%; // Take remaining height within the container
+	h1 {
+		margin-bottom: 0.5rem;
+		flex-shrink: 0; /* Prevent h1 from shrinking if content grows */
+	}
+	
+	.map-wrapper {
+		margin-top: 1rem; /* Keep the margin for spacing above map */
+		border: 1px solid #ccc; 
+		border-radius: 4px; 
+		// overflow: hidden; /* Keep commented out or remove */
+		position: relative; /* Keep for potential absolute positioning inside */
+		height: 600px; /* << SET FIXED HEIGHT HERE (e.g., 600px) */
+		/* background-color: #eee; /* Remove or keep temp background */
 	}
 
-	// Ensure MapLibre controls look okay with global styles
-	:global(.maplibregl-ctrl-group button) {
-		background-color: rgba(255, 255, 255, 0.8);
-		border: none;
-		&:hover {
-			background-color: white;
-		}
-	}
+	/* Styles specific to the map container itself are in MapComponent.svelte */
 
-	// If using a dark theme, you might need to adjust control styles further
 </style>

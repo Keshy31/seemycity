@@ -36,8 +36,12 @@
 
 	/* CSS for the layout goes here */
 	main {
-		padding: 1rem; /* Add some space around the content */
+		/* padding: 1rem; */ /* Remove padding, apply it lower down */
 		flex-grow: 1; /* Allow main content to grow */
 		width: 100%;
+		display: flex; /* Make it a flex container */
+		flex-direction: column; /* Stack children vertically */
+		// overflow: hidden; /* Prevent content overflow issues and help height calc */
+		min-height: 0; /* Add this to help flex calculations */
 	}
 </style>
