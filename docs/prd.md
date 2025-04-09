@@ -23,7 +23,7 @@
 ##### 1. Functional Requirements
 1. **Data Source**:
    - Fetch financial data from the Municipal Money API (http://municipaldata.treasury.gov.za/api) for the latest year (e.g., 2024).
-   - Incorporate static population and GeoJSON data from external sources (e.g., StatsSA, OpenStreetMap) for per-capita metrics and map visualization.
+   - Incorporate static population data from external sources (e.g., StatsSA) and GeoJSON boundaries from the [Municipal Demarcation Board ArcGIS Hub](https://spatialhub-mdb-sa.opendata.arcgis.com/) for per-capita metrics and map visualization.
 2. **Scoring System**:
    - Calculate a composite score (0-100) for each municipality based on four pillars:
      - **Financial Health (30%)**: Revenue per capita, debt-to-revenue ratio.

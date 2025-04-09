@@ -100,6 +100,35 @@
 
 #### Technical Approach
 
+##### Data Sources
+
+1.  **Municipal Money API (National Treasury)**
+    *   **Website**: [municipaldata.treasury.gov.za](https://municipaldata.treasury.gov.za/)
+    *   **API Base URL**: `https://municipaldata.treasury.gov.za/api/`
+    *   **Structure**: The API uses the [Cubes](https://cubes.readthedocs.io/en/latest/) framework for OLAP-style data browsing. Key concepts:
+        *   **Cubes**: Represent individual datasets (e.g., `municipalities`, `incexp_v2`, `cflow_v2`).
+        *   **Dimensions**: Categorical attributes used for slicing and dicing data (e.g., `municipality`, `financial_year`, `province`). Dimensions have **Members** (their distinct values, like 'CPT', 'JHB', 'WC', 'GP') and **Attributes** (details about members, like `municipality.long_name`, `municipality.province_code`).
+        *   **Measures**: Numerical values that can be aggregated (e.g., `amount` in financial datasets).
+    *   **Key Endpoint Types**:
+        *   `/cubes/{cube_name}/model`: Describes the structure (dimensions, measures) of a specific cube. Useful for understanding what data is available.
+        *   `/cubes/{cube_name}/members/{dimension_name}`: Lists the distinct members (and their attributes) for a given dimension within a cube. **Crucial for getting static lists like municipalities (`/cubes/municipalities/members/municipality`).**
+        *   `/cubes/{cube_name}/facts`: Retrieves raw, detailed data records (facts) linking dimension members to measures. Allows filtering using `?cut=...`.
+        *   `/cubes/{cube_name}/aggregate`: Returns summarized data, aggregating measures based on specified dimensions using `?drilldown=...` and `&aggregates=...`.
+    *   **Usage Plan**:
+        *   Use `/cubes/municipalities/members/municipality` to fetch the initial list of municipalities and their basic details (code, name, province, classification) for the `municipalities` table.
+        *   Use `/aggregate` or `/facts` endpoints on financial cubes (e.g., `incexp_v2`, `audit_opinions`) for the `financial_data` table, filtering by municipality and year.
+
+2.  **Static Geospatial Data (Boundaries)**
+    *   **Source**: [Municipal Demarcation Board via ArcGIS Hub](https://spatialhub-mdb-sa.opendata.arcgis.com/) (Specifically datasets like "Local Municipal Boundary").
+    *   **Format**: GeoJSON (preferred for easy use with PostGIS and Leaflet).
+    *   **Requirement**: Must contain municipality boundaries that can be matched to the codes retrieved from the Municipal Money API.
+    *   **Storage**: `municipalities.geojson` column (PostGIS `GEOGRAPHY` type).
+
+3.  **Static Population Data**
+    *   **Source**: To be determined (e.g., StatsSA Census data or estimates).
+    *   **Requirement**: Population figures per municipality, matchable to codes from the Municipal Money API.
+    *   **Storage**: `municipalities.population` column.
+
 ##### Data Ingestion
 - **Source**: Municipal Money API (GET requests, JSON responses).  
   - Example: `GET /api/cubes/income_expenditure?municipality=CPT&year=2024`.  

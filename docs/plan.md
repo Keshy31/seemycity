@@ -41,13 +41,14 @@
 - **Goal**: Establish Postgres on Fly.io for data storage and manual access.  
 - **Tasks**:  
   4. **Setup Postgres Instance**:  
-     - Run `fly postgres create` on Fly.io, enable PostGIS extension.  
-     - Create `municipalities` and `financial_data` tables (SQL from tech.md).  
+     - Run `fly postgres create` on Fly.io, enable PostGIS extension. - **Achieved** 
+     - Create `municipalities` and `financial_data` tables (SQL from tech.md). - **Achieved** 
      - Connect locally for manual imports (e.g., `psql`).  
   5. **Source and Load Static Data**:  
-     - GeoJSON: Download from OpenStreetMap or SA portals (focus on Cape Town, Johannesburg).  
-     - Population: Extract from StatsSA (e.g., 2022 estimates).  
+     - GeoJSON: Download from the [Municipal Demarcation Board ArcGIS Hub](https://spatialhub-mdb-sa.opendata.arcgis.com/) (focus on Local Municipal Boundaries). - **In Progress (Manual)** 
+     - Population: Extract from StatsSA (e.g., 2022 estimates). - **In Progress (Manual)** 
      - Import into `municipalities` table via CSV or SQL script.  
+- **Milestone**: DB Ready. - *(Pending data load)*
 
 ##### Phase 3: Frontend Expansion
 - **Goal**: Build out UI with dummy data, refine UX, and deploy iteratively.  
