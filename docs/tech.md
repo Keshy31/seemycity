@@ -44,35 +44,55 @@
 
 ##### Database
 - **DBMS**: PostgreSQL  
-  - Why: Robust, supports GeoJSON (via PostGIS), allows manual manipulation.  
-  - Extensions: PostGIS for `GEOGRAPHY` type in `municipalities.geojson`.  
-- **Schema**:  
-  - `municipalities`:  
+  - Why: Robust, supports geographic data (via PostGIS), allows manual manipulation.
+  - Extensions: PostGIS - used for the `geom` column in `municipal_geometries` to store spatial data.
+- **Schema Source of Truth**: The definitive schema is maintained in `schema.sql`. The definitions below reflect that file.
+- **Tables**:
+  - `municipalities`: Stores static details for South African municipalities.
     ```sql
+    -- From schema.sql
     CREATE TABLE municipalities (
-        id UUID PRIMARY KEY,
-        name TEXT NOT NULL,
-        province TEXT NOT NULL,
-        geojson GEOGRAPHY NOT NULL,
-        population INTEGER NOT NULL,
-        classification TEXT
+        id varchar NOT NULL PRIMARY KEY, -- Corresponds to municipal_geometries.munic_id
+        "name" text NOT NULL,
+        province text NOT NULL,
+        population real NULL,
+        classification text NULL,
+        address text NULL,
+        website text NULL,
+        phone text NULL,
+        district_id varchar NULL,
+        district_name text NULL
     );
     ```
-  - `financial_data`:  
+  - `municipal_geometries`: Stores geographic boundaries for South African municipalities.
     ```sql
-    CREATE TABLE financial_data (
-        id UUID PRIMARY KEY,
-        municipality_id UUID REFERENCES municipalities(id),
-        year INT NOT NULL,
-        revenue NUMERIC,
-        expenditure NUMERIC,
-        capital_expenditure NUMERIC,
-        debt NUMERIC,
-        audit_outcome TEXT,
-        score NUMERIC,
-        created_at TIMESTAMP DEFAULT NOW()
+    -- From schema.sql
+    CREATE TABLE municipal_geometries (
+        ogc_fid serial4 NOT NULL PRIMARY KEY,
+        geom public.geometry(geometry, 4326) NULL, -- PostGIS geometry type
+        munic_id varchar NOT NULL,
+        CONSTRAINT municipal_geometries_municipalities_fk FOREIGN KEY (munic_id) REFERENCES public.municipalities(id) ON DELETE CASCADE ON UPDATE CASCADE
     );
-    CREATE INDEX ON financial_data (municipality_id, year);
+    CREATE INDEX municipal_geometries_geom_geom_idx ON public.municipal_geometries USING gist (geom);
+    CREATE INDEX municipal_geometries_munic_id_idx ON public.municipal_geometries USING btree (munic_id);
+    ```
+  - `financial_data`: Stores cached financial metrics and calculated scores.
+    ```sql
+    -- From schema.sql
+    CREATE TABLE financial_data (
+        id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+        municipality_id varchar NULL, -- References municipalities.id
+        "year" int4 NOT NULL,
+        revenue numeric NULL,
+        expenditure numeric NULL,
+        capital_expenditure numeric NULL,
+        debt numeric NULL,
+        audit_outcome text NULL,
+        score numeric NULL,
+        created_at timestamptz DEFAULT now() NULL,
+        CONSTRAINT financial_data_municipalities_fk FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id) ON DELETE SET NULL ON UPDATE CASCADE
+    );
+    CREATE INDEX financial_data_municipality_id_year_idx ON public.financial_data USING btree (municipality_id, year);
     ```
 
 ##### Frontend
@@ -122,7 +142,7 @@
     *   **Source**: [Municipal Demarcation Board via ArcGIS Hub](https://spatialhub-mdb-sa.opendata.arcgis.com/) (Specifically datasets like "Local Municipal Boundary").
     *   **Format**: GeoJSON (preferred for easy use with PostGIS and Leaflet).
     *   **Requirement**: Must contain municipality boundaries that can be matched to the codes retrieved from the Municipal Money API.
-    *   **Storage**: `municipalities.geojson` column (PostGIS `GEOGRAPHY` type).
+    *   **Storage**: `municipal_geometries.geom` column (PostGIS `geometry` type).
 
 3.  **Static Population Data**
     *   **Source**: To be determined (e.g., StatsSA Census data or estimates).
