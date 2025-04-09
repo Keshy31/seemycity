@@ -49,16 +49,17 @@
     - [-] **(Deferred to Phase 7)** Load District/Province association data.
 - **Milestone**: DB Ready - **Achieved**
 
-##### Phase 3: Frontend Expansion
-- **Goal**: Build out UI components with dummy data, refine UX, and deploy iteratively.
-- **Status**: **In Progress**
+##### Phase 3: Frontend Expansion (MVP)
+- **Goal**: Build core UI views using dummy data.
 - **Tasks**:
-    - [x] **Configure CSS/SCSS**: Basic setup with `sass` installed and global `app.scss` imported. Component styling will follow.
-    - [x] **Add MapLibre GL JS Map**: Integrated `maplibre-gl`, displaying basic map on homepage.
-    - [ ] **Enhance Map View**: Fetch static GeoJSON (or use dummy), render choropleth with dummy scores, add tooltips, filters. Deploy.
-    - [ ] **Build Single View**: Fetch dummy data for `/[id]`, display score badge, metric cards, expandable details. Deploy.
-    - [ ] **Build Comparison View**: Route `/compare/[ids]`, show dummy side-by-side table, add interaction buttons. Deploy.
-- **Milestone**: Full UI (Dummy Data)
+    - [x] Create Map View (`/`) with MapLibre GL JS.
+    - [x] Implement click popups showing name/score.
+    - [x] Implement navigation from popup header to Single View.
+    - [x] Create Single View (`/[id]`) displaying detailed muni info (province, pop, metrics) and score breakdown.
+    - [ ] Create Comparison View (`/compare/[ids]`) showing side-by-side metrics. (Stretch Goal for MVP)
+    - [x] Refactor and enhance dummy data (`dummyStore.ts`) based on PRD/Tech specs.
+- **Status**: **In Progress**
+- **Milestone**: Full UI (dummy) Ready.
 
 ##### Phase 4: Backend Development
 - **Goal**: Build Rust backend (Actix Web) to fetch, process, and serve real data via API.

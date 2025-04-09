@@ -37,7 +37,6 @@
 
 	// Cleanup function when the component is destroyed
 	onDestroy(() => {
-		console.log('Page.svelte onDestroy: Disconnecting ResizeObserver.');
 		resizeObserver?.disconnect();
 		resizeObserver = null; // Clear the observer instance
 	});
