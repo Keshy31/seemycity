@@ -32,7 +32,7 @@
      - **Accountability (20%)**: Audit outcome (e.g., Clean = 100, Qualified = 50, Adverse = 0).
    - Normalize metrics and weight them to produce a transparent, comparable score.
 3. **Views**:
-   - **Map View**: Display municipalities on a choropleth map, color-coded by score, with province filtering.
+   - **Map View**: Display municipalities on a choropleth map, color-coded by score. Users can click a municipality to navigate to its Single View. (Province/District level views are post-MVP).
    - **Single View**: Show a selected municipality’s score, metrics, and score breakdown.
    - **Comparison View**: Present side-by-side metrics and scores for multiple municipalities.
 4. **Data Storage**:
@@ -84,5 +84,6 @@
 - Expand to historical trends (5-year view).
 - Integrate satellite/edge data (e.g., air quality) for a "SeeMyCity" evolution.
 - Add exportable reports or user customization.
+- **Implement Hierarchical Map Navigation**: Allow users to view aggregated scores and navigate from Province -> District -> Municipality levels.
 
 ---

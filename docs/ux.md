@@ -59,7 +59,7 @@
 **Layout**:  
 ```
 -----------------------------------------------------
-| [Filter: Province ▼]              [Dark Mode 🌙]  |
+|                                   [Dark Mode 🌙]  |
 -----------------------------------------------------
 |                                                   |
 |   [Choropleth Map: Red → Orange → Green]          |
@@ -74,8 +74,7 @@
   - Hover: Pulsing tooltip with friendly text.  
   - Click: Fade to Single View.  
   - Zoom: Smooth scale, scores emerge with a gentle bounce.  
-  - Filter: Teal dropdown updates map.  
-- **Vibe**: “Wow, look at this map—let’s dive in!”
+- **Vibe**: “Wow, look at this map—let’s dive in!” (MVP focuses on municipality view; province/district drill-down is a future enhancement).
 
 ##### 2. Single View (Municipality Profile)
 **Purpose**: Share a municipality’s story in a cozy, approachable way.  
