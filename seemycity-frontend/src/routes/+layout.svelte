@@ -1,4 +1,5 @@
 <script>
+	import '../app.scss'; // Import global styles
 	// Javascript for the layout goes here (we'll add things later)
 	console.log('Layout loaded!');
 </script>
