@@ -29,7 +29,7 @@
     - [x] **Fly.io Setup**: Create `fly.toml`, launch app `fly launch --no-deploy`.
     - [x] **Initial Deploy**: Run `fly deploy`. Debug Dockerfile/Nginx issues until homepage is served.
     - [x] **Styling (Basic)**: Apply background, text color, and Ubuntu font globally via `+layout.svelte`.
-    - [ ] **Configure Tailwind CSS**: (Moved slightly later, can be done during Phase 3)
+    - [x] **Configure CSS/SCSS**: Installed `sass`, using plain CSS/SCSS for styling (replaces previous Tailwind attempt).
     - [ ] **Add Leaflet map placeholder**: (Moved slightly later, can be done during Phase 3)
 - **Milestone**: Basic Web Up - **Achieved**
 - **Note on Prerendering (Initial Deployment)**:
@@ -53,7 +53,7 @@
 - **Goal**: Build out UI components with dummy data, refine UX, and deploy iteratively.
 - **Status**: **Not Started**
 - **Tasks**:
-    - [ ] **Configure Tailwind CSS**: Integrate Tailwind for styling.
+    - [ ] **Configure CSS/SCSS**: Integrate CSS/SCSS for styling.
     - [ ] **Add Leaflet Map**: Integrate `svelte-leaflet`, display basic map.
     - [ ] **Enhance Map View**: Fetch static GeoJSON (or use dummy), render choropleth with dummy scores, add tooltips, filters. Deploy.
     - [ ] **Build Single View**: Fetch dummy data for `/[id]`, display score badge, metric cards, expandable details. Deploy.

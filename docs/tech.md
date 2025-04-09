@@ -97,18 +97,17 @@
 
 ##### Frontend
 - **Framework**: SvelteKit  
-  - Why: Lightweight, reactive, supports static output for simple deployment.  
-  - Use: Routing (map → single → comparison), data fetching from Rust API.  
-- **Map Library**: Leaflet.js (via `svelte-leaflet`)  
-  - Why: Lightweight, GeoJSON-ready, fits MVP’s simplicity.  
-  - Use: Choropleth map with zoom and hover effects.  
-- **CSS**: Tailwind CSS  
-  - Why: Rapid, utility-first styling for warm, responsive design.  
-  - Use: Layouts, cards, animations (via Tailwind classes).  
-- **Icons**: Iconify (`@iconify/svelte`)  
-  - Why: Lightweight, customizable icons for metrics.  
-- **Animations**: Svelte Built-ins  
-  - Why: Native `fade`, `slide`, and `scale`—no extra dependencies.  
+  - Why: Component-based, reactive, compiles to vanilla JS—great performance and DX.
+  - Use: UI rendering, routing, state management.
+- **Map Library**: Leaflet.js (via `svelte-leaflet`)
+  - Why: Lightweight, GeoJSON-ready, fits MVP’s simplicity.
+  - Use: Choropleth map with zoom and hover effects.
+- **CSS/SCSS**: Styles are primarily defined within Svelte components using `<style lang="scss">` blocks. This provides automatic scoping. Global styles and CSS variables (e.g., for the color palette) are defined in `src/app.scss`. Semantic class names (e.g., `.info-card`) are preferred over utility classes.
+- **Icons**: Iconify (`@iconify/svelte`)
+  - Why: Lightweight, customizable icons for metrics.
+  - Use: Metric indicators, status badges.
+- **Animations**: Svelte Built-ins
+  - Why: Native `fade`, `slide`, and `scale`—no extra dependencies.
   - Use: View transitions, pulsing badges.
 
 ##### Deployment
@@ -210,7 +209,7 @@ This structure separates the frontend and backend concerns clearly.
 - **Leaflet**:  
   - Loads `geojson` from `/api/municipalities`, applies choropleth styles.  
   - Events: Hover (tooltip), click (route to single view).  
-- **Tailwind**: Classes like `bg-cream text-charcoal p-4 rounded-lg` for cards.
+- **CSS/SCSS**: Styles are primarily defined within Svelte components using `<style lang="scss">` blocks. This provides automatic scoping. Global styles and CSS variables (e.g., for the color palette) are defined in `src/app.scss`. Semantic class names (e.g., `.info-card`) are preferred over utility classes.
 
 ##### Performance
 - **Backend**: Async Rust + Postgres indexing (municipality_id, year).  
@@ -221,7 +220,7 @@ This structure separates the frontend and backend concerns clearly.
 
 #### Dependencies
 - **Rust**: `actix-web`, `sqlx`, `serde`, `tokio`.  
-- **Svelte**: `sveltekit`, `svelte-leaflet`, `tailwindcss`, `@iconify/svelte`.  
+- **Svelte**: `sveltekit`, `svelte-leaflet`, `sass`, `@iconify/svelte`.  
 - **Postgres**: PostGIS extension.  
 - **Build**: Cargo (Rust), npm (Svelte).
 
