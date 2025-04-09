@@ -17,3 +17,5 @@ postgres.txt
 
 # database
 database/*
+
+docs/*
