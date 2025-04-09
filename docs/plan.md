@@ -51,9 +51,9 @@
 
 ##### Phase 3: Frontend Expansion
 - **Goal**: Build out UI components with dummy data, refine UX, and deploy iteratively.
-- **Status**: **Not Started**
+- **Status**: **In Progress**
 - **Tasks**:
-    - [ ] **Configure CSS/SCSS**: Integrate CSS/SCSS for styling.
+    - [x] **Configure CSS/SCSS**: Basic setup with `sass` installed and global `app.scss` imported. Component styling will follow.
     - [ ] **Add Leaflet Map**: Integrate `svelte-leaflet`, display basic map.
     - [ ] **Enhance Map View**: Fetch static GeoJSON (or use dummy), render choropleth with dummy scores, add tooltips, filters. Deploy.
     - [ ] **Build Single View**: Fetch dummy data for `/[id]`, display score badge, metric cards, expandable details. Deploy.
