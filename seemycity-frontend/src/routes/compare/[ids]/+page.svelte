@@ -51,7 +51,7 @@
   <h1 class="text-3xl font-bold mb-6">Comparing Municipalities</h1>
   
   {#if muni1 && muni2}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="comparison-grid">
       <!-- Column 1: Metric Names -->
       <div class="font-semibold text-right pr-4">
         <p class="py-2">Municipality</p>
@@ -94,20 +94,79 @@
          <!-- Add more rows -->
       </div>
     </div>
+  {:else if ids.length > 0}
+    <p class="text-red-600">Loading comparison data...</p> 
   {:else}
     <p class="text-red-600">Could not load comparison. Please ensure the URL contains two valid municipality IDs separated by '-vs-' (e.g., /compare/CPT01-vs-JHB01).</p>
   {/if}
   
   <style>
-    /* Add any specific styles for the comparison view here */
-    .py-2 {
-      padding-top: 0.5rem;
-      padding-bottom: 0.5rem;
-      min-height: 2.5rem; /* Ensure rows align even if content wraps */
-      display: flex;
-      align-items: center;
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: auto 1fr 1fr; /* Col 1 auto width, Cols 2 & 3 share space */
+      gap: 1rem; /* Adjust gap as needed */
+      margin-top: 1.5rem;
+      background-color: #fff; /* White background for the table */
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .text-right .py-2 {
-        justify-content: flex-end;
+ 
+    /* Style column headers (municipality names) */
+    .comparison-grid h2 {
+        color: var(--color-primary, #008080); /* Use primary color */
+        font-size: 1.25rem; /* Slightly larger */
+        border-bottom: 2px solid var(--color-primary-light, #B2DFDB); /* Accent border */
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
     }
-  </style>
+
+    /* Ensure consistent vertical padding and minimum height for rows */
+    .comparison-grid > div > p { /* Target paragraphs directly within grid columns */
+       padding-top: 0.75rem; /* Slightly increased padding */
+       padding-bottom: 0.75rem;
+       min-height: 2.75rem; /* Slightly increased min-height */
+       border-bottom: 1px solid #eee; /* Add subtle row separators */
+       display: flex; /* Use flex again for vertical alignment within the min-height */
+       align-items: center;
+     }
+
+     /* Remove border from last row in each column */
+    .comparison-grid > div > p:last-child {
+         border-bottom: none;
+     }
+
+     /* Right-align text in the first column (metric names) */
+    .comparison-grid > div:first-child p {
+        justify-content: flex-end; /* Align text to the right using flex */
+        text-align: right;
+        padding-right: 1rem; /* Add padding to separate from the value columns */
+        color: #555; /* Slightly muted color for metric names */
+     }
+
+    /* Add subtle vertical borders between value columns */
+    .comparison-grid > div:nth-child(2) {
+        border-left: 1px solid #eee;
+        border-right: 1px solid #eee;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    .comparison-grid > div:nth-child(3) {
+        padding-left: 1rem;
+    }
+
+    /* Error message styling */
+    .text-red-600 { /* Simple placeholder - replace if needed */
+        color: #dc2626; /* Tailwind's red-600 */
+        margin-top: 1rem;
+    }
+
+    /* General text styling (assuming global styles handle font) */
+    .font-semibold { font-weight: 600; }
+    .font-bold { font-weight: 700; }
+    .mb-6 { margin-bottom: 1.5rem; }
+    .text-3xl { font-size: 1.875rem; }
+    .text-xl { font-size: 1.25rem; }
+    .pr-4 { padding-right: 1rem; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+ </style>

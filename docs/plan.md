@@ -56,9 +56,9 @@
     - [x] Implement click popups showing name/score.
     - [x] Implement navigation from popup header to Single View.
     - [x] Create Single View (`/[id]`) displaying detailed muni info (province, pop, metrics) and score breakdown.
-    - [ ] Create Comparison View (`/compare/[ids]`) showing side-by-side metrics. (Stretch Goal for MVP)
+    - [x] Create Comparison View (`/compare/[ids]`) showing side-by-side metrics.
     - [x] Refactor and enhance dummy data (`dummyStore.ts`) based on PRD/Tech specs.
-- **Status**: **In Progress**
+- **Status**: **Completed**
 - **Milestone**: Full UI (dummy) Ready.
 
 ##### Phase 4: Backend Development
