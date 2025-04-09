@@ -30,7 +30,7 @@
     - [x] **Initial Deploy**: Run `fly deploy`. Debug Dockerfile/Nginx issues until homepage is served.
     - [x] **Styling (Basic)**: Apply background, text color, and Ubuntu font globally via `+layout.svelte`.
     - [x] **Configure CSS/SCSS**: Installed `sass`, using plain CSS/SCSS for styling (replaces previous Tailwind attempt).
-    - [ ] **Add Leaflet map placeholder**: (Moved slightly later, can be done during Phase 3)
+    - [ ] **Add MapLibre GL JS map placeholder**: (Moved slightly later, can be done during Phase 3)
 - **Milestone**: Basic Web Up - **Achieved**
 - **Note on Prerendering (Initial Deployment)**:
     *   For the initial static deployment (Phase 1), global prerendering (`export const prerender = true;` in `src/routes/+layout.ts`) has been *disabled*, and `@sveltejs/adapter-static` is configured with `strict: false` in `svelte.config.js`. The homepage (`/`) is explicitly prerendered via `src/routes/+page.ts`.
@@ -54,7 +54,7 @@
 - **Status**: **In Progress**
 - **Tasks**:
     - [x] **Configure CSS/SCSS**: Basic setup with `sass` installed and global `app.scss` imported. Component styling will follow.
-    - [ ] **Add Leaflet Map**: Integrate `svelte-leaflet`, display basic map.
+    - [ ] **Add MapLibre GL JS Map**: Integrate `maplibre-gl`, display basic map.
     - [ ] **Enhance Map View**: Fetch static GeoJSON (or use dummy), render choropleth with dummy scores, add tooltips, filters. Deploy.
     - [ ] **Build Single View**: Fetch dummy data for `/[id]`, display score badge, metric cards, expandable details. Deploy.
     - [ ] **Build Comparison View**: Route `/compare/[ids]`, show dummy side-by-side table, add interaction buttons. Deploy.
@@ -133,7 +133,7 @@
 
 #### Resources
 - **Tools**: Cargo, npm, Fly.io CLI, psql.
-- **Docs**: Municipal Money API, Actix Web, SvelteKit, Leaflet.js, PostGIS.
+- **Docs**: Municipal Money API, Actix Web, SvelteKit, MapLibre GL JS, PostGIS.
 
 ---
 

@@ -4,9 +4,6 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [sveltekit()],
-	optimizeDeps: {
-		include: ['leaflet', 'svelte-leaflet']
-	},
 	test: {
 		workspace: [
 			{

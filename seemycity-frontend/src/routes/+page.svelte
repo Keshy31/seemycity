@@ -1,75 +1,82 @@
-<script>
-	import { onMount } from 'svelte';
+<script lang="ts">
+	// Revert to default import + destructuring as suggested by the Vite error for CJS compatibility
+	import maplibregl from 'maplibre-gl';
+	const { Map, NavigationControl } = maplibregl;
+	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { onMount, onDestroy } from 'svelte'; // Add onDestroy for cleanup consistency
 
-	// State to hold map components and readiness
-	let LeafletMap = null;
-	let TileLayer = null;
-	let mapReady = false;
+	let mapContainer: HTMLDivElement;
+	let map: Map | undefined; // Initialize map as undefined
 
-	// Map options based on MEMORY[user_15211870533011317499]
-	const mapOptions = {
-		center: [-30.5595, 22.9375], // Approx center of SA
-		zoom: 6 // Initial zoom level
+	// Define basic options (style, center, zoom) - container is set dynamically
+	const mapOptions = { // Type inference will handle this now
+		style: 'https://demotiles.maplibre.org/style.json', // Use a basic style URL initially
+		center: [22.9375, -30.5595] as [number, number], // Explicitly type as a tuple
+		zoom: 5
 	};
 
-	// Tile layer URL (OpenStreetMap)
-	const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-	const tileLayerOptions = {
-		attribution:
-			'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-	};
+	onMount(() => { // Make sure onMount is synchronous
+		if (!mapContainer) {
+			console.error('Map container not found on mount');
+			return;
+		}
 
-	// Only load Leaflet components on the client-side after mounting
-	onMount(async () => {
-		// Dynamically import the components
-		const leaflet = await import('svelte-leaflet');
-		LeafletMap = leaflet.LeafletMap;
-		TileLayer = leaflet.TileLayer;
+		// Initialize map directly inside onMount
+		map = new Map({
+			container: mapContainer,
+			...mapOptions
+		});
 
-		// Import CSS dynamically as well (or ensure it's globally available if preferred)
-		await import('leaflet/dist/leaflet.css');
-		mapReady = true; // Signal that the map can now be rendered
+		map.addControl(new NavigationControl(), 'top-right');
+
+		// The onMount return function IS the cleanup
+		return () => {
+			map?.remove();
+		};
 	});
 
-	// Javascript specific to this page goes here
-	console.log('Homepage loaded!');
+	// TODO: Fetch GeoJSON data and add as source/layer
+	// TODO: Implement choropleth styling based on scores
+	// TODO: Add tooltips/popups on hover/click
 </script>
 
 <svelte:head>
-	<title>SeeMyCity - Home</title>
-	<meta name="description" content="Visualizing South African municipal financial health." />
+	<title>SeeMyCity - Map</title>
+	<meta name="description" content="Interactive map of South African municipal financial health" />
 </svelte:head>
 
-<div class="page-content">
-	<h1>Welcome to SeeMyCity!</h1>
-	<div class="map-container">
-		{#if mapReady && LeafletMap && TileLayer}
-			<LeafletMap options={mapOptions}>
-				<svelte:component this={TileLayer} url={tileUrl} options={tileLayerOptions} />
-				<!-- Markers, GeoJSON layers, etc. will go here later -->
-			</LeafletMap>
-		{:else}
-			<p>Loading map...</p> <!-- Optional loading indicator -->
-		{/if}
-	</div>
-</div>
+<section class="map-container">
+	<h1>Municipal Financial Health Map</h1>
+	<div class="map" bind:this={mapContainer}></div>
+</section>
 
-<style>
+<style lang="scss">
 	.map-container {
-		height: 600px; /* Give the map a defined height */
-		width: 100%;   /* Make map take full width */
-		margin-top: 1rem;
-		border: 1px solid #ccc; /* Optional: Add a border to see the container */
+		width: 100%;
+		height: calc(100vh - 60px); // Adjust based on header/footer height if any
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+
+		h1 {
+			margin: 1rem 0;
+			// Add styling from ux.md if needed
+		}
 	}
 
-	.page-content {
-		/* Add styles specific to this page's content if needed */
-		text-align: center;
-		padding-top: 2rem;
+	.map {
+		width: 100%;
+		height: 100%; // Take remaining height within the container
 	}
 
-	h1 {
-		color: #008080; /* Teal accent color from WindsurfRules */
-		font-weight: 500; /* Slightly bolder */
+	// Ensure MapLibre controls look okay with global styles
+	:global(.maplibregl-ctrl-group button) {
+		background-color: rgba(255, 255, 255, 0.8);
+		border: none;
+		&:hover {
+			background-color: white;
+		}
 	}
+
+	// If using a dark theme, you might need to adjust control styles further
 </style>

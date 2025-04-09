@@ -6,8 +6,8 @@
 
 **Goals**:  
 - Fetch and process financial data efficiently from the Municipal Money API.  
-- Cache data in Postgres for speed and flexibility.  
-- Render an interactive, warm UI with Svelte and Leaflet.js.  
+- Cache data in Postgres for speed and flexibility.
+- Render an interactive, performant map UI with Svelte and MapLibre GL JS.
 - Ensure scalability and maintainability for future growth.
 
 **Date**: April 08, 2025.
@@ -19,14 +19,14 @@
 ##### High-Level Overview
 - **Backend**: Rust-based server handles API requests, data processing, and Postgres interactions.  
 - **Database**: Postgres stores cached financial data and static municipality details.  
-- **Frontend**: SvelteKit delivers a static, reactive UI with Leaflet.js for maps.  
+- **Frontend**: SvelteKit delivers a static, reactive UI with MapLibre GL JS for maps.  
 - **Deployment**: Fly.io hosts the full stack (Rust + Postgres + Svelte).
 
 ##### Data Flow
 1. **External API**: Rust fetches data from Municipal Money API (http://municipaldata.treasury.gov.za/api).  
 2. **Processing**: Rust normalizes data, calculates scores, and caches in Postgres.  
 3. **Internal API**: Rust serves processed data to Svelte via REST endpoints.  
-4. **UI**: Svelte renders map, single, and comparison views with Leaflet.js.
+4. **UI**: Svelte renders map, single, and comparison views with MapLibre GL JS.
 
 ---
 
@@ -99,9 +99,9 @@
 - **Framework**: SvelteKit  
   - Why: Component-based, reactive, compiles to vanilla JS—great performance and DX.
   - Use: UI rendering, routing, state management.
-- **Map Library**: Leaflet.js (via `svelte-leaflet`)
-  - Why: Lightweight, GeoJSON-ready, fits MVP’s simplicity.
-  - Use: Choropleth map with zoom and hover effects.
+- **Map Library**: MapLibre GL JS (`maplibre-gl`) - See Integration Notes below.
+  - Why: High-performance vector maps, smooth zooming/panning, customizable styling, open-source.
+  - Use: Choropleth map with interactive features (zoom, pan, hover/click events).
 - **CSS/SCSS**: Styles are primarily defined within Svelte components using `<style lang="scss">` blocks. This provides automatic scoping. Global styles and CSS variables (e.g., for the color palette) are defined in `src/app.scss`. Semantic class names (e.g., `.info-card`) are preferred over utility classes.
 - **Icons**: Iconify (`@iconify/svelte`)
   - Why: Lightweight, customizable icons for metrics.
@@ -117,7 +117,23 @@
 
 ---
 
-#### Project Structure
+#### Integration Notes & Learnings
+*   **MapLibre GL JS in SvelteKit:** Integrating MapLibre GL JS required specific handling due to its CommonJS module format interacting with SvelteKit's SSR and Vite's ES Module system.
+    *   **Problem:** Direct named imports (`import { Map } from 'maplibre-gl'`) caused "Named export not found" errors during SSR. Vite configuration tweaks (`ssr.noExternal`) did not resolve the underlying issue.
+    *   **Solution:** Use the default import pattern recommended by Vite for CJS compatibility:
+        ```javascript
+        import maplibregl from 'maplibre-gl';
+        const { Map, NavigationControl } = maplibregl;
+        ```
+    *   **Initialization:** Map initialization must occur within Svelte's `onMount` lifecycle function to ensure it runs only on the client-side after the DOM element is available.
+    *   **TypeScript:** Be mindful of specific type requirements (e.g., `center` requiring `[number, number]`, not just `number[]`). Use type assertions (`as [number, number]`) if needed.
+*   **General Client-Side Libraries:** When integrating JavaScript libraries, especially those interacting with the DOM:
+    1.  Check for existing Svelte/SvelteKit wrappers.
+    2.  Use `onMount` for initialization code.
+    3.  If import errors occur (especially CJS/ESM related), try the default import pattern first.
+    4.  If a library causes issues merely by being imported during SSR, use conditional dynamic imports within `onMount` guarded by `if (browser)` from `$app/environment`.
+
+##### Project Structure
 
 The project is organized into the following main directories at the root (`c:\Users\kesha\CascadeProjects\seemycity`):
 
@@ -155,8 +171,8 @@ This structure separates the frontend and backend concerns clearly.
 
 2.  **Static Geospatial Data (Boundaries)**
     *   **Source**: [Municipal Demarcation Board via ArcGIS Hub](https://spatialhub-mdb-sa.opendata.arcgis.com/) (Specifically datasets like "Local Municipal Boundary").
-    *   **Format**: GeoJSON (preferred for easy use with PostGIS and Leaflet).
-    *   **Requirement**: Must contain municipality boundaries that can be matched to the codes retrieved from the Municipal Money API.
+    *   **Format**: GeoJSON (preferred for easy use with PostGIS and MapLibre GL JS).
+    *   **Requirement**: Must contain municipality boundaries that can be matched to the codes retrieved from the Municipal Money API. (MapLibre can display GeoJSON sources directly).
     *   **Storage**: `municipal_geometries.geom` column (PostGIS `geometry` type).
 
 3.  **Static Population Data**
@@ -206,7 +222,7 @@ This structure separates the frontend and backend concerns clearly.
 - **SvelteKit**:  
   - Routes: `/` (map), `/[id]` (single), `/compare/[ids]` (comparison).  
   - Fetches: `fetch('/api/municipality/CPT')` in `+page.svelte`.  
-- **Leaflet**:  
+- **MapLibre GL JS**:  
   - Loads `geojson` from `/api/municipalities`, applies choropleth styles.  
   - Events: Hover (tooltip), click (route to single view).  
 - **CSS/SCSS**: Styles are primarily defined within Svelte components using `<style lang="scss">` blocks. This provides automatic scoping. Global styles and CSS variables (e.g., for the color palette) are defined in `src/app.scss`. Semantic class names (e.g., `.info-card`) are preferred over utility classes.
@@ -220,7 +236,7 @@ This structure separates the frontend and backend concerns clearly.
 
 #### Dependencies
 - **Rust**: `actix-web`, `sqlx`, `serde`, `tokio`.  
-- **Svelte**: `sveltekit`, `svelte-leaflet`, `sass`, `@iconify/svelte`.  
+- **Svelte**: `sveltekit`, `maplibre-gl`, `sass`, `@iconify/svelte`.  
 - **Postgres**: PostGIS extension.  
 - **Build**: Cargo (Rust), npm (Svelte).
 
@@ -249,4 +265,4 @@ This structure separates the frontend and backend concerns clearly.
 ---
 
 ### Feedback
-This tech spec locks in the stack (Rust/Actix, Postgres/sqlx, SvelteKit/Leaflet) and outlines a clear approach from data to UI. It’s high-performance yet simple for the MVP. Any concerns or tweaks (e.g., endpoint names, tools) before I move to `plan.md`?
+This tech spec locks in the stack (Rust/Actix, Postgres/sqlx, SvelteKit/MapLibre GL JS) and outlines a clear approach from data to UI. It’s high-performance yet simple for the MVP. Any concerns or tweaks (e.g., endpoint names, tools) before I move to `plan.md`?
