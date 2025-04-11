@@ -1,9 +1,25 @@
 # frontend
-/node_modules
-/public/build
+*/node_modules
+*/public/build
 
 # backend
-/target
+*/target
+
+# editor
+.vscode
+
+# misc
+.env
+.env.local
+
+# postgres
+postgres.txt
+
+# database
+database/*
+
+# rust
+*/target
 
 # editor
 .vscode
