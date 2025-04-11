@@ -65,80 +65,22 @@ seemycity-backend/       # Root directory for the backend project
 ```
 
 ##### API Endpoints
-- **`/api/municipalities`**: Returns a GeoJSON FeatureCollection containing all municipalities. Each feature includes basic info (id, name) and aggregated score in its `properties`, and the geometry converted from PostGIS using the `ST_AsGeoJSON` function in the SQL query.
-- **`/api/municipality/{id}`**: Returns detailed financial data and score breakdown for a specific municipality ID (standard JSON, not GeoJSON).
+
+- **`/api/municipalities`**: Returns a GeoJSON `FeatureCollection` containing municipality boundaries and basic data suitable for map display. See [`docs/data-spec.md`](./data-spec.md#31-get-apimunicipalities) for payload details.
+- **`/api/municipality/{id}`**: Returns detailed financial data and score breakdown for a specific municipality ID. See [`docs/data-spec.md`](./data-spec.md#32-get-apimunicipalityid) for payload details.
 - **`/api/health`**: Simple health check endpoint.
 
-##### Database Schema
-
-The database will store static municipality information, geometry, and cached financial data. The schema is defined as follows:
-
-```sql
--- Enable PostGIS extension if not already enabled (Fly images usually have it, but this ensures it)
-CREATE EXTENSION IF NOT EXISTS postgis;
-
--- Table to store municipality details 
-CREATE TABLE municipalities (
-	id varchar NOT NULL,          -- Corresponds to municipal_geometries.munic_id
-	"name" text NOT NULL,
-	province text NOT NULL,
-	-- geojson column removed as requested
-	population real NULL, -- Changed from int4 to real
-	classification text NULL,
-	address text NULL,
-	website text NULL,
-	phone text NULL,
-	district_id varchar NULL,
-	district_name text NULL,
-	CONSTRAINT municipalities_pkey PRIMARY KEY (id)
-);
-
--- Table to store municipality geometry
-CREATE TABLE municipal_geometries (
-	ogc_fid serial4 NOT NULL,
-	geom public.geometry(geometry, 4326) NULL,
-	munic_id varchar NOT NULL, -- Renamed from cat_b and set to NOT NULL
-	CONSTRAINT municipal_geometries_pkey PRIMARY KEY (ogc_fid),
-    CONSTRAINT municipal_geometries_municipalities_fk FOREIGN KEY (munic_id) REFERENCES public.municipalities(id) ON DELETE CASCADE ON UPDATE CASCADE -- Updated FK column name
-);
-CREATE INDEX municipal_geometries_geom_geom_idx ON public.municipal_geometries USING gist (geom);
-CREATE INDEX municipal_geometries_munic_id_idx ON public.municipal_geometries USING btree (munic_id); -- Updated index column name and index name
-
--- Table to store cached financial data and scores
-CREATE TABLE financial_data (
-	id uuid NOT NULL DEFAULT gen_random_uuid(), -- Use default UUID generation
-	municipality_id varchar NULL,
-	"year" int4 NOT NULL,
-	revenue numeric NULL,
-	expenditure numeric NULL,
-	capital_expenditure numeric NULL,
-	debt numeric NULL,
-	audit_outcome text NULL,
-	score numeric NULL,
-	created_at timestamptz DEFAULT now() NULL,
-	CONSTRAINT financial_data_pkey PRIMARY KEY (id),
-    CONSTRAINT financial_data_municipalities_fk FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id) ON DELETE SET NULL ON UPDATE CASCADE -- Consider ON DELETE behavior
-);
-CREATE INDEX financial_data_municipality_id_year_idx ON public.financial_data USING btree (municipality_id, year);
-
--- Optional: Add comments for clarity (good practice)
-COMMENT ON TABLE municipalities IS 'Stores static details for South African municipalities.';
-COMMENT ON TABLE municipal_geometries IS 'Stores geographic boundaries for South African municipalities.';
-COMMENT ON TABLE financial_data IS 'Stores cached financial metrics and calculated scores for municipalities, linked by municipality_id and year.';
-```
+See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgresql--postgis) for the complete database schema definition.
 
 ##### Data Flow
+
 1.  Frontend request hits an Actix handler.
 2.  Handler checks local cache (Postgres) for requested data (municipality, year).
-3.  **Cache Miss**:
-    *   Use `reqwest` client (`api::municipal_money`) to call relevant Municipal Money API endpoints based on the logic below.
-    *   Parse JSON responses using `serde`.
-    *   Process data: Sum items for revenue/expenditure, map audit outcomes, calculate scores.
-    *   Store processed data in Postgres using `sqlx` (`db::queries`).
-    *   Return processed data to frontend.
-4.  **Cache Hit**:
-    *   Retrieve data directly from Postgres using `sqlx`.
-    *   Return cached data to frontend.
+3.  If data is fresh enough (based on `financial_data.created_at`), return cached data.
+4.  If data is stale or missing, fetch necessary data from the Municipal Money API using the `reqwest` client.
+5.  Process the API response (calculate score, structure data).
+6.  Store/update the processed data in the Postgres cache (`municipalities`, `financial_data` tables).
+7.  Return the processed data to the frontend, formatted according to the API payload specification in [`docs/data-spec.md`](./data-spec.md#3-api-payloads).
 
 ---
 

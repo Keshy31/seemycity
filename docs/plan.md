@@ -42,7 +42,7 @@
 - **Status**: **Completed**
 - **Tasks**:
     - [x] **Setup Postgres Instance**: Run `fly postgres create` on Fly.io, enable PostGIS extension.
-    - [x] **Create Tables**: Define and create `municipalities`, `municipal_geometries`, and `financial_data` tables using `schema.sql`.
+    - [x] **Create Tables**: Define database schema **in [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgresql--postgis)** (tables: `municipalities`, `municipal_geometries`, `financial_data`).
     - [x] **Connect Locally**: Establish connection for manual imports (e.g., `psql`).
     - [x] **Load Municipality & Geometry Data**: Download/obtain GeoJSON/boundaries and core municipality info. Import into `municipalities` and `municipal_geometries` tables. (User confirmed manual completion).
     - [x] **Load Population Data**: Source and import population estimates per municipality.

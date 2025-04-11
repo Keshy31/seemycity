@@ -89,9 +89,10 @@ seemycity-frontend/
 - **Comparison View (`/compare`)**: Allows selecting multiple municipalities for side-by-side comparison (Post-MVP).
 
 ##### Data Flow
-- Svelte components use `fetch` within `load` functions (`+page.ts`, `+layout.ts`) or component lifecycle functions (`onMount`) to request data from the backend API.
+- Svelte components use `fetch` within `load` functions (`+page.ts`, `+layout.ts`) or component lifecycle functions (`onMount`) to request data from the backend API endpoints (`/api/municipalities`, `/api/municipality/{id}`).
+- The structure of the data received from the API is defined in the **API Payloads** section of [`docs/data-spec.md`](../docs/data-spec.md#3-api-payloads).
 - The main map view fetches a GeoJSON FeatureCollection from `/api/municipalities`. Other views fetch standard JSON from endpoints like `/api/municipality/{id}`.
-- Data is stored in component state or Svelte stores for reactivity.
+- Data is stored in component state or Svelte stores for reactivity, generally matching the structures defined in the **Frontend Data Structures** section of [`docs/data-spec.md`](../docs/data-spec.md#12-frontend-svelte-typescript).
 - MapLibre GL JS is initialized in the Map component (`Map.svelte`), loading the fetched GeoJSON FeatureCollection as a data source and handling map interactions.
 
 ---
