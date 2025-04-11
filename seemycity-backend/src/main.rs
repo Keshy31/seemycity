@@ -8,8 +8,8 @@ pub mod errors;
 pub mod handlers;
 pub mod models;
 
-// Import the specific handler function we need
-use crate::handlers::hello;
+// Import the specific handler functions we need
+use crate::handlers::{hello, get_municipalities};
 
 // The main function is the entry point of the application.
 // The #[actix_web::main] macro sets up the Tokio async runtime needed by Actix.
@@ -23,6 +23,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // .service now uses the imported handlers::hello
             .service(hello)
+            // Register the new handler for /api/municipalities
+            .service(get_municipalities)
     })
     // .bind specifies the address and port to listen on.
     .bind(("127.0.0.1", 4000))?

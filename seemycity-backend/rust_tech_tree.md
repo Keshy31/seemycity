@@ -257,3 +257,146 @@ This document tracks concepts learned during the SeeMyCity backend development.
         // crate::handlers::some_handler();
     }
     ```
+
+### 12. Structs (Basic Definition) (Unlocked)
+
+*   **Concept**: Custom data structures that group related data together. Defined using the `struct` keyword.
+*   **Fields**: Structs contain named fields, each with a specific data type.
+*   **Visibility**: Structs and their fields can be made public (`pub`) to be accessible outside their module.
+*   **Example**:
+    ```rust
+    // Define a struct named Point
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+
+    // Define a public struct with public fields
+    pub struct Color {
+        pub red: u8,
+        pub green: u8,
+        pub blue: u8,
+    }
+
+    fn main() {
+        // Create an instance of Point
+        let origin = Point { x: 0, y: 0 };
+        // Access fields using dot notation
+        println!("Origin x: {}", origin.x);
+
+        let blue = Color { red: 0, green: 0, blue: 255 };
+        println!("Blue's red component: {}", blue.red);
+    }
+    ```
+
+### 13. Enums (`Option<T>`) (Unlocked)
+
+*   **Concept**: Enums (enumerations) allow defining a type by listing its possible *variants*. `Option<T>` is a predefined enum in the standard library used to represent a value that might be present or absent.
+*   **Variants**: `Option<T>` has two variants:
+    *   `Some(T)`: Indicates a value of type `T` is present.
+    *   `None`: Indicates the value is absent.
+*   **Use Case**: Handling optional data, potentially missing values (like from configuration, database results, or API responses).
+*   **Example**:
+    ```rust
+    fn find_user(id: u32) -> Option<String> {
+        if id == 1 {
+            Some("Alice".to_string()) // User found
+        } else {
+            None // User not found
+        }
+    }
+
+    fn main() {
+        let user1 = find_user(1);
+        let user2 = find_user(2);
+
+        // Need to handle both Some and None cases (e.g., with match or if let)
+        match user1 {
+            Some(name) => println!("User 1: {}", name),
+            None => println!("User 1 not found."),
+        }
+        // Output: User 1: Alice
+
+        if let Some(name) = user2 {
+            println!("User 2: {}", name);
+        } else {
+            println!("User 2 not found.");
+        }
+        // Output: User 2 not found.
+    }
+    ```
+
+### 14. Traits (Deriving Common Traits) (Unlocked)
+
+*   **Concept**: Traits define shared functionality (like interfaces in other languages). The `#[derive]` attribute automatically implements some common traits for your structs and enums.
+*   **Common Derivable Traits**:
+    *   `Debug`: Enables printing the struct/enum using `{:?}` format (for debugging).
+    *   `Clone`: Enables creating a copy of an instance (`.clone()` method).
+    *   `Copy`: Enables simple bit-wise copying (only for simple types that don't manage resources like memory).
+    *   `PartialEq`, `Eq`: Enables equality comparison (`==`).
+    *   `PartialOrd`, `Ord`: Enables ordering comparison (`<`, `>`, etc.).
+*   **Example**:
+    ```rust
+    // Automatically implement Debug and Clone traits for Point
+    #[derive(Debug, Clone)]
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+
+    fn main() {
+        let p1 = Point { x: 10, y: 20 };
+        // Use Debug formatting
+        println!("Point p1: {:?}", p1);
+        // Use Clone
+        let p2 = p1.clone();
+        println!("Point p2 (cloned): {:?}", p2);
+    }
+    ```
+
+### 15. Serialization (`serde`) (Unlocked)
+
+*   **Concept**: `serde` is a framework for *ser*ializing Rust data structures into formats like JSON, YAML, etc., and *de*serializing them back.
+*   **Usage**: Add `serde` to `Cargo.toml` (with features like `derive`). Use `#[derive(Serialize, Deserialize)]` on your structs/enums.
+*   **Example** (`src/models.rs`):
+    ```rust
+    use serde::{Serialize, Deserialize};
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct User {
+        pub id: u32,
+        pub username: String,
+        pub active: bool,
+        pub email: Option<String>, // Serde handles Option nicely (-> null)
+    }
+    ```
+*   **Example** (Using it, often with `serde_json`):
+    ```rust
+    // Assuming User struct from above
+    // use crate::models::User;
+
+    fn main() -> Result<(), serde_json::Error> {
+        let user = User {
+            id: 1,
+            username: "alice".to_string(),
+            active: true,
+            email: Some("alice@example.com".to_string()),
+        };
+
+        // Serialize to JSON string
+        let json_string = serde_json::to_string_pretty(&user)?;
+        println!("Serialized JSON:\n{}", json_string);
+
+        // Deserialize from JSON string
+        let json_data = r#"{
+          "id": 2,
+          "username": "bob",
+          "active": false,
+          "email": null
+        }"#;
+        let user2: User = serde_json::from_str(json_data)?;
+        println!("\nDeserialized User: {:?}", user2);
+
+        Ok(())
+    }
+    ```
