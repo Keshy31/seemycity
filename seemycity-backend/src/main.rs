@@ -1,13 +1,6 @@
-mod errors;
-mod models;
-mod db;
-// mod api_client; // Keep commented until needed
-// mod handlers;    // Keep commented until needed
-
 use actix_web::{App, HttpServer, web, middleware::Logger};
-use sqlx::PgPool;
-use std::env; // To read environment variables
 use dotenvy::dotenv; // To load .env file
+use seemycity_backend::db; // Import db module (which contains create_pool and queries)
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -18,15 +11,18 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok(); 
     log::info!("Loaded .env file using dotenvy");
 
-    // Get Database URL from environment variable
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set in .env file");
-    
+    // Load configuration
+    let config = match seemycity_backend::config::load_config() { // Call the load_config function
+        Ok(cfg) => cfg,
+        Err(e) => {
+            log::error!("Failed to load configuration: {}", e);
+            std::process::exit(1);
+        }
+    };
 
-    
     // Create database connection pool
     log::info!("Connecting to database...");
-    let pool = match PgPool::connect(&database_url).await {
+    let pool = match db::create_pool(&config).await { // Use create_pool from library
         Ok(pool) => {
             log::info!("Successfully connected to the database!");
             pool
@@ -39,7 +35,7 @@ async fn main() -> std::io::Result<()> {
 
     // --- Temporary DB Test --- 
     log::info!("Attempting to fetch basic municipality info...");
-    match db::queries::get_all_municipalities_basic(&pool).await {
+    match db::queries::get_all_municipalities_basic(&pool).await { // Use function from library
         Ok(municipalities) => {
             log::info!("✅ Successfully fetched {} municipalities basic info.", municipalities.len());
             // Log the first few municipalities as an example
@@ -52,11 +48,12 @@ async fn main() -> std::io::Result<()> {
         }
         Err(e) => {
             log::error!("Error fetching municipalities: {}", e);
+            // Consider specific error handling if AppError provides more context
         }
     }
     // --- End Temporary DB Test ---
 
-    log::info!("Starting HTTP server at http://127.0.0.1:8080");
+    log::info!("Starting HTTP server at http://127.0.0.1:4000");
 
     // Start Actix Web server (minimal setup for now)
     HttpServer::new(move || {
@@ -65,7 +62,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone())) // Share the pool
             // .configure(handlers::config) // Add handlers later
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 4000))?
     .run()
     .await
 }
