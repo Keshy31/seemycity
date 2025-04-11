@@ -1,9 +1,7 @@
-use actix_web::{get, web, Responder, HttpResponse, Result};
-use crate::models::MunicipalityDetail;
+use actix_web::{get, web, Responder, HttpResponse};
 use crate::errors::AppError;
 use crate::db::{self, DbPool};
-use serde_json::json;
-use geojson::{FeatureCollection, Feature};
+use geojson::FeatureCollection;
 
 // Handler for the root path
 #[get("/")]
@@ -14,7 +12,7 @@ pub async fn hello() -> impl Responder {
 // Handler for retrieving a list of municipalities.
 // Returns data as a GeoJSON FeatureCollection.
 #[get("/api/municipalities")]
-pub async fn get_municipalities(pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
+pub async fn get_municipalities_handler(pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
     // --- Test Database Connection --- 
     // Attempt a simple query to verify the pool works
     let db_result = sqlx::query("SELECT 1")
@@ -26,7 +24,7 @@ pub async fn get_municipalities(pool: web::Data<DbPool>) -> Result<HttpResponse,
         Err(e) => {
             eprintln!("❌ Database connection test failed in handler: {}", e);
             // Return an internal server error if the DB connection fails
-            return Err(AppError::InternalServerError("Database error".to_string()));
+            return Err(AppError::InternalError("Database error".to_string()));
         }
     }
     // --- End Test --- 

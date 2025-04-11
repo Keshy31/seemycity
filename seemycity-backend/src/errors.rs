@@ -7,8 +7,11 @@ pub enum AppError {
     #[error("Database error: {0}")]
     SqlxError(#[from] sqlx::Error), // Automatically converts sqlx::Error into AppError::SqlxError
 
-    #[error("API Client error: {0}")]
-    ApiClientError(#[from] crate::api::muni_money::types::ApiClientError), // Assuming ApiClientError lives here
+    #[error("API Client Error: {0}")]
+    ApiClientError(#[from] crate::api::muni_money::types::ApiClientError), // Used crate name
+
+    #[error("GeoJSON Error: {0}")]
+    GeoJsonError(#[from] geojson::Error),
 
     #[error("Configuration error: {0}")]
     ConfigError(String),
@@ -27,6 +30,7 @@ impl ResponseError for AppError {
         match *self {
             AppError::SqlxError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR, // Or maybe BAD_GATEWAY if appropriate
+            AppError::GeoJsonError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::ConfigError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,

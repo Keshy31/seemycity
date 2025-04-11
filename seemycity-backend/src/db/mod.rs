@@ -1,6 +1,7 @@
 // src/db/mod.rs
 
-use sqlx::postgres::{PgPool, PgPoolOptions};
+use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use crate::config::Config; // Import the Config struct
 use std::time::Duration;
 

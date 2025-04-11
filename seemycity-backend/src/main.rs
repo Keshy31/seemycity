@@ -39,9 +39,9 @@ async fn main() -> std::io::Result<()> {
 
     // --- Temporary DB Test --- 
     log::info!("Attempting to fetch basic municipality info...");
-    match db::queries::get_all_municipality_basic_info(&pool).await {
+    match db::queries::get_all_municipalities_basic(&pool).await {
         Ok(municipalities) => {
-            log::info!("Successfully fetched {} municipalities:", municipalities.len());
+            log::info!("✅ Successfully fetched {} municipalities basic info.", municipalities.len());
             // Log the first few municipalities as an example
             for muni in municipalities.iter().take(5) {
                 log::info!("- ID: {}, Name: {}", muni.id, muni.name);

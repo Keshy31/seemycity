@@ -79,7 +79,8 @@ pub struct MapMunicipalityProperties {
     pub population: Option<f32>,
     pub classification: Option<String>,
     #[serde(rename = "financial_score")]
-    pub latest_score: Option<f64>, // Converted from Decimal in handler/query
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub latest_score: Option<Decimal>, // Changed from Option<f64> to Option<Decimal>
 }
 
 // Data structure for individual financial year data within MunicipalityDetail
@@ -92,6 +93,8 @@ pub struct FinancialYearData {
     pub revenue: Option<Decimal>,
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
     pub expenditure: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub capital_expenditure: Option<Decimal>, // Added this field
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
     pub debt: Option<Decimal>,
     // Make audit_outcome optional

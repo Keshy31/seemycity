@@ -1,7 +1,7 @@
 // src/db/queries.rs
 use sqlx::{PgPool};
 use geojson;
-use crate::models::{MunicipalityBasicInfo, MunicipalityDetail, FinancialDataDb, FinancialYearData, MapMunicipalityProperties};
+use crate::models::{MunicipalityBasicInfo, MunicipalityDetail, FinancialDataDb, FinancialYearData, MapMunicipalityProperties, MunicipalityDb};
 use crate::errors::AppError;
 use uuid::Uuid;
 // Added serde_json for parsing geometry string
@@ -74,6 +74,8 @@ pub async fn get_data_for_map_view(pool: &PgPool) -> Result<Vec<geojson::Feature
             }
         };
 
+        let muni_id_for_log = row.id.clone(); // Clone id for logging before move
+
         let properties = MapMunicipalityProperties {
             id: row.id,
             name: row.name,
@@ -89,7 +91,7 @@ pub async fn get_data_for_map_view(pool: &PgPool) -> Result<Vec<geojson::Feature
         let properties_json_object = match serde_json::to_value(properties) {
             Ok(serde_json::Value::Object(map)) => geojson::JsonObject::from(map),
             _ => {
-                log::error!("Failed to convert properties to GeoJSON JsonObject for {}", row.id);
+                log::error!("Failed to convert properties to GeoJSON JsonObject for {}", muni_id_for_log); // Use cloned id
                 return None; // Skip if properties conversion fails
             }
         };
@@ -112,7 +114,7 @@ pub async fn get_municipality_detail(pool: &PgPool, muni_id: &str) -> Result<Opt
     // Fetch base municipality info
     let base_info = sqlx::query_as!(
         MunicipalityDb, 
-        "SELECT id, name, province, population, classification, website, created_at, updated_at FROM municipalities WHERE id = $1", 
+        "SELECT id, name, province, district_id, district_name, address, phone, population, classification, website, created_at, updated_at FROM municipalities WHERE id = $1", 
         muni_id
     )
     .fetch_one(pool)
