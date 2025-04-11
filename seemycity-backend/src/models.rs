@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use sqlx::{FromRow, types::{Decimal, chrono, Json}};
+use sqlx::{FromRow, types::{Decimal, chrono}};
 use uuid::Uuid;
 use serde_json::Value;
 
@@ -12,7 +12,8 @@ pub struct MunicipalityDb {
     pub id: String, // Primary key, e.g., "BUF"
     pub name: String,
     pub province: String,
-    pub population: Option<i64>, // DB type is 'real', maps ok to f64 or Decimal
+    // Ensure population is f32 to match DB 'real'
+    pub population: Option<f32>, 
     pub classification: Option<String>,
     pub address: Option<String>,
     pub website: Option<String>,
@@ -46,6 +47,7 @@ pub struct FinancialDataDb {
     pub expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
+    // Make audit_outcome optional to match DB NULLable and query_as SELECT *
     pub audit_outcome: Option<String>,
     pub score: Option<Decimal>,
     pub created_at: chrono::DateTime<chrono::Utc>, // Timestamp for cache management
@@ -61,6 +63,7 @@ pub struct FinancialDataDb {
 pub struct MunicipalityBasicInfo {
     pub id: String,
     pub name: String,
+    pub province: String,
 }
 
 // Data structure for the /api/municipalities map view properties
@@ -71,11 +74,13 @@ pub struct MapMunicipalityProperties {
     pub id: String,
     pub name: String,
     pub province: String,
+    // Convert population to Option<f64> for JSON
+    #[serde(serialize_with = "crate::utils::serialize_option_f32_as_f64")]
+    pub population: Option<f32>,
+    pub classification: Option<String>,
     #[serde(rename = "financial_score")]
     pub latest_score: Option<f64>, // Converted from Decimal in handler/query
 }
-// Note: The full /api/municipalities response is a GeoJSON FeatureCollection,
-// which would be constructed in the handler using these properties and geometry data.
 
 // Data structure for individual financial year data within MunicipalityDetail
 // Corresponds to data-spec.md section 3.2 financials array items
@@ -83,11 +88,16 @@ pub struct MapMunicipalityProperties {
 pub struct FinancialYearData {
     pub year: i32,
     // Use Option<f64> for JSON compatibility, convert from Decimal
-    pub revenue: Option<f64>,
-    pub expenditure: Option<f64>,
-    pub debt: Option<f64>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub revenue: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub expenditure: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub debt: Option<Decimal>,
+    // Make audit_outcome optional
     pub audit_outcome: Option<String>,
-    pub score: Option<f64>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub score: Option<Decimal>,
     // Add other relevant fields from `financial_data` table if needed
 }
 
@@ -99,8 +109,9 @@ pub struct MunicipalityDetail {
     pub id: String,
     pub name: String,
     pub province: String,
-    // Use Option<f64> for JSON compatibility, convert from Option<i64>/real
-    pub population: Option<f64>,
+    // Convert population to Option<f64> for JSON
+    #[serde(serialize_with = "crate::utils::serialize_option_f32_as_f64")]
+    pub population: Option<f32>,
     pub classification: Option<String>,
     pub website: Option<String>,
     // Add other fields from municipalities table as needed (address, phone, district...)
