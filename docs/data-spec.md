@@ -172,7 +172,7 @@ COMMENT ON TABLE financial_data IS 'Stores cached financial metrics and calculat
 
 Defines the structure of data exchanged between the frontend and backend.
 
-### 3.1. `GET /api/map-data`
+### 3.1. `GET /api/municipalities`
 
 Returns a GeoJSON `FeatureCollection` suitable for map display.
 
@@ -237,7 +237,7 @@ Returns detailed information for a single municipality identified by `{id}` (whi
 
 **Source:** Data joined from `municipalities` and `financial_data` tables for the specific `municipality_id`.
 
-### 3.3. `GET /api/municipalities/{munic_id}`
+### 3.3. `GET /api/municipalities/{id}`
 
 Returns detailed information for a single municipality identified by `{munic_id}` (which corresponds to `municipalities.id`).
 
@@ -285,7 +285,7 @@ Returns detailed information for a single municipality identified by `{munic_id}
 }
 ```
 
-**Source:** Data joined from `municipalities` and `financial_data` tables for the specific `municipality_id`.
+**Source:** Data joined from `municipalities` and `financial_data` tables for the specific `{id}`.
 
 ---
 *(This document should be updated whenever data structures, schema, or API payloads change.)*

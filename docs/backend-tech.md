@@ -135,7 +135,7 @@ seemycity-backend/
 ##### API Endpoints
 
 - **`/api/municipalities`**: Returns a GeoJSON `FeatureCollection` containing municipality boundaries and basic data suitable for map display. See [`docs/data-spec.md`](./data-spec.md#31-get-apimunicipalities) for payload details.
-- **`/api/municipality/{id}`**: Returns detailed financial data and score breakdown for a specific municipality ID. See [`docs/data-spec.md`](./data-spec.md#32-get-apimunicipalityid) for payload details.
+- **`/api/municipalities/{id}`**: Returns detailed financial data and score breakdown for a specific municipality ID. See [`docs/data-spec.md`](./data-spec.md#32-get-apimunicipalityid) for payload details.
 - **`/api/health`**: Simple health check endpoint.
 
 See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgresql--postgis) for the complete database schema definition.
@@ -288,8 +288,13 @@ The backend retrieves the core financial metrics for scoring as follows. All que
 
 #### API Endpoints
 
-- **`GET /api/municipalities/{munic_id}`**
-    - Fetches detailed info for a single municipality, including an array of all available historical financial data (`financials`).
-    - Handler: `get_municipality_detail_handler` (in `handlers.rs`).
+*   **`GET /api/municipalities`**
+    - Fetches GeoJSON FeatureCollection for the map view.
+    - Handler: `get_municipalities_map_handler` (TBC, in `handlers.rs`).
+    - Query: `get_data_for_map_view` (in `queries.rs`).
+    - Returns a `geojson::FeatureCollection`.
+*   **`GET /api/municipalities/{id}`**
+    - Fetches detailed info for a single municipality (identified by `id`), including an array of all available historical financial data (`financials`).
+    - Handler: `get_municipality_detail_handler` (TBC, in `handlers.rs`).
     - Query: `get_municipality_detail` (in `queries.rs`).
     - Returns a `MunicipalityDetail` struct (containing the `financials` array).
