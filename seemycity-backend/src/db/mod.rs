@@ -7,6 +7,8 @@ use std::time::Duration;
 // Type alias for the database pool for convenience
 pub type DbPool = PgPool;
 
+pub mod queries;
+
 // Function to create and connect the database pool
 pub async fn create_pool(config: &Config) -> Result<DbPool, sqlx::Error> {
     // Construct the database connection URL from the config components

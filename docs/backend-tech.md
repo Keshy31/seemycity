@@ -37,6 +37,69 @@ This document outlines the technical details for the Rust backend of the Municip
 
 ---
 
+#### Core Framework
+
+*   **Language:** Rust (Stable)
+*   **Web Framework:** Actix Web
+    *   Used for handling HTTP requests, routing, and middleware.
+*   **Asynchronous Runtime:** Tokio (integrated via `#[actix_web::main]` and `#[tokio::test]`)
+
+---
+
+#### Database Interaction
+
+*   **Database:** PostgreSQL
+*   **Extension:** PostGIS (for geospatial queries - planned)
+*   **ORM/Query Builder:** `sqlx`
+    *   Chosen for its compile-time query checking and async support.
+    *   Connection pooling is managed via `sqlx::postgres::PgPoolOptions`.
+
+---
+
+#### API Client (Municipal Money)
+
+*   **Purpose:** Interacts with the South African National Treasury's Municipal Money open data portal API.
+*   **HTTP Client:** `reqwest`
+    *   Used for making asynchronous HTTP GET requests to the API.
+*   **Serialization/Deserialization:** `serde` / `serde_json`
+    *   Used for parsing JSON responses from the API into Rust structs.
+*   **Error Handling:** `thiserror`
+    *   Used to define custom, structured error types (`ApiClientError`) for better error propagation and handling.
+*   **Structure (`src/api/muni_money/`):**
+    *   `client.rs`: Contains the main `MunicipalMoneyClient` struct, manages the `reqwest` client, and handles generic request logic.
+    *   `types.rs`: Defines structs representing the API's JSON response structure (e.g., `FactsApiResponse`, `Cell`) and the custom `ApiClientError` enum.
+    *   `financials.rs`: Contains functions specific to fetching financial data points (e.g., `get_total_revenue`, `get_total_debt`), including logic to handle specific API parameters (item codes, amount types).
+*   **Status:** Implementation is complete. Blocked by external API server availability (timeouts) as of 2025-04-11.
+
+---
+
+#### Configuration
+
+*   **Method:** Environment Variables
+*   **Loading:** `dotenvy` crate
+    *   Loads variables from a `.env` file during development/testing.
+    *   Reads system environment variables in production.
+*   **Management:** A `config.rs` module loads and validates necessary configuration (e.g., `DATABASE_URL`, `MUNI_MONEY_API_URL`).
+
+---
+
+#### Testing
+
+*   **Framework:** Rust's built-in test framework (`#[test]`, `cargo test`).
+*   **Integration Tests:** Placed in the `tests/` directory.
+    *   Use `#[tokio::test]` for async test functions.
+    *   API-dependent tests are marked with `#[ignore]` to prevent running them automatically during regular `cargo test` runs (run via `cargo test -- --ignored`).
+
+---
+
+#### Project Structure
+
+*   **Type:** Library (`lib.rs`) and Binary (`main.rs`).
+*   **Reasoning:** This structure allows integration tests (which are separate binaries) to easily import and use code defined within the main application's library (`seemycity_backend`).
+*   **Modules:** Code is organized into modules (`api`, `db`, `handlers`, `models`, `config`, `errors`) for better separation of concerns.
+
+---
+
 #### Backend Architecture
 
 ##### Proposed File Structure (Refactored)

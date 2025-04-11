@@ -1,60 +1,71 @@
-use actix_web::{ App, HttpServer, web };
-use dotenvy;
+mod errors;
+mod models;
+mod db;
+// mod api_client; // Keep commented until needed
+// mod handlers;    // Keep commented until needed
 
-// Declare modules corresponding to our file structure
-pub mod api;
-pub mod config;
-pub mod db;
-pub mod errors;
-pub mod handlers;
-pub mod models;
+use actix_web::{App, HttpServer, web, middleware::Logger};
+use sqlx::PgPool;
+use std::env; // To read environment variables
+use dotenvy::dotenv; // To load .env file
 
-// Import necessary items
-use crate::handlers::{hello, get_municipalities};
-use crate::config::load_config;
-use crate::db::{create_pool, DbPool};
-
-// The main function is the entry point of the application.
-// The #[actix_web::main] macro sets up the Tokio async runtime needed by Actix.
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Load environment variables from .env file if it exists
-    dotenvy::dotenv().ok();
+    // Initialize logger
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
 
-    // Load configuration
-    let config = match load_config() {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            eprintln!("❌ Failed to load configuration: {}", e);
-            std::process::exit(1);
-        }
-    };
+    // Load environment variables from .env file
+    dotenv().ok(); 
+    log::info!("Loaded .env file using dotenvy");
 
+    // Get Database URL from environment variable
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set in .env file");
+    
+
+    
     // Create database connection pool
-    let pool = match create_pool(&config).await {
-        Ok(p) => {
-            println!("✅ Database pool created successfully.");
-            p
+    log::info!("Connecting to database...");
+    let pool = match PgPool::connect(&database_url).await {
+        Ok(pool) => {
+            log::info!("Successfully connected to the database!");
+            pool
         }
-        Err(e) => {
-            eprintln!("❌ Failed to create database pool: {}", e);
-            std::process::exit(1);
+        Err(err) => {
+            log::error!("Failed to connect to the database: {}", err);
+            std::process::exit(1); // Exit if connection fails
         }
     };
 
-    // Print a message indicating the server is starting
-    println!("🚀 Server starting on http://127.0.0.1:4000");
+    // --- Temporary DB Test --- 
+    log::info!("Attempting to fetch basic municipality info...");
+    match db::queries::get_all_municipality_basic_info(&pool).await {
+        Ok(municipalities) => {
+            log::info!("Successfully fetched {} municipalities:", municipalities.len());
+            // Log the first few municipalities as an example
+            for muni in municipalities.iter().take(5) {
+                log::info!("- ID: {}, Name: {}", muni.id, muni.name);
+            }
+            if municipalities.len() > 5 {
+                log::info!("...and {} more.", municipalities.len() - 5);
+            }
+        }
+        Err(e) => {
+            log::error!("Error fetching municipalities: {}", e);
+        }
+    }
+    // --- End Temporary DB Test ---
 
-    // HttpServer::new creates a new application instance.
-    // The closure passed to `new` configures the application, defining routes and middleware.
-    // We use `.app_data()` to share the database pool (wrapped in web::Data) with all handlers.
+    log::info!("Starting HTTP server at http://127.0.0.1:8080");
+
+    // Start Actix Web server (minimal setup for now)
     HttpServer::new(move || {
         App::new()
+            .wrap(Logger::default()) // Add logger middleware
             .app_data(web::Data::new(pool.clone())) // Share the pool
-            .service(hello)
-            .service(get_municipalities)
+            // .configure(handlers::config) // Add handlers later
     })
-    .bind(("127.0.0.1", 4000))?
+    .bind(("127.0.0.1", 8080))?
     .run()
     .await
 }

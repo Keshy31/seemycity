@@ -72,13 +72,14 @@
     - [x] Implement configuration loading (`.env` via `dotenvy`)  
     - [x] Integrate PostgreSQL (`sqlx` connection pool setup) 
     - [ ] **Refactor Municipal Money API Client:** (Current Task)
-        - [ ] Create submodule `src/api/muni_money/`
-        - [ ] Separate concerns into `types.rs`, `client.rs`, `financials.rs`, `audit.rs` (initially empty).
+        - [x] Create submodule `src/api/muni_money/`
+        - [x] Separate concerns into `types.rs`, `client.rs`, `financials.rs`, `audit.rs` (initially empty).
     - [ ] **Implement API Client Logic (`src/api/muni_money/`)**:
-        - [ ] Implement core request logic in `client.rs`.
-        - [ ] Implement specific financial data fetchers (`get_total_revenue`, etc.) in `financials.rs`.
-        - [ ] Implement audit outcome fetcher in `audit.rs`.
-        - [ ] Add robust error handling and potential fallback logic (e.g., for amount types).
+        - [x] Implement core request logic in `client.rs`.
+        - [x] Implement specific financial data fetchers (`get_total_revenue`, etc.) in `financials.rs`.
+        - [x] Implement audit outcome fetcher in `audit.rs`.
+        - [x] Add robust error handling and potential fallback logic (e.g., for amount types).
+        - [ ] **Current Status:** Code complete and structurally sound. Integration tests are written but currently failing due to external Municipal Money API server timeouts (as of 2025-04-11). Waiting for API to become available again.
     - [ ] **Implement Database Query Logic (`src/db/`)**:
         - [ ] Create `src/db/queries.rs`.
         - [ ] Add focused `sqlx` functions to fetch specific data (e.g., `get_municipality_list_for_map`, `get_municipality_details`, `get_cached_financials`, `upsert_financial_data`).

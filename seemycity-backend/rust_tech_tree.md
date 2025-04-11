@@ -453,3 +453,69 @@ This document tracks concepts learned during the SeeMyCity backend development.
 - **Syntax:** `type NewName = ExistingType;` (e.g., `type DbPool = PgPool;`)
 - **Use Case:** Improving readability, reducing verbosity.
 - **Status:** Used in `db/mod.rs`.
+
+### 22. Project Structure & Modules
+
+*   **Crates:** Understanding the difference between binary (`main.rs`) and library (`lib.rs`) crates.
+    *   *Application:* Structured `seemycity-backend` as both a library and a binary to allow integration tests to easily access application code.
+*   **Modules:** Organizing code using `mod` and `pub mod`.
+    *   *Application:* Created modules like `api`, `db`, `handlers`, `models`, `config`, `errors`.
+*   **Paths & `use`:** Importing items from other modules/crates (`use crate::...`, `use external_crate::...`).
+    *   *Application:* Extensively used to bring functions, structs, and traits into scope. Resolved import issues when refactoring to lib/binary structure.
+*   **`main.rs` vs `lib.rs`:** Understanding their roles as entry points for binary execution and library definition, respectively.
+
+### 23. Asynchronous Programming
+
+*   **`async`/`.await`:** Writing asynchronous functions (`async fn`) and waiting for `Future`s to complete (`.await`).
+    *   *Application:* Used for Actix web handlers, `sqlx` database calls, and `reqwest` HTTP requests.
+*   **Async Runtimes:** Understanding the need for a runtime (Tokio).
+    *   *Application:* Used `#[actix_web::main]` for the main application entry point and `#[tokio::test]` for async integration tests.
+
+### 24. Error Handling
+
+*   **`Result<T, E>`:** Standard way of handling recoverable errors.
+*   **`?` Operator:** Propagating errors up the call stack concisely.
+    *   *Application:* Used frequently in functions that perform I/O (API calls, DB queries).
+*   **Custom Error Types:** Defining specific error enums for different failure modes.
+    *   *Application:* Created `ApiClientError` using `thiserror` to represent different API interaction failures (request errors, API errors, parsing errors).
+*   **`thiserror` Crate:** Simplifying the creation of custom error types that implement `std::error::Error`.
+    *   *Application:* Used `#[derive(Error)]` and `#[error(...)]` attributes.
+
+### 25. External Crates & Ecosystem
+
+*   **`Cargo.toml`:** Managing dependencies.
+*   **`actix-web`:** Web framework for building the API.
+*   **`sqlx`:** Interacting with the PostgreSQL database asynchronously with compile-time checks.
+*   **`reqwest`:** Making HTTP requests to the Municipal Money API.
+*   **`serde` (`serde`, `serde_json`):** Deserializing JSON responses from the API into Rust structs (`#[derive(Deserialize)]`).
+*   **`dotenvy`:** Loading configuration from `.env` files.
+*   **`thiserror`:** Creating custom error types.
+*   **`log` / `env_logger`:** Logging application events and errors (setup pending).
+*   **`tokio`:** Async runtime.
+
+### 26. Testing
+
+*   **Unit Tests:** Writing tests within modules (`#[cfg(test)]`).
+*   **Integration Tests:** Placing tests in the `tests/` directory.
+    *   *Application:* Created `tests/muni_money_integration_test.rs`.
+*   **Test Attributes:** `#[test]`, `#[tokio::test]` (for async tests).
+*   **Ignoring Tests:** Using `#[ignore]` for tests that shouldn't run by default (e.g., network-dependent tests).
+    *   *Application:* Marked API integration tests with `#[ignore]`.
+*   **Running Ignored Tests:** `cargo test -- --ignored`.
+*   **Assertions:** `assert!`, `assert_eq!`, `assert!(result.is_ok())`, etc.
+
+### 27. Configuration Management
+
+*   **Environment Variables:** Reading configuration settings (like API keys, database URLs) from the environment.
+*   **`.env` Files:** Using `dotenvy` to load variables from a file during development/testing.
+    *   *Application:* Setup `dotenvy::dotenv().ok()` in `main.rs` and tests.
+
+### 28. API Client Development
+
+*   **Structuring Client Code:** Separating concerns (client logic, request functions, type definitions, error handling).
+    *   *Application:* Used `client.rs`, `financials.rs`, `types.rs` within `src/api/muni_money/`.
+*   **Making Requests:** Using `reqwest::Client` to send GET requests.
+*   **Handling Responses:** Checking status codes, parsing JSON bodies (`response.json().await?`).
+*   **Error Handling:** Mapping `reqwest` errors and API-level errors (e.g., non-2xx status codes) to a custom error type (`ApiClientError`).
+*   **Debugging:** Using `println!` or `log` macros to inspect request URLs, parameters, and responses during development/testing.
+    *   *Application:* Added print statements in tests to see API call results and diagnose failures (like the timeout issue).

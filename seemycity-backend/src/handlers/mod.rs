@@ -1,7 +1,7 @@
 use actix_web::{get, web, Responder, HttpResponse};
 use serde_json::json;
 use crate::models::Municipality;
-use crate::db::DbPool;
+use seemycity_backend::DbPool;
 
 // Handler for the root path
 #[get("/")]
