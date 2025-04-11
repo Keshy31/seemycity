@@ -1,22 +1,34 @@
 use actix_web::{get, web, Responder, HttpResponse};
 use serde_json::json;
-
-// Import the Municipality struct from the models module
-// We use `crate::` because models.rs is at the crate root level alongside main.rs
 use crate::models::Municipality;
+use crate::db::DbPool;
 
-// Handler for the root path ("/").
-// Mark the function as `pub` so it can be imported and used in `main.rs`.
+// Handler for the root path
 #[get("/")]
 pub async fn hello() -> impl Responder {
-    // Use HttpResponse for a more explicit response
     HttpResponse::Ok().body("Hello from SeeMyCity Backend! (via handlers module)")
 }
 
 // Handler for retrieving a list of municipalities.
 // Returns data as a GeoJSON FeatureCollection.
 #[get("/api/municipalities")]
-pub async fn get_municipalities() -> impl Responder {
+pub async fn get_municipalities(pool: web::Data<DbPool>) -> impl Responder {
+    // --- Test Database Connection --- 
+    // Attempt a simple query to verify the pool works
+    let db_result = sqlx::query("SELECT 1")
+        .fetch_one(pool.get_ref())
+        .await;
+
+    match db_result {
+        Ok(_) => println!("✅ Database connection test successful in handler."),
+        Err(e) => {
+            eprintln!("❌ Database connection test failed in handler: {}", e);
+            // Return an internal server error if the DB connection fails
+            return HttpResponse::InternalServerError().body("Database error");
+        }
+    }
+    // --- End Test --- 
+
     // Create some dummy data (can still use our Municipality struct for temporary storage)
     let municipalities_data = vec![
         Municipality {
@@ -65,5 +77,6 @@ pub async fn get_municipalities() -> impl Responder {
 
     // Serialize the FeatureCollection into a JSON response.
     // web::Json automatically sets the correct Content-Type header.
-    web::Json(feature_collection)
+    // Use HttpResponse::Ok().json(...) for more control if needed, esp. with error handling
+    HttpResponse::Ok().json(feature_collection)
 }
