@@ -400,3 +400,56 @@ This document tracks concepts learned during the SeeMyCity backend development.
         Ok(())
     }
     ```
+
+### 16. Configuration Management (`dotenvy`, `std::env`)
+- **Concept:** Loading application configuration from environment variables, often sourced from a `.env` file.
+- **Mechanism:**
+  - `dotenvy::dotenv().ok();`: Attempts to load variables from a `.env` file into the environment. `.ok()` ignores errors if the file is missing.
+  - `std::env::var("VAR_NAME")`: Reads the value of a specific environment variable. Returns a `Result<String, VarError>`.
+- **Use Case:** Keeping sensitive data (like DB credentials) and environment-specific settings out of source code.
+- **Status:** Implemented in `main.rs` and `config.rs`.
+
+### 17. Error Handling (`Result`, `match`, `?`, Custom Errors)
+- **Concept:** Explicitly handling potential failure points in the code.
+- **Mechanisms:**
+  - `Result<T, E>`: Standard enum for representing success (`Ok(T)`) or failure (`Err(E)`).
+  - `match`: Used to handle both `Ok` and `Err` variants of a `Result`.
+  - `?` operator: Propagates errors up the call stack. If used on an `Err(E)`, the function immediately returns `Err(E)` (requires the function's return type to be compatible).
+  - Custom Error Enums (e.g., `ConfigError`): Defining specific error types for better context.
+  - Implementing `std::error::Error` and `std::fmt::Display` for custom errors enables integration with Rust's error handling ecosystem.
+  - `eprintln!`: Prints messages to the standard error stream (`stderr`), typically used for error logging.
+  - `std::process::exit(1)`: Terminates the program immediately with a non-zero exit code, indicating failure.
+- **Status:** Used extensively in `config.rs` and `main.rs` for loading config and creating the DB pool.
+
+### 18. Asynchronous Programming (`async`/`await`)
+- **Concept:** Handling operations (like I/O, network requests) that might take time without blocking the main thread.
+- **Keywords:**
+  - `async fn`: Declares a function as asynchronous. It returns a `Future`.
+  - `.await`: Pauses the execution of the `async fn` until the awaited `Future` completes.
+- **Runtime:** Requires an async runtime (like Tokio, automatically managed by `#[actix_web::main]`) to execute `Future`s.
+- **Status:** Used for `main`, handlers (`hello`, `get_municipalities`), and `db::create_pool`.
+
+### 19. Database Connection Pooling (`sqlx`)
+- **Concept:** Managing a pool of reusable database connections for efficiency and performance.
+- **Crate:** `sqlx` (specifically `sqlx::postgres`).
+- **Components:**
+  - `PgPoolOptions`: Used to configure pool settings (max connections, timeouts).
+  - `PgPool`: The connection pool itself. It's cloneable (`Arc`-based) and thread-safe.
+  - `.connect(&db_url).await`: Establishes the connections and creates the pool.
+  - `sqlx::query("...").fetch_one(&pool).await`: Example of executing a query using a connection from the pool.
+- **Status:** Implemented in `db/mod.rs` and used in `main.rs`.
+
+### 20. Actix Web Application State (`web::Data`)
+- **Concept:** Sharing data (like a database pool or configuration) across handlers within an Actix application.
+- **Mechanism:**
+  - `web::Data::new(shared_data)`: Wraps the data to be shared.
+  - `.app_data(web_data)`: Registers the wrapped data with the `App`.
+  - Handler argument `pool: web::Data<DbPool>`: Actix injects the shared data into the handler.
+  - `pool.get_ref()`: Accesses the inner data (`&DbPool`) from the `web::Data` wrapper.
+- **Status:** Used in `main.rs` to share the `DbPool`.
+
+### 21. Type Aliases (`type`)
+- **Concept:** Creating a new name (alias) for an existing type.
+- **Syntax:** `type NewName = ExistingType;` (e.g., `type DbPool = PgPool;`)
+- **Use Case:** Improving readability, reducing verbosity.
+- **Status:** Used in `db/mod.rs`.

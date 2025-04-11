@@ -62,15 +62,23 @@
 - **Milestone**: Full UI (dummy) Ready.
 
 ##### Phase 4: Backend Development
-- **Goal**: Build Rust backend (Actix Web) to fetch, process, and serve real data via API.
-- **Status**: **Not Started**
-- **Tasks**:
-    - [ ] **Initialize Rust Project**: Setup `cargo init`, add dependencies (Actix Web, sqlx, etc.). Basic server.
-    - [ ] **Postgres Integration**: Connect Rust backend to Fly.io Postgres using `sqlx`.
-    - [ ] **API Client & Processing**: Build client for Municipal Money API, implement scoring logic, cache results in DB.
-    - [ ] **API Endpoints**: Create endpoints (`/api/municipalities`, `/api/municipality/{id}`, etc.). Test.
-    - [ ] **Deploy Backend**: Configure Rust app on Fly.io (`fly.toml`), deploy alongside frontend.
-- **Milestone**: Backend Ready
+- **Goal:** Build the core Rust backend API.
+- **Tasks:**
+    - [x] Initialize Rust project (`cargo new`, add initial dependencies)
+    - [x] Setup basic Actix Web server (root endpoint `/`)
+    - [x] Implement modular structure (`src/handlers`, `src/models`, etc.)
+    - [x] Define initial data models (`models::Municipality`)
+    - [x] Implement configuration loading (`.env` via `dotenvy`)  
+    - [x] Integrate PostgreSQL (`sqlx` connection pool setup) 
+    - [ ] Build Municipal Money API client (`reqwest`, error handling)
+    - [ ] Create API endpoints:
+        - [x] `/api/municipalities` (GeoJSON, currently dummy data)
+        - [ ] `/api/municipality/{id}` (Detailed JSON)
+        - [ ] (Potentially others: `/api/provinces`, `/api/districts`)
+    - [ ] Implement database queries to fetch real data for endpoints.
+    - [ ] Implement caching strategy (e.g., in-memory or Redis) for API data.
+    - [ ] Setup basic logging.
+- **Milestone:** Backend API serves basic structure with dummy/test data, connects to DB.
 
 ##### Phase 5: Frontend-Backend Integration
 - **Goal**: Connect SvelteKit frontend to the Rust API, replacing dummy data.
