@@ -65,7 +65,7 @@ seemycity-frontend/
 │   │   ├── components/   # UI Components (e.g., Map.svelte, Card.svelte)
 │   │   │   └── Map.svelte  # Placeholder for Map component
 │   │   ├── data/         # Data structures, dummy data
-│   │   │   └── dummyStore.ts # Defines MunicipalityDetails, calculates dummy scores
+│   │   │   └── dummyStore.ts # Exports dummyMunicipalitiesGeoJSON (for map) & dummyMunicipalityDetails (object mapping ID to details with financials array, latest_score, etc.). Contains helper functions.
 │   │   └── index.ts      # Barrel file for lib exports (optional)
 │   └── routes/           # Application pages and API routes
 │       ├── +layout.svelte  # Root layout component

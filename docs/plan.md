@@ -80,12 +80,12 @@
         - [x] Implement audit outcome fetcher in `audit.rs`.
         - [x] Add robust error handling and potential fallback logic (e.g., for amount types).
         - [ ] **Current Status:** Code complete and structurally sound. Integration tests are written but currently failing due to external Municipal Money API server timeouts (as of 2025-04-11). Waiting for API to become available again.
-    - [ ] **Implement Database Query Logic (`src/db/`)**:
-        - [ ] Create `src/db/queries.rs`.
-        - [ ] Add focused `sqlx` functions to fetch specific data (e.g., `get_municipality_list_for_map`, `get_municipality_details`, `get_cached_financials`, `upsert_financial_data`).
+    - [x] **Implement Database Query Logic (`src/db/`)**:
+        - [x] Create `src/db/queries.rs`.
+        - [x] Add focused `sqlx` functions to fetch specific data (e.g., `get_data_for_map_view`, `get_municipality_detail`, `get_cached_financials`, `upsert_financial_data`).
     - [ ] **Implement API Endpoint Handlers (`src/handlers/`)**:
         - [ ] Create `src/handlers/municipalities.rs`.
-        - [ ] Implement `/api/municipalities` handler using DB queries (`get_municipality_list_for_map`).
+        - [ ] Implement `/api/municipalities` handler using DB queries (`get_data_for_map_view`).
         - [ ] Implement `/api/municipality/{id}` handler, coordinating calls to DB queries and the API client (including caching logic).
         - [ ] Implement `/api/health` endpoint.
     - [ ] **Implement Caching Strategy**: Integrate DB calls (`get_cached_financials`, `upsert_financial_data`) within handlers to check/update cache before/after calling the API client.

@@ -271,3 +271,25 @@ The backend retrieves the core financial metrics for scoring as follows. All que
 - `dotenv`
 - `config` (Optional, for more advanced config management)
 - `chrono` (For timestamps)
+
+---
+
+#### Model Descriptions
+
+- `MapMunicipalityProperties`: Contains properties for each GeoJSON feature (`id`, `name`, `province`, `population`, `classification`, `score`). *(Updated to reflect current query)*
+- `MunicipalityDetail`: Represents the full data for the single municipality view endpoint.
+    - Includes fields from `MunicipalityDb`.
+    - Includes a `financials` field containing an array of `FinancialYearData` objects (holding `year`, `score`, `revenue`, etc. for each available year).
+    - Includes a `latest_score` field (likely derived from the most recent year in `financials`).
+    - Includes an optional `score_breakdown` struct (calculation TBD).
+- `FinancialYearData`: Represents financial data for a single year within the `MunicipalityDetail` struct (`year`, `score`, `revenue`, etc.). *(New struct)*
+
+---
+
+#### API Endpoints
+
+- **`GET /api/municipalities/{munic_id}`**
+    - Fetches detailed info for a single municipality, including an array of all available historical financial data (`financials`).
+    - Handler: `get_municipality_detail_handler` (in `handlers.rs`).
+    - Query: `get_municipality_detail` (in `queries.rs`).
+    - Returns a `MunicipalityDetail` struct (containing the `financials` array).
