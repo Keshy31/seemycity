@@ -39,29 +39,34 @@ This document outlines the technical details for the Rust backend of the Municip
 
 #### Backend Architecture
 
-##### Proposed File Structure (Standard Actix Project)
+##### Proposed File Structure (Refactored)
 
 ```
-seemycity-backend/       # Root directory for the backend project
-├── Cargo.toml          # Rust project manifest (dependencies, metadata)
-├── .env                # Environment variables (DATABASE_URL, API keys - *gitignore this!*)
+seemycity-backend/
+├── Cargo.toml
+├── .env
 ├── .gitignore
-├── src/                # Main source code
-│   ├── main.rs         # Application entry point, Actix server setup
-│   ├── api/            # Modules related to fetching data from external APIs
-│   │   ├── mod.rs
-│   │   └── municipal_money.rs # Logic for interacting with Treasury API
-│   ├── config.rs       # Configuration loading (e.g., from .env)
-│   ├── db/             # Modules for database interaction (sqlx)
-│   │   ├── mod.rs
-│   │   └── queries.rs    # SQL query functions (e.g., get_municipality_data, cache_data)
-│   ├── handlers/       # Actix request handlers (define API endpoints)
-│   │   ├── mod.rs
-│   │   └── municipalities.rs # Handlers for /api/municipalities, /api/municipality/{id}
-│   ├── models.rs       # Data structures (structs for API responses, DB records)
-│   └── errors.rs       # Custom error types for the application
-└── tests/              # Integration tests
-    └── api_tests.rs
+├── src/
+│   ├── main.rs         # Entry point, server setup
+│   ├── api/
+│   │   ├── mod.rs      # Declares muni_money module, re-exports client/types
+│   │   └── muni_money/ # Municipal Money API interaction logic
+│   │       ├── mod.rs      # Declares submodules
+│   │       ├── types.rs    # API-specific structs (FactsApiResponse, etc.), errors
+│   │       ├── client.rs   # MunicipalMoneyClient, base reqwest logic
+│   │       ├── financials.rs # get_total_revenue, get_total_debt, etc.
+│   │       └── audit.rs    # get_audit_outcome
+│   ├── config.rs       # Configuration loading
+│   ├── db/
+│   │   ├── mod.rs      # Declares queries module
+│   │   └── queries.rs    # Database interaction functions (sqlx)
+│   ├── handlers/
+│   │   ├── mod.rs      # Declares municipalities module
+│   │   └── municipalities.rs # Actix request handlers (/api/...)
+│   ├── models.rs       # Core application data structures (shared between layers)
+│   └── errors.rs       # Application-level error types (distinct from api::ApiClientError)
+├── target/             # Compiled output
+└── tests/              # Integration/Unit tests (to be added)
 ```
 
 ##### API Endpoints

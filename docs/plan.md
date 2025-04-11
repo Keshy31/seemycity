@@ -62,7 +62,8 @@
 - **Milestone**: Full UI (dummy) Ready.
 
 ##### Phase 4: Backend Development
-- **Goal:** Build the core Rust backend API.
+- **Goal:** Build the core Rust backend API with a clear, maintainable structure.
+- **Status**: **In Progress**
 - **Tasks:**
     - [x] Initialize Rust project (`cargo new`, add initial dependencies)
     - [x] Setup basic Actix Web server (root endpoint `/`)
@@ -70,15 +71,25 @@
     - [x] Define initial data models (`models::Municipality`)
     - [x] Implement configuration loading (`.env` via `dotenvy`)  
     - [x] Integrate PostgreSQL (`sqlx` connection pool setup) 
-    - [ ] Build Municipal Money API client (`reqwest`, error handling)
-    - [ ] Create API endpoints:
-        - [x] `/api/municipalities` (GeoJSON, currently dummy data)
-        - [ ] `/api/municipality/{id}` (Detailed JSON)
-        - [ ] (Potentially others: `/api/provinces`, `/api/districts`)
-    - [ ] Implement database queries to fetch real data for endpoints.
-    - [ ] Implement caching strategy (e.g., in-memory or Redis) for API data.
-    - [ ] Setup basic logging.
-- **Milestone:** Backend API serves basic structure with dummy/test data, connects to DB.
+    - [ ] **Refactor Municipal Money API Client:** (Current Task)
+        - [ ] Create submodule `src/api/muni_money/`
+        - [ ] Separate concerns into `types.rs`, `client.rs`, `financials.rs`, `audit.rs` (initially empty).
+    - [ ] **Implement API Client Logic (`src/api/muni_money/`)**:
+        - [ ] Implement core request logic in `client.rs`.
+        - [ ] Implement specific financial data fetchers (`get_total_revenue`, etc.) in `financials.rs`.
+        - [ ] Implement audit outcome fetcher in `audit.rs`.
+        - [ ] Add robust error handling and potential fallback logic (e.g., for amount types).
+    - [ ] **Implement Database Query Logic (`src/db/`)**:
+        - [ ] Create `src/db/queries.rs`.
+        - [ ] Add focused `sqlx` functions to fetch specific data (e.g., `get_municipality_list_for_map`, `get_municipality_details`, `get_cached_financials`, `upsert_financial_data`).
+    - [ ] **Implement API Endpoint Handlers (`src/handlers/`)**:
+        - [ ] Create `src/handlers/municipalities.rs`.
+        - [ ] Implement `/api/municipalities` handler using DB queries (`get_municipality_list_for_map`).
+        - [ ] Implement `/api/municipality/{id}` handler, coordinating calls to DB queries and the API client (including caching logic).
+        - [ ] Implement `/api/health` endpoint.
+    - [ ] **Implement Caching Strategy**: Integrate DB calls (`get_cached_financials`, `upsert_financial_data`) within handlers to check/update cache before/after calling the API client.
+    - [ ] Setup basic logging (`env_logger` or `tracing`).
+- **Milestone:** Backend API serves real data, connecting to DB and external API, with clear structure.
 
 ##### Phase 5: Frontend-Backend Integration
 - **Goal**: Connect SvelteKit frontend to the Rust API, replacing dummy data.
