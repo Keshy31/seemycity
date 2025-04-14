@@ -1,5 +1,5 @@
 // src/api/muni_money/client.rs
-use super::types::{ApiClientError, FactsApiResponse}; // Import types from sibling module
+use super::types::{ApiClientError, FactsApiResponse, AuditApiResponse}; // Import types from sibling module
 use reqwest::Client;
 use std::env;
 use std::time::Duration;
@@ -91,6 +91,56 @@ impl MunicipalMoneyClient {
         log::trace!("Received API response data: {:?}", data);
 
         Ok(data) // Return the parsed struct
+    }
+
+    /// Fetches audit opinion facts for a specific municipality and year.
+    ///
+    /// # Arguments
+    /// * `municipality_code` - The demarcation code of the municipality (e.g., "BUF").
+    /// * `year` - The financial year end year.
+    ///
+    /// # Returns
+    /// A `Result` containing the parsed `AuditApiResponse` or an `ApiClientError`.
+    pub async fn fetch_audit_opinion_facts(
+        &self,
+        municipality_code: &str,
+        year: i32,
+    ) -> Result<AuditApiResponse, ApiClientError> {
+        const AUDIT_OPINION_CUBE: &str = "audit_opinions";
+        
+        // Define the specific fields we want from the audit opinions cube
+        // This helps reduce response size and ensures we only get what we need.
+        const AUDIT_FIELDS: &str = "demarcation.code,financial_year_end.year,opinion.label";
+
+        // Base cuts for municipality and year
+        let cuts = format!(
+            "demarcation.code:\"{}\"|financial_year_end.year:{}",
+            municipality_code, year
+        );
+
+        // Construct URL with specific fields
+        let url = format!(
+            "{}/cubes/{}/facts?cut={}&fields={}",
+            self.base_url, AUDIT_OPINION_CUBE, cuts, AUDIT_FIELDS
+        );
+
+        log::debug!("Fetching Audit Opinions URL: {}", url);
+
+        let response = self.client.get(&url).send().await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_else(|_| "Failed to read error body".to_string());
+            log::error!("Audit API request failed with status {}: {}", status, body);
+            return Err(ApiClientError::ApiError { status, body });
+        }
+
+        // Parse into the specific AuditApiResponse struct
+        let data: AuditApiResponse = response.json().await?;
+
+        log::trace!("Received Audit API response data: {:?}", data);
+
+        Ok(data)
     }
 }
 

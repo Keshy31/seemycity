@@ -58,6 +58,29 @@ pub struct FactsApiResponse {
     // Add other top-level fields if present in the response (e.g., 'page', 'total_pages')
 }
 
+// --- Structs specific to Audit Opinions Cube --- 
+
+/// Represents a single fact from the audit_opinions cube.
+#[derive(Deserialize, Debug, Clone, Serialize)]
+pub struct AuditOpinionFact {
+    #[serde(rename = "opinion.label")]
+    pub opinion_label: Option<String>,
+
+    #[serde(rename = "financial_year_end.year")]
+    pub year: Option<i32>,
+
+    #[serde(rename = "demarcation.code")]
+    pub municipality_code: Option<String>,
+    // Add other relevant dimensions if needed (e.g., opinion.code, opinion.report_url)
+}
+
+/// Represents the overall structure of the /facts API response for the audit_opinions cube.
+#[derive(Deserialize, Debug, Clone, Serialize)]
+pub struct AuditApiResponse {
+    pub total_fact_count: usize,
+    pub data: Vec<AuditOpinionFact>,
+    // Potentially add other fields like 'page', 'page_size' if needed from the API response
+}
+
 // Potential future types related to the API:
-// pub struct AuditOpinionFact { ... }
-// pub struct AuditApiResponse { ... }
+// ... (other potential types)

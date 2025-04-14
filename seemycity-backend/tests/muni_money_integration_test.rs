@@ -54,3 +54,57 @@ async fn test_fetch_real_debt() {
         println!("Fetched debt: {}", debt);
     }
 }
+
+#[tokio::test]
+#[ignore] // Run with: cargo test -- --ignored test_fetch_real_expenditure
+async fn test_fetch_real_expenditure() {
+    dotenvy::dotenv().expect("Failed to load .env file for integration test");
+    println!("Initializing client for integration test...");
+    let client = MunicipalMoneyClient::new().expect("Failed to create client for test");
+    let muni_code = "BUF";
+    let year = 2022;
+    println!("Fetching total expenditure for {} year {}...", muni_code, year);
+    // Assuming the function exists in muni_money::financials
+    let result = muni_money::financials::get_total_expenditure(&client, muni_code, year).await;
+    println!("API call result: {:?}", result);
+    assert!(result.is_ok(), "API call failed: {:?}", result.err());
+     if let Ok(expenditure) = result {
+        println!("Fetched expenditure: {}", expenditure);
+    }
+}
+
+#[tokio::test]
+#[ignore] // Run with: cargo test -- --ignored test_fetch_real_capital_expenditure
+async fn test_fetch_real_capital_expenditure() {
+    dotenvy::dotenv().expect("Failed to load .env file for integration test");
+    println!("Initializing client for integration test...");
+    let client = MunicipalMoneyClient::new().expect("Failed to create client for test");
+    let muni_code = "BUF";
+    let year = 2022;
+    println!("Fetching capital expenditure for {} year {}...", muni_code, year);
+    // Assuming the function exists in muni_money::financials
+    let result = muni_money::financials::get_capital_expenditure(&client, muni_code, year).await;
+    println!("API call result: {:?}", result);
+    assert!(result.is_ok(), "API call failed: {:?}", result.err());
+     if let Ok(cap_ex) = result {
+        println!("Fetched capital expenditure: {}", cap_ex);
+    }
+}
+
+#[tokio::test]
+#[ignore] // Run with: cargo test -- --ignored test_fetch_real_audit_outcome
+async fn test_fetch_real_audit_outcome() {
+    dotenvy::dotenv().expect("Failed to load .env file for integration test");
+    println!("Initializing client for integration test...");
+    let client = MunicipalMoneyClient::new().expect("Failed to create client for test");
+    let muni_code = "BUF";
+    let year = 2022;
+    println!("Fetching audit outcome for {} year {}...", muni_code, year);
+    // Assuming the function exists in muni_money::audit
+    let result = muni_money::audit::get_audit_outcome(&client, muni_code, year).await;
+    println!("API call result: {:?}", result);
+    assert!(result.is_ok(), "API call failed: {:?}", result.err());
+     if let Ok(outcome) = result {
+        println!("Fetched audit outcome: {:?}", outcome);
+    }
+}
