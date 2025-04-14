@@ -23,3 +23,5 @@ geo-types = "0.7" # Dependency for geojson features
 
 [dev-dependencies]
 reqwest = { version = "0.12.5", features = ["json"] }
+dotenvy = "0.15"
+env_logger = "0.11" # For initializing logger in tests

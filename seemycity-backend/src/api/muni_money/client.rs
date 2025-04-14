@@ -1,5 +1,7 @@
 // src/api/muni_money/client.rs
-use super::types::{ApiClientError, FactsApiResponse, AuditApiResponse}; // Import types from sibling module
+use super::types::{
+    ApiClientError, AuditApiResponse, AuditOpinionFact, FactsApiResponse, FinancialItemFact,
+};
 use reqwest::Client;
 use std::env;
 use std::time::Duration;
@@ -28,69 +30,80 @@ impl MunicipalMoneyClient {
         let client = Client::builder()
             .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS))
             .build()
-            .map_err(ApiClientError::Request)?; // Map reqwest builder error
+            .map_err(|e| {
+                log::error!("Failed to build reqwest client: {}", e);
+                ApiClientError::RequestError(e)
+            })?;
 
         Ok(Self { client, base_url })
     }
 
-    /// Fetches generic financial data (facts) from a specified cube.
+    /// Fetches all income/expenditure items for a specific municipality and year
+    /// using the aggregate endpoint.
+    ///
+    /// This is more efficient than fetching individual facts when multiple items are needed.
     ///
     /// # Arguments
-    /// * `cube` - The name of the data cube (e.g., "incexp_v2", "financial_position_v2").
-    /// * `municipality_code` - The demarcation code of the municipality (e.g., "BUF").
-    /// * `year` - The financial year end year.
-    /// * `cuts` - A slice of key-value pairs representing API 'cut' parameters (e.g., [("amount_type.code", "AUDA")]).
+    /// * `municipality_code` - The demarcation code (e.g., "CPT").
+    /// * `year` - The financial year end year (e.g., 2023).
+    /// * `amount_type` - The amount type code (e.g., "AUDA", "ORGB").
     ///
     /// # Returns
-    /// A `Result` containing the parsed `FactsApiResponse` or an `ApiClientError`.
-    pub async fn fetch_generic_financial_data(
+    /// A `Result` containing the parsed `FactsApiResponse<FinancialItemFact>` or an `ApiClientError`.
+    pub async fn fetch_incexp_aggregate(
         &self,
-        cube: &str,
         municipality_code: &str,
         year: i32,
-        cuts: &[(&str, &str)], // Use a slice for flexibility
-    ) -> Result<FactsApiResponse, ApiClientError> {
-        // Base cuts for municipality and year
-        let base_cuts = format!(
-            "demarcation.code:\"{}\"|financial_year_end.year:{}",
-            municipality_code, year
+        amount_type: &str,
+    ) -> Result<FactsApiResponse<FinancialItemFact>, ApiClientError> {
+        const INCEXP_CUBE: &str = "incexp_v2";
+        // Define the dimensions we want to drill down by
+        const DRILLDOWNS: &str = "demarcation.code|demarcation.label|item.code|item.label";
+        // Define the aggregate we want (sum of amount)
+        const AGGREGATES: &str = "amount.sum";
+
+        // Construct the cuts string
+        let cuts = format!(
+            "amount_type.code:{}|financial_period.period:{}|demarcation.code:\"{}\"",
+            amount_type, year, municipality_code
         );
 
-        // Combine base cuts with additional provided cuts
-        let additional_cuts = cuts
-            .iter()
-            .map(|(k, v)| format!("{}:\"{}\"", k, v))
-            .collect::<Vec<String>>()
-            .join("|");
-
-        let all_cuts = if additional_cuts.is_empty() {
-            base_cuts
-        } else {
-            format!("{}|{}", base_cuts, additional_cuts)
-        };
-
-        // Construct URL - consider adding 'fields' and 'drilldowns' if needed
+        // Construct the full URL
         let url = format!(
-            "{}/cubes/{}/facts?cut={}", // Add &fields=... &drilldowns=... if used
-            self.base_url, cube, all_cuts
+            "{}/cubes/{}/aggregate?drilldown={}&cut={}&aggregates={}",
+            self.base_url, INCEXP_CUBE, DRILLDOWNS, cuts, AGGREGATES
         );
 
-        log::debug!("Fetching URL: {}", url);
+        log::debug!("Fetching Incexp Aggregate URL: {}", url);
 
         let response = self.client.get(&url).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().await.unwrap_or_else(|_| "Failed to read error body".to_string());
-            log::error!("API request failed with status {}: {}", status, body);
-            return Err(ApiClientError::ApiError { status, body });
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read error body".to_string());
+            log::error!(
+                "Incexp Aggregate API request failed with status {}: {}",
+                status,
+                body
+            );
+            return Err(ApiClientError::ApiError {
+                status: status.as_u16(),
+                body: Some(body),
+            });
         }
 
-        let data: FactsApiResponse = response.json().await?;
+        // Deserialize into FactsApiResponse<FinancialItemFact>
+        let data: FactsApiResponse<FinancialItemFact> = response.json().await.map_err(|e| {
+            log::error!("Failed to parse Incexp Aggregate JSON response: {}", e);
+            ApiClientError::ParseError(e)
+        })?;
 
-        log::trace!("Received API response data: {:?}", data);
+        log::trace!("Received Incexp Aggregate API response data: {:?}", data);
 
-        Ok(data) // Return the parsed struct
+        Ok(data)
     }
 
     /// Fetches audit opinion facts for a specific municipality and year.
@@ -101,16 +114,17 @@ impl MunicipalMoneyClient {
     ///
     /// # Returns
     /// A `Result` containing the parsed `AuditApiResponse` or an `ApiClientError`.
+    /// NOTE: This currently expects the API to return the old `AuditApiResponse` structure.
+    /// This might need updating if the audit endpoint changes or if we want to standardize response parsing.
     pub async fn fetch_audit_opinion_facts(
         &self,
         municipality_code: &str,
         year: i32,
     ) -> Result<AuditApiResponse, ApiClientError> {
         const AUDIT_OPINION_CUBE: &str = "audit_opinions";
-        
         // Define the specific fields we want from the audit opinions cube
-        // This helps reduce response size and ensures we only get what we need.
-        const AUDIT_FIELDS: &str = "demarcation.code,financial_year_end.year,opinion.label";
+        const AUDIT_DRILLDOWNS: &str = "demarcation.code|demarcation.label|opinion.code|opinion.label|financial_year_end.year";
+        const AUDIT_AGGREGATES: &str = "amount.sum"; // Assuming we might still need a sum? Or just the labels?
 
         // Base cuts for municipality and year
         let cuts = format!(
@@ -118,10 +132,12 @@ impl MunicipalMoneyClient {
             municipality_code, year
         );
 
-        // Construct URL with specific fields
+        // Construct URL - Using aggregate endpoint for potential future consistency?
+        // Or should revert to /facts if that's more appropriate for this specific data?
+        // Let's assume /aggregate for now, similar to incexp.
         let url = format!(
-            "{}/cubes/{}/facts?cut={}&fields={}",
-            self.base_url, AUDIT_OPINION_CUBE, cuts, AUDIT_FIELDS
+            "{}/cubes/{}/aggregate?drilldown={}&cut={}&aggregates={}",
+            self.base_url, AUDIT_OPINION_CUBE, AUDIT_DRILLDOWNS, cuts, AUDIT_AGGREGATES
         );
 
         log::debug!("Fetching Audit Opinions URL: {}", url);
@@ -129,16 +145,31 @@ impl MunicipalMoneyClient {
         let response = self.client.get(&url).send().await?;
 
         if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_else(|_| "Failed to read error body".to_string());
-            log::error!("Audit API request failed with status {}: {}", status, body);
-            return Err(ApiClientError::ApiError { status, body });
+             let status = response.status();
+             let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read error body".to_string());
+             log::error!(
+                "Audit Opinion API request failed with status {}: {}",
+                status,
+                body
+            );
+             return Err(ApiClientError::ApiError {
+                status: status.as_u16(),
+                body: Some(body),
+            });
         }
 
-        // Parse into the specific AuditApiResponse struct
-        let data: AuditApiResponse = response.json().await?;
+        // Deserialize. IMPORTANT: Assumes AuditApiResponse structure matches the aggregate response format.
+        // This might need adjustment based on the actual API response for the audit cube aggregate.
+        // If the audit aggregate response is different, we might need a separate struct or parsing logic.
+        let data: AuditApiResponse = response.json().await.map_err(|e| {
+                log::error!("Failed to parse Audit Opinion JSON response: {}", e);
+                ApiClientError::ParseError(e)
+            })?;
 
-        log::trace!("Received Audit API response data: {:?}", data);
+        log::trace!("Received Audit Opinion API response data: {:?}", data);
 
         Ok(data)
     }

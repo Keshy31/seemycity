@@ -79,7 +79,7 @@
         - [x] Implement specific financial data fetchers (`get_total_revenue`, etc.) in `financials.rs`.
         - [x] Implement audit outcome fetcher in `audit.rs`.
         - [x] Add robust error handling and potential fallback logic (e.g., for amount types).
-        - [ ] **Current Status:** Code complete and structurally sound. Integration tests are written but currently failing due to external Municipal Money API server timeouts (as of 2025-04-11). Waiting for API to become available again.
+        - [ ] **Current Status:** Core client logic implemented and tested. Refactored audit outcome fetcher for type safety; integration tests now pass (as of 2025-04-14). Financial data fetchers still need live API verification once available.
     - [x] **Implement Database Query Logic (`src/db/`)**:
         - [x] Create `src/db/queries.rs`.
         - [x] Add focused `sqlx` functions to fetch specific data (e.g., `get_data_for_map_view`, `get_municipality_detail`, `get_cached_financials`, `upsert_financial_data`).

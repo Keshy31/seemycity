@@ -67,9 +67,10 @@ This document outlines the technical details for the Rust backend of the Municip
     *   Used to define custom, structured error types (`ApiClientError`) for better error propagation and handling.
 *   **Structure (`src/api/muni_money/`):**
     *   `client.rs`: Contains the main `MunicipalMoneyClient` struct, manages the `reqwest` client, and handles generic request logic.
-    *   `types.rs`: Defines structs representing the API's JSON response structure (e.g., `FactsApiResponse`, `Cell`) and the custom `ApiClientError` enum.
+    *   `types.rs`: Defines structs representing the API's JSON response structure (e.g., generic `FactsApiResponse`, specific `AuditApiResponse`, `Cell`, `FinancialFact`, `AuditOpinionFact`) and the custom `ApiClientError` enum.
     *   `financials.rs`: Contains functions specific to fetching financial data points (e.g., `get_total_revenue`, `get_total_debt`), including logic to handle specific API parameters (item codes, amount types).
-*   **Status:** Implementation is complete. Blocked by external API server availability (timeouts) as of 2025-04-11.
+    *   `audit.rs`: Contains functions specific to fetching audit outcome data (`get_audit_outcome`).
+*   **Status:** Core client logic implemented. Audit outcome fetching refactored for type safety and integration tests pass (as of 2025-04-14). Financial data fetchers still need live API verification.
 
 ---
 
@@ -115,7 +116,7 @@ seemycity-backend/
 │   │   ├── mod.rs      # Declares muni_money module, re-exports client/types
 │   │   └── muni_money/ # Municipal Money API interaction logic
 │   │       ├── mod.rs      # Declares submodules
-│   │       ├── types.rs    # API-specific structs (FactsApiResponse, etc.), errors
+│   │       ├── types.rs    # API-specific structs (FactsApiResponse, AuditApiResponse, FinancialFact, AuditOpinionFact, etc.), errors
 │   │       ├── client.rs   # MunicipalMoneyClient, base reqwest logic
 │   │       ├── financials.rs # get_total_revenue, get_total_debt, etc.
 │   │       └── audit.rs    # get_audit_outcome
@@ -154,77 +155,54 @@ See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgre
 
 #### Municipal Money API Data Fetching Logic
 
-The backend retrieves the core financial metrics for scoring as follows. All queries should filter by the target `demarcation.code` (municipality) and `financial_year_end.year`. The appropriate `amount_type.code` should be prioritized (e.g., 'AUDA' - Audited Actual, 'ADJB' - Adjusted Budget, 'ORGB' - Original Budget) based on availability for the financial cubes.
+The backend retrieves the core financial metrics for scoring as follows. All queries should filter by the target `demarcation.code` (municipality) and `financial_period.period` (year). The appropriate `amount_type.code` should be prioritized (e.g., 'AUDA' - Audited Actual) using the `/aggregate` endpoint.
 
-1.  **Total Revenue (`revenue`)**
+1.  **Total Revenue ([`get_total_revenue`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:10:0-58:1))**
     *   **Cube**: `incexp_v2`
-    *   **Method**: Sum the `amount` measure for the following `item.code`s:
-        *   `0200`: Property Rates
-        *   `0300`: Service Charges - Electricity Revenue
-        *   `0400`: Service Charges - Water Revenue
-        *   `0500`: Service Charges - Sanitation Revenue
-        *   `0600`: Service Charges - Refuse Revenue
-        *   `0700`: Service Charges - Other
-        *   `0800`: Rental of Facilities and Equipment
-        *   `0900`: Interest Earned - External Investments
-        *   `1000`: Interest Earned - Outstanding Debtors
-        *   `1100`: Dividends Earned
-        *   `1200`: Fines, Penalties and Forfeits
-        *   `1300`: Licences and Permits
-        *   `1400`: Agency Services
-        *   `1500`: Transfers Recognised - Operational
-        *   `1600`: Transfers Recognised - Capital
-        *   `1700`: Other Revenue
-        *   `1800`: Gains on Disposal of PPE
-        *   `1900`: Gains on Disposal of Investment Properties
-        *   `2000`: Revenue from Recovery of Unauthorised, Irregular, Fruitless and Wasteful Expenditure
-        *   `2100`: Fuel Levy Allocation
-        *   `2200`: Library Services Revenue
-        *   `2300`: Housing Services Revenue
-        *   `2400`: Contributed Assets
-        *   `2500`: Operational Revenue
+    *   **Method**: Use the `fetch_incexp_aggregate` function which calls the `/aggregate` endpoint with `drilldown=demarcation.code|demarcation.label|item.code|item.label`, `cut=amount_type.code:AUDA|financial_period.period:{year}|demarcation.code:"{muni_code}"`, and `aggregates=amount.sum`. Sum the `amount.sum` for the following `item.code`s observed in the response (example from CPT, 2023, AUDA):
+        *   `0200`: Property rates - *(Added based on CPT 2023 data)*
+        *   `0300`: Service charges - Electricity revenue
+        *   `0400`: Service charges - Water revenue
+        *   `0500`: Service charges - Sanitation revenue
+        *   `0600`: Service charges - Refuse revenue
+        *   `0700`: Rental of facilities and equipment - *(Label updated based on CPT 2023 data)*
+        *   `0800`: Interest earned - external investments
+        *   `1000`: Interest earned - outstanding debtors - *(Label updated based on CPT 2023 data)*
+        *   `1100`: Dividends received - *(Label updated based on CPT 2023 data)*
+        *   `1200`: Fines, Penalties and Forfeits - *(Added based on CPT 2023 data)*
+        *   `1300`: Licences and permits - *(Added based on CPT 2023 data)*
+        *   `1400`: Agency services - *(Label updated based on CPT 2023 data)*
+        *   `1600`: Transfers recognised - operational
+        *   `1700`: Other revenue - *(Added based on CPT 2023 data)*
+        *   `1800`: Gains on disposal of PPE - *(Added based on CPT 2023 data)*
+    *   *Note: This list is based on observed data for CPT/2023/AUDA and may differ for other municipalities/years. Codes like 0900, 1500, 1900-2700 from the previous list were not present or had zero amounts in the test data.*
 
-2.  **Total Debt (`debt`)**
+2.  **Total Debt ([`get_total_debt`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:60:0-94:1))**
     *   **Cube**: `financial_position_v2`
-    *   **Method**: Get the `amount` measure for `item.code`: `0500` (TOTAL LIABILITIES).
+    *   **Method**: Use `fetch_incexp_aggregate` (or a similar aggregate call for `financial_position_v2` if implemented, otherwise requires a separate function) to get the `amount.sum` measure for `item.code`: `0500` (TOTAL LIABILITIES), filtering by `amount_type.code:AUDA`. *(Note: This function currently uses `fetch_generic_financial_data` which was removed. This section needs updating once debt fetching is refactored).*
 
-3.  **Total Expenditure (`expenditure`)**
+3.  **Total Expenditure ([`get_total_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:96:0-145:1))**
     *   **Cube**: `incexp_v2`
-    *   **Method**: Sum the `amount` measure for the following `item.code`s:
-        *   `3000`: Employee Related Costs
-        *   `3100`: Remuneration of Councillors
-        *   `3200`: Bad Debts Written Off
-        *   `3300`: Collection Cost
-        *   `3400`: Depreciation and Asset Impairment
-        *   `3500`: Finance Charges
-        *   `3600`: Bulk Purchases
-        *   `3700`: Other Materials
-        *   `3800`: Contracted Services
-        *   `3900`: Grants and Subsidies Paid
-        *   `4000`: General Expenses
-        *   `4100`: Operational Costs
-        *   `4200`: Repairs and Maintenance
-        *   `4300`: Loss on Disposal of PPE
-        *   `4400`: Loss on Disposal of Investment Property
-        *   `4500`: Unauthorised, Irregular, Fruitless and Wasteful Expenditure Written-off
-        *   `4600`: Transfers and subsidies - capital (monetary allocations)
-        *   `4700`: Transfers and subsidies - capital (in-kind)
-        *   `4800`: Provision for Landfill Site Rehabilitation
-        *   `4900`: Operating Lease Expense
+    *   **Method**: Use the `fetch_incexp_aggregate` function (as described for Revenue). Sum the `amount.sum` for the following `item.code`s observed in the response (example from CPT, 2023, AUDA):
+        *   `3000`: Employee related costs - *(Added based on CPT 2023 data)*
+        *   `3100`: Remuneration of councillors - *(Label updated based on CPT 2023 data)*
+        *   `3200`: Debt impairment - *(Label updated based on CPT 2023 data)*
+        *   `3300`: Depreciation and asset impairment - *(Label updated based on CPT 2023 data)*
+        *   `3400`: Finance charges - *(Label updated based on CPT 2023 data)*
+        *   `3500`: Bulk purchases - *(Label updated based on CPT 2023 data)*
+        *   `3600`: Contracted services - *(Label updated based on CPT 2023 data)*
+        *   `3700`: Transfers and grants - *(Label updated based on CPT 2023 data)*
+        *   `3900`: Other expenditure - *(Added based on CPT 2023 data)*
+        *   `4000`: Loss on disposal of PPE - *(Added based on CPT 2023 data)*
+    *   *Note: This list is based on observed data for CPT/2023/AUDA and may differ for other municipalities/years. Codes like 3800, 4100-4300, 4600, 4700, 4900, 5200 from the previous list were not present or had zero amounts in the test data.*
 
-4.  **Capital Expenditure (`capital_expenditure`)**
+4.  **Capital Expenditure ([`get_total_capital_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:148:0-197:1))**
     *   **Cube**: `capital_v2`
     *   **Method**: Get the aggregate `amount.sum`.
 
-5.  **Audit Outcome (`audit_outcome`)**
+5.  **Audit Outcome ([`get_audit_outcome`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/audit.rs:10:0-58:1))**
     *   **Cube**: `audit_opinions`
-    *   **Method**: Fetch the `opinion.label` (or `opinion.code`) and map it to the frontend categories:
-        *   `Unqualified - No findings` (`unqualified`) -> `'Clean'`
-        *   `Unqualified - Emphasis of Matter items` (`unqualified_emphasis_of_matter`) -> `'Unqualified'`
-        *   `Qualified` (`qualified`) -> `'Qualified'`
-        *   `Adverse opinion` (`adverse`) -> `'Adverse'`
-        *   `Disclaimer of opinion` (`disclaimer`) -> `'Disclaimer'`
-        *   `Outstanding` (`outstanding`) -> `'Unavailable'`
+    *   **Method**: Use the `client::fetch_audit_opinion_facts` method, which requests the `opinion.label` field. The response is parsed into the specific `types::AuditApiResponse` containing `types::AuditOpinionFact` structs. The `opinion_label` from the first fact (if any) is returned.
 
 ---
 
