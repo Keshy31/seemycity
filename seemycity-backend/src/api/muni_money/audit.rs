@@ -19,10 +19,10 @@ pub async fn get_audit_outcome(
 
     // The API should return zero or one fact for a specific muni/year combo in this cube.
     // We take the first fact if it exists.
-    let first_fact: Option<&AuditOpinionFact> = response.data.first();
+    let first_fact: Option<&AuditOpinionFact> = response.cells.first();
 
     match first_fact {
-        Some(fact) => Ok(fact.opinion_label.clone()), // Clone the Option<String>
+        Some(fact) => Ok(Some(fact.opinion_label.clone())),
         None => Ok(None), // No data found for this muni/year
     }
 }

@@ -454,15 +454,53 @@ This document tracks concepts learned during the SeeMyCity backend development.
 - **Use Case:** Improving readability, reducing verbosity.
 - **Status:** Used in `db/mod.rs`.
 
-### 22. Project Structure & Modules
+### 22. Module Organization, Privacy, and Encapsulation (Unlocked)
 
-*   **Crates:** Understanding the difference between binary (`main.rs`) and library (`lib.rs`) crates.
-    *   *Application:* Structured `seemycity-backend` as both a library and a binary to allow integration tests to easily access application code.
-*   **Modules:** Organizing code using `mod` and `pub mod`.
-    *   *Application:* Created modules like `api`, `db`, `handlers`, `models`, `config`, `errors`.
-*   **Paths & `use`:** Importing items from other modules/crates (`use crate::...`, `use external_crate::...`).
-    *   *Application:* Extensively used to bring functions, structs, and traits into scope. Resolved import issues when refactoring to lib/binary structure.
-*   **`main.rs` vs `lib.rs`:** Understanding their roles as entry points for binary execution and library definition, respectively.
+*   **Concept:** Use Rust’s module system to organize code, control visibility with `pub`, `pub(crate)`, and keep struct fields private unless necessary.
+*   **Encapsulation:** Expose internal data safely using getter methods rather than making fields public.
+*   **Example:**
+    ```rust
+    pub struct MyStruct {
+        field: String,
+    }
+    impl MyStruct {
+        pub fn field(&self) -> &str { &self.field }
+    }
+    ```
+*   **Best Practices:**
+    - Only make things `pub` if you must.
+    - Use modules to keep code organized and readable.
+    - Separate business logic from API/networking logic.
+    - Use getter methods to allow read-only access to internal state, preserving flexibility and safety.
+
+---
+
+#### Deepened Skills
+
+- **Async Networking:**  
+  All HTTP/network code is now async, using `.await` and propagating errors with `?`.
+
+- **Error Handling:**  
+  Consistently use custom error enums and `Result<T, E>` for robust error propagation.
+
+- **Logging:**  
+  Use the `log` crate (`log::info!`, `log::debug!`, `log::trace!`) for structured, contextual logging.
+
+- **Testing & Cargo Workflows:**  
+  Regularly run `cargo check` and `cargo test` to verify correctness after changes.
+
+---
+
+#### Summary Table: Idiomatic Rust in Your Project
+
+| Principle        | How You Did It                            |
+|------------------|-------------------------------------------|
+| Encapsulation    | Private fields + public getters           |
+| Modularity       | Separate modules per concern              |
+| Async            | All network code is async                 |
+| Error Handling   | Custom error types, `Result`, `?`         |
+| Logging          | `log::info!`, `log::debug!`, etc.         |
+| Minimal Exposure | Only what’s needed is `pub`               |
 
 ### 23. Asynchronous Programming
 
@@ -519,3 +557,20 @@ This document tracks concepts learned during the SeeMyCity backend development.
 *   **Error Handling:** Mapping `reqwest` errors and API-level errors (e.g., non-2xx status codes) to a custom error type (`ApiClientError`).
 *   **Debugging:** Using `println!` or `log` macros to inspect request URLs, parameters, and responses during development/testing.
     *   *Application:* Added print statements in tests to see API call results and diagnose failures (like the timeout issue).
+
+### 29. Project Structure & Modules
+
+*   **Crates:** Understanding the difference between binary (`main.rs`) and library (`lib.rs`) crates.
+    *   *Application:* Structured `seemycity-backend` as both a library and a binary to allow integration tests to easily access application code.
+*   **Modules:** Organizing code using `mod` and `pub mod`.
+    *   *Application:* Created modules like `api`, `db`, `handlers`, `models`, `config`, `errors`.
+*   **Paths & `use`:** Importing items from other modules/crates (`use crate::...`, `use external_crate::...`).
+    *   *Application:* Extensively used to bring functions, structs, and traits into scope. Resolved import issues when refactoring to lib/binary structure.
+*   **`main.rs` vs `lib.rs`:** Understanding their roles as entry points for binary execution and library definition, respectively.
+
+### 30. Asynchronous Programming
+
+*   **`async`/`.await`:** Writing asynchronous functions (`async fn`) and waiting for `Future`s to complete (`.await`).
+    *   *Application:* Used for Actix web handlers, `sqlx` database calls, and `reqwest` HTTP requests.
+*   **Async Runtimes:** Understanding the need for a runtime (Tokio).
+    *   *Application:* Used `#[actix_web::main]` for the main application entry point and `#[tokio::test]` for async integration tests.

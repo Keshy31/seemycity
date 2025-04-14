@@ -1,7 +1,5 @@
 // src/api/muni_money/client.rs
-use super::types::{
-    ApiClientError, AuditApiResponse, AuditOpinionFact, FactsApiResponse, FinancialItemFact,
-};
+use super::types::{ApiClientError, AuditApiResponse};
 use reqwest::Client;
 use std::env;
 use std::time::Duration;
@@ -36,74 +34,6 @@ impl MunicipalMoneyClient {
             })?;
 
         Ok(Self { client, base_url })
-    }
-
-    /// Fetches all income/expenditure items for a specific municipality and year
-    /// using the aggregate endpoint.
-    ///
-    /// This is more efficient than fetching individual facts when multiple items are needed.
-    ///
-    /// # Arguments
-    /// * `municipality_code` - The demarcation code (e.g., "CPT").
-    /// * `year` - The financial year end year (e.g., 2023).
-    /// * `amount_type` - The amount type code (e.g., "AUDA", "ORGB").
-    ///
-    /// # Returns
-    /// A `Result` containing the parsed `FactsApiResponse<FinancialItemFact>` or an `ApiClientError`.
-    pub async fn fetch_incexp_aggregate(
-        &self,
-        municipality_code: &str,
-        year: i32,
-        amount_type: &str,
-    ) -> Result<FactsApiResponse<FinancialItemFact>, ApiClientError> {
-        const INCEXP_CUBE: &str = "incexp_v2";
-        // Define the dimensions we want to drill down by
-        const DRILLDOWNS: &str = "demarcation.code|demarcation.label|item.code|item.label";
-        // Define the aggregate we want (sum of amount)
-        const AGGREGATES: &str = "amount.sum";
-
-        // Construct the cuts string
-        let cuts = format!(
-            "amount_type.code:{}|financial_period.period:{}|demarcation.code:\"{}\"",
-            amount_type, year, municipality_code
-        );
-
-        // Construct the full URL
-        let url = format!(
-            "{}/cubes/{}/aggregate?drilldown={}&cut={}&aggregates={}",
-            self.base_url, INCEXP_CUBE, DRILLDOWNS, cuts, AGGREGATES
-        );
-
-        log::debug!("Fetching Incexp Aggregate URL: {}", url);
-
-        let response = self.client.get(&url).send().await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Failed to read error body".to_string());
-            log::error!(
-                "Incexp Aggregate API request failed with status {}: {}",
-                status,
-                body
-            );
-            return Err(ApiClientError::ApiError {
-                status: status.as_u16(),
-                body: Some(body),
-            });
-        }
-
-        // Deserialize into FactsApiResponse<FinancialItemFact>
-        let data: FactsApiResponse<FinancialItemFact> = response.json().await.map_err(|e| {
-            log::error!("Failed to parse Incexp Aggregate JSON response: {}", e);
-            ApiClientError::ParseError(e)
-        })?;
-
-        log::trace!("Received Incexp Aggregate API response data: {:?}", data);
-
-        Ok(data)
     }
 
     /// Fetches audit opinion facts for a specific municipality and year.
@@ -164,14 +94,21 @@ impl MunicipalMoneyClient {
         // Deserialize. IMPORTANT: Assumes AuditApiResponse structure matches the aggregate response format.
         // This might need adjustment based on the actual API response for the audit cube aggregate.
         // If the audit aggregate response is different, we might need a separate struct or parsing logic.
-        let data: AuditApiResponse = response.json().await.map_err(|e| {
-                log::error!("Failed to parse Audit Opinion JSON response: {}", e);
-                ApiClientError::ParseError(e)
-            })?;
+        let data: AuditApiResponse = response.json().await.map_err(ApiClientError::RequestError)?;
 
         log::trace!("Received Audit Opinion API response data: {:?}", data);
 
         Ok(data)
+    }
+
+    /// Returns a reference to the internal reqwest::Client.
+    pub fn client(&self) -> &Client {
+        &self.client
+    }
+
+    /// Returns a reference to the base_url string.
+    pub fn base_url(&self) -> &str {
+        &self.base_url
     }
 }
 

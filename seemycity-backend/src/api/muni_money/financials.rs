@@ -64,26 +64,31 @@ pub async fn get_total_debt(
 ) -> Result<f64, ApiClientError> {
     const DEBT_ITEM_CODE: &str = "0500"; // TOTAL LIABILITIES
 
-    // Define the *additional* cuts for the API query. Client adds base cuts.
-    let cuts: &[(&str, &str)] = &[
-        // ("demarcation.code", municipality_code), // Handled by client
-        // ("financial_year_end.year", &year.to_string()), // Handled by client
-        ("amount_type.code", "AUDA"), // Target audited figures
-        ("period_length.length", "year"),
-    ];
-
-    // Fetch facts for the financial_position_v2 cube using the provided client
+    // Fetch all items using the new aggregate function
+    log::info!("Fetching all finpos items via aggregate for debt calculation {} year {}", municipality_code, year);
     let response = client
-        .fetch_generic_financial_data("financial_position_v2", municipality_code, year, cuts)
+        .fetch_finpos_aggregate(municipality_code, year, "AUDA") // Target audited figures
         .await?;
 
-    // Find the specific fact for the DEBT_ITEM_CODE
-    let total_debt = response
-        .data
+    // Filter the results by item code and sum the amounts
+    let total_debt: f64 = response
+        .cells // Use 'cells' field from FactsApiResponse<FinancialItemFact>
         .iter()
-        .find(|fact| fact.item_code.as_deref() == Some(DEBT_ITEM_CODE))
-        .and_then(|fact| fact.amount)
-        .unwrap_or(0.0);
+        .filter_map(|fact: &FinancialItemFact| { // Explicit type annotation
+            if fact.item_code == DEBT_ITEM_CODE {
+                let amount = fact.amount.unwrap_or(0.0);
+                 log::trace!( // Use trace for item-level details
+                    "Debt item: code={}, label='{}', amount={}",
+                    fact.item_code,
+                    fact.item_label,
+                    amount
+                );
+                Some(amount)
+            } else {
+                None
+            }
+        })
+        .sum();
 
     log::debug!(
         "Calculated total debt for {} year {}: {}",
@@ -152,25 +157,25 @@ pub async fn get_capital_expenditure(
     municipality_code: &str,
     year: i32,
 ) -> Result<f64, ApiClientError> {
-    // Define the *additional* cuts for the API query. Client adds base cuts.
-    let cuts: &[(&str, &str)] = &[
-        // ("demarcation.code", municipality_code), // Handled by client
-        // ("financial_year_end.year", &year.to_string()), // Handled by client
-        ("amount_type.code", "AUDA"), // Target audited figures
-        ("period_length.length", "year"),
-    ];
+    // Fetch all items using the new aggregate function
+    log::info!("Fetching all capital items via aggregate for capital expenditure calculation {} year {}", municipality_code, year);
+    let response = client.fetch_capital_aggregate(municipality_code, year, "AUDA").await?;
 
-    // Fetch facts for the capital_v2 cube using the provided client
-    let response = client
-        .fetch_generic_financial_data("capital_v2", municipality_code, year, cuts)
-        .await?;
-
-    // Expecting a single aggregated fact. Take the amount from the first fact.
-    let capital_expenditure = response
-        .data
-        .first()
-        .and_then(|fact| fact.amount)
-        .unwrap_or(0.0);
+    // Sum the amounts
+    let capital_expenditure: f64 = response
+        .cells // Use 'cells' field from FactsApiResponse<FinancialItemFact>
+        .iter()
+        .filter_map(|fact: &FinancialItemFact| { // Explicit type annotation
+            let amount = fact.amount.unwrap_or(0.0);
+             log::trace!( // Use trace for item-level details
+                "Capital expenditure item: code={}, label='{}', amount={}",
+                fact.item_code,
+                fact.item_label,
+                amount
+            );
+            Some(amount)
+        })
+        .sum();
 
     log::debug!(
         "Fetched capital expenditure for {} year {}: {}",
