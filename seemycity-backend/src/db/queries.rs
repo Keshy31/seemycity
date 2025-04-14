@@ -1,10 +1,8 @@
 // src/db/queries.rs
-use sqlx::{PgPool};
+use sqlx::{Arguments, PgPool};
 use geojson;
-use crate::models::{MunicipalityBasicInfo, MunicipalityDetail, FinancialDataDb, FinancialYearData, MapMunicipalityProperties, MunicipalityDb};
+use crate::models::{MunicipalityBasicInfo, MunicipalityDetail, FinancialDataDb, FinancialYearData, MapMunicipalityProperties, MunicipalityDb, FinancialDataPoint};
 use crate::errors::AppError;
-use uuid::Uuid;
-// Added serde_json for parsing geometry string
 use serde_json;
 
 // --- Query Functions ---
@@ -108,17 +106,26 @@ pub async fn get_data_for_map_view(pool: &PgPool) -> Result<Vec<geojson::Feature
     Ok(features)
 }
 
-// Function to get detailed info for a single municipality
-// Needs to fetch base details and all associated financial years
-pub async fn get_municipality_detail(pool: &PgPool, muni_id: &str) -> Result<Option<MunicipalityDetail>, AppError> {
-    // Fetch base municipality info
+// Function to get just the base MunicipalityDb info for a single municipality
+// Extracted from get_municipality_detail
+pub async fn get_municipality_base_info_db(pool: &PgPool, muni_id: &str) -> Result<Option<MunicipalityDb>, AppError> {
+    log::debug!("Fetching base DB info for municipality: {}", muni_id);
     let base_info = sqlx::query_as!(
         MunicipalityDb, 
         "SELECT id, name, province, district_id, district_name, address, phone, population, classification, website, created_at, updated_at FROM municipalities WHERE id = $1", 
         muni_id
     )
-    .fetch_one(pool)
-    .await?;
+    .fetch_optional(pool) // Use fetch_optional to return Option<MunicipalityDb>
+    .await
+    ?; // Use ? for automatic conversion via From<sqlx::Error>
+    Ok(base_info)
+}
+
+// Function to get detailed info for a single municipality
+// Needs to fetch base details and all associated financial years
+pub async fn get_municipality_detail(pool: &PgPool, muni_id: &str) -> Result<Option<MunicipalityDetail>, AppError> {
+    // Fetch base municipality info
+    let base_info = get_municipality_base_info_db(pool, muni_id).await?;
 
     // Fetch geometry
     let geometry_row = sqlx::query!(
@@ -189,18 +196,19 @@ pub async fn get_municipality_detail(pool: &PgPool, muni_id: &str) -> Result<Opt
 
     // Construct the final MunicipalityDetail struct
     let detail = MunicipalityDetail {
-        id: base_info.id,
-        name: base_info.name,
-        province: base_info.province,
+        id: base_info.as_ref().unwrap().id.clone(), // Clone String
+        name: base_info.as_ref().unwrap().name.clone(), // Clone String
+        province: base_info.as_ref().unwrap().province.clone(), // Clone String
         // Convert population f32 -> f64 for JSON via serde attribute
-        population: base_info.population, 
-        classification: base_info.classification,
-        website: base_info.website,
+        population: base_info.as_ref().unwrap().population, 
+        classification: base_info.as_ref().unwrap().classification.clone(), // Clone Option<String>
+        website: base_info.as_ref().unwrap().website.clone(), // Clone Option<String>
         financials,
         // Convert geojson::Geometry to serde_json::Value for the API model
         geometry: geometry.map(|g| serde_json::to_value(g).ok()).flatten(),
     };
 
+    // Wrap the detail struct in Option, consistent with fetch_optional possibility (though fetch_one was used before)
     Ok(Some(detail))
 }
 
@@ -233,41 +241,95 @@ pub async fn get_cached_financials(pool: &PgPool, muni_id: &str, year: i32) -> R
     Ok(result)
 }
 
-// Inserts or updates financial data for a municipality
-// Now relies on DB trigger for updated_at
-pub async fn upsert_financial_data(pool: &PgPool, data: FinancialDataDb) -> Result<Uuid, AppError> {
-    // NOTE: created_at is handled by DEFAULT NOW() in the DB
-    // NOTE: updated_at is handled by the DB trigger
-    let result = sqlx::query!(
-        r#"
-        INSERT INTO financial_data (
-            id, municipality_id, year, revenue, expenditure, 
-            capital_expenditure, debt, audit_outcome, score 
-            -- created_at is DEFAULT NOW(), updated_at handled by trigger
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (municipality_id, year) 
-        DO UPDATE SET
-            revenue = EXCLUDED.revenue,
-            expenditure = EXCLUDED.expenditure,
-            capital_expenditure = EXCLUDED.capital_expenditure,
-            debt = EXCLUDED.debt,
-            audit_outcome = EXCLUDED.audit_outcome,
-            score = EXCLUDED.score
-            -- updated_at is handled by trigger, no need to set here
-        RETURNING id
-        "#,
-        data.id, // uuid
-        data.municipality_id,
-        data.financial_year,
-        data.revenue, // Option<Decimal>
-        data.expenditure, // Option<Decimal>
-        data.capital_expenditure, // Option<Decimal>
-        data.debt, // Option<Decimal>
-        data.audit_outcome, // Option<String>
-        data.score // Option<Decimal>
-    )
-    .fetch_one(pool) // Use fetch_one as RETURNING id guarantees one row
-    .await?;
-    Ok(result.id)
+// Inserts or updates financial data for a municipality based on individual metrics
+// Accepts a slice of FinancialDataPoint structs
+pub async fn upsert_financial_data(pool: &PgPool, data_points: &[FinancialDataPoint]) -> Result<(), AppError> {
+    // Ensure there's data to process
+    if data_points.is_empty() {
+        log::warn!("upsert_financial_data called with empty data points slice");
+        return Ok(());
+    }
+
+    // Assuming all points are for the same municipality and year
+    let muni_code = &data_points[0].municipality_code;
+    let year = data_points[0].year;
+
+    log::debug!("Upserting {} financial data points for {} year {}", data_points.len(), muni_code, year);
+
+    // Use a transaction for atomicity
+    let mut tx = pool.begin().await?; // Use ? for automatic conversion
+
+    // Prepare the base INSERT ... ON CONFLICT statement
+    // We target the unique constraint (municipality_id, year)
+    // We will dynamically add SET clauses for each metric provided
+    let mut set_clauses = Vec::new();
+    let mut arguments = sqlx::postgres::PgArguments::default();
+    let mut placeholder_index = 3; // Start placeholders at $3
+    // Bind municipality_id and year first
+    arguments.add(muni_code); // Use trait method
+    arguments.add(year); // Use trait method
+
+    for point in data_points {
+        // Ensure consistency (should ideally be checked earlier)
+        if point.municipality_code != *muni_code || point.year != year {
+            log::error!("Inconsistent municipality code or year in upsert_financial_data batch");
+            // Consider returning an error or skipping the point
+            continue; 
+        }
+
+        // Map metric_name to column name and add SET clause if amount is Some
+        let column_name = match point.metric_name.as_str() {
+            "total_revenue" => Some("revenue"),
+            "total_expenditure" => Some("expenditure"),
+            "capital_expenditure" => Some("capital_expenditure"),
+            "total_debt" => Some("debt"),
+            // Add mappings for other metrics like 'audit_outcome' (String) or 'score' (Decimal) if needed
+            _ => {
+                log::warn!("Unknown metric name in upsert_financial_data: {}", point.metric_name);
+                None
+            }
+        };
+
+        if let Some(col) = column_name {
+            if let Some(amount) = point.amount {
+                 // Use manually tracked placeholder index
+                set_clauses.push(format!("{} = ${}", col, placeholder_index));
+                arguments.add(amount); // Use trait method
+                placeholder_index += 1;
+            } else {
+                // Optionally set to NULL if amount is None
+                // set_clauses.push(format!("{} = NULL", col));
+            }
+        }
+    }
+
+    // Only proceed if there are actual updates to make
+    if set_clauses.is_empty() {
+        log::debug!("No valid metric data points found to upsert for {} year {}", muni_code, year);
+        // We still need to commit or rollback the transaction started
+        tx.commit().await?; // Use ? for automatic conversion
+        return Ok(());
+    }
+
+    let query_str = format!(
+        "INSERT INTO financial_data (municipality_id, year, {})
+         VALUES ($1, $2, {})
+         ON CONFLICT (municipality_id, year)
+         DO UPDATE SET {}
+        ",
+        set_clauses.iter().map(|s| s.split('=').next().unwrap_or("").trim()).collect::<Vec<&str>>().join(", "), // Column names for INSERT
+        (3..placeholder_index).map(|i| format!("${}", i)).collect::<Vec<String>>().join(", "), // Placeholders for INSERT values using counter
+        set_clauses.join(", ") // SET clauses for UPDATE
+    );
+
+    // Execute the dynamic query within the transaction
+    sqlx::query_with(&query_str, arguments)
+        .execute(&mut *tx) // Use &mut *tx to borrow mutable reference
+        .await?; // Use ? for automatic conversion
+
+    // Commit the transaction
+    tx.commit().await?; // Use ? for automatic conversion
+
+    log::info!("Successfully upserted financial data for {} year {}", muni_code, year);
+    Ok(())
 }

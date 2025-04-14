@@ -5,6 +5,7 @@
 use seemycity_backend::api::{muni_money, MunicipalMoneyClient}; // Use the re-exported client
 use dotenvy; // Need dotenvy for loading .env
 use env_logger; // Import env_logger for logging
+use rust_decimal::Decimal; // Import Decimal
 
 // This test requires network access and hits the actual Municipal Money API
 #[tokio::test]
@@ -33,11 +34,11 @@ async fn test_fetch_real_revenue() { // Renamed back
         // Basic sanity check - revenue shouldn't typically be zero for a major metro/year.
         // It *could* be if the API returns no data for that specific item/amount_type combo.
         // assert!(revenue > 0.0, "Revenue was not positive, check API response");
-        println!("Fetched revenue: {}", revenue);
+        println!("Fetched revenue: {:?}", revenue);
         // TODO: Update with expected 2022 value once known
-        // assert!(revenue > 0.0, "Revenue should be greater than 0");
-        // For now, just check it's not negative
-        assert!(revenue >= 0.0, "Revenue should not be negative");
+        // assert!(revenue > Some(dec!(0.0)), "Revenue should be greater than 0"); // Example comparison
+        // For now, just check it's not negative (assuming None means non-negative)
+        assert!(revenue >= Some(Decimal::ZERO), "Revenue should not be negative"); // Compare Option<Decimal> >= Option<Decimal>
     }
 }
 
@@ -57,11 +58,11 @@ async fn test_fetch_real_debt() {
     assert!(result.is_ok(), "API call failed: {:?}", result.err());
      if let Ok(debt) = result {
         // Debt could be zero or positive
-        println!("Fetched debt: {}", debt);
+        println!("Fetched debt: {:?}", debt);
         // TODO: Update with expected 2022 value once known
-        // assert!(debt > 0.0, "Debt should be greater than 0");
+        // assert!(debt > Some(dec!(0.0)), "Debt should be greater than 0");
         // For now, just check it's not negative
-        assert!(debt >= 0.0, "Debt should not be negative");
+        assert!(debt >= Some(Decimal::ZERO), "Debt should not be negative"); // Compare Option<Decimal> >= Option<Decimal>
     }
 }
 
@@ -80,11 +81,11 @@ async fn test_fetch_real_expenditure() {
     println!("API call result: {:?}", result);
     assert!(result.is_ok(), "API call failed: {:?}", result.err());
      if let Ok(expenditure) = result {
-        println!("Fetched expenditure: {}", expenditure);
+        println!("Fetched expenditure: {:?}", expenditure);
         // TODO: Update with expected 2022 value once known
-        // assert!(expenditure > 0.0, "Expenditure should be greater than 0");
+        // assert!(expenditure > Some(dec!(0.0)), "Expenditure should be greater than 0");
         // For now, just check it's not negative
-        assert!(expenditure >= 0.0, "Expenditure should not be negative");
+        assert!(expenditure >= Some(Decimal::ZERO), "Expenditure should not be negative"); // Compare Option<Decimal> >= Option<Decimal>
     }
 }
 
@@ -103,11 +104,11 @@ async fn test_fetch_real_capital_expenditure() {
     println!("API call result: {:?}", result);
     assert!(result.is_ok(), "API call failed: {:?}", result.err());
      if let Ok(cap_ex) = result {
-        println!("Fetched capital expenditure: {}", cap_ex);
+        println!("Fetched capital expenditure: {:?}", cap_ex);
         // TODO: Update with expected 2022 value once known
-        // assert!(cap_ex > 0.0, "Capital expenditure should be greater than 0");
+        // assert!(cap_ex > Some(dec!(0.0)), "Capital expenditure should be greater than 0");
         // For now, just check it's not negative
-        assert!(cap_ex >= 0.0, "Capital expenditure should not be negative");
+        assert!(cap_ex >= Some(Decimal::ZERO), "Capital expenditure should not be negative"); // Compare Option<Decimal> >= Option<Decimal>
     }
 }
 
@@ -154,11 +155,11 @@ async fn test_get_total_revenue_cpt_2022() {
     match muni_money::financials::get_total_revenue(&client, municipality_code, year).await {
         Ok(total_revenue) => {
             log::info!(
-                "Successfully fetched total revenue (Aggregate) for {} {}: {}",
+                "Successfully fetched total revenue (Aggregate) for {} {}: {:?}",
                 municipality_code, year, total_revenue
             );
             // Assert that revenue is not negative. Hopefully, it's non-zero now.
-            assert!(total_revenue >= 0.0); 
+            assert!(total_revenue >= Some(Decimal::ZERO)); // Compare Option<Decimal> >= Option<Decimal>
         }
         Err(e) => {
             // Use assert! or panic! to make the test fail clearly on error

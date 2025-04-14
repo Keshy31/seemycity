@@ -15,6 +15,13 @@ This document outlines the technical details for the Rust backend of the Municip
 - **Library**: sqlx
   - Why: Type-safe, async SQL query builder and executor with compile-time checking against the database schema. Prevents runtime errors and SQL injection vulnerabilities.
   - Use: Interacting with the PostgreSQL database for caching API data and retrieving static information.
+  - Error handling leverages `AppError::SqlxError(#[from] sqlx::Error)` for automatic conversion.
+  - Key query functions (`src/db/queries.rs`):
+    *   `get_all_municipalities_basic`: Fetches basic info (id, name, province) for all municipalities.
+    *   `get_municipality_base_info_db`: Fetches detailed static info for a single municipality from the `municipalities` table (`MunicipalityDb` struct).
+    *   `get_financial_data_db`: Fetches financial data for a specific municipality and year from the `financial_data` table (`FinancialDataDb` struct).
+    *   `upsert_financial_data`: Accepts a slice of `FinancialDataPoint` structs and dynamically constructs an `INSERT ... ON CONFLICT DO UPDATE SET ...` SQL query to efficiently insert or update multiple financial metrics for a given municipality and year in a single transaction.
+    *   `get_municipality_geojson`: Fetches the GeoJSON geometry for a single municipality.
 
 ##### Asynchronous Runtime
 - **Library**: Tokio
@@ -53,6 +60,13 @@ This document outlines the technical details for the Rust backend of the Municip
 *   **ORM/Query Builder:** `sqlx`
     *   Chosen for its compile-time query checking and async support.
     *   Connection pooling is managed via `sqlx::postgres::PgPoolOptions`.
+    *   Error handling leverages `AppError::SqlxError(#[from] sqlx::Error)` for automatic conversion.
+    *   Key query functions (`src/db/queries.rs`):
+        *   `get_all_municipalities_basic`: Fetches basic info (id, name, province) for all municipalities.
+        *   `get_municipality_base_info_db`: Fetches detailed static info for a single municipality from the `municipalities` table (`MunicipalityDb` struct).
+        *   `get_financial_data_db`: Fetches financial data for a specific municipality and year from the `financial_data` table (`FinancialDataDb` struct).
+        *   `upsert_financial_data`: Accepts a slice of `FinancialDataPoint` structs and dynamically constructs an `INSERT ... ON CONFLICT DO UPDATE SET ...` SQL query to efficiently insert or update multiple financial metrics for a given municipality and year in a single transaction.
+        *   `get_municipality_geojson`: Fetches the GeoJSON geometry for a single municipality.
 
 ---
 
@@ -71,35 +85,6 @@ This document outlines the technical details for the Rust backend of the Municip
     *   `financials.rs`: Contains functions specific to fetching financial data points (e.g., `get_total_revenue`, `get_total_debt`), including logic to handle specific API parameters (item codes, amount types).
     *   `audit.rs`: Contains functions specific to fetching audit outcome data (`get_audit_outcome`).
 *   **Status:** Core client logic implemented. Audit outcome fetching refactored for type safety and integration tests pass (as of 2025-04-14). Financial data fetchers still need live API verification.
-
----
-
-#### Rust Backend Design Notes (2025 Refactor)
-
-*   **Modularization:** API client, financial logic, and endpoint handlers are separated into distinct modules for maintainability.
-*   **Encapsulation:** The `MunicipalMoneyClient` struct exposes only public getter methods for internal fields, enforcing encapsulation.
-*   **Error Handling:** All API and business logic functions return `Result<T, ApiClientError>`, leveraging idiomatic Rust error propagation.
-*   **Async:** All network and database operations are fully async, using `.await` and the Tokio runtime.
-*   **Testing:** Integration tests cover real API calls and are marked as ignored by default to avoid unnecessary external requests.
-
----
-
-#### Configuration
-
-*   **Method:** Environment Variables
-*   **Loading:** `dotenvy` crate
-    *   Loads variables from a `.env` file during development/testing.
-    *   Reads system environment variables in production.
-*   **Management:** A `config.rs` module loads and validates necessary configuration (e.g., `DATABASE_URL`, `MUNI_MONEY_API_URL`).
-
----
-
-#### Testing
-
-*   **Framework:** Rust's built-in test framework (`#[test]`, `cargo test`).
-*   **Integration Tests:** Placed in the `tests/` directory.
-    *   Use `#[tokio::test]` for async test functions.
-    *   API-dependent tests are marked with `#[ignore]` to prevent running them automatically during regular `cargo test` runs (run via `cargo test -- --ignored`).
 
 ---
 
@@ -138,9 +123,10 @@ seemycity-backend/
 │   │   ├── mod.rs      # Declares municipalities module
 │   │   └── municipalities.rs # Actix request handlers (/api/...)
 │   ├── models.rs       # Core application data structures (shared between layers)
-│   └── errors.rs       # Application-level error types (distinct from api::ApiClientError)
+│   └── errors.rs       # Application-level error types (AppError)
 ├── target/             # Compiled output
 └── tests/              # Integration/Unit tests (to be added)
+    └── muni_money_integration_test.rs # Tests hitting the live MuniMoney API
 ```
 
 ##### API Endpoints
@@ -153,13 +139,25 @@ See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgre
 
 ##### Data Flow
 
-1.  Frontend request hits an Actix handler.
-2.  Handler checks local cache (Postgres) for requested data (municipality, year).
-3.  If data is fresh enough (based on `financial_data.created_at`), return cached data.
-4.  If data is stale or missing, fetch necessary data from the Municipal Money API using the `reqwest` client.
-5.  Process the API response (calculate score, structure data).
-6.  Store/update the processed data in the Postgres cache (`municipalities`, `financial_data` tables).
-7.  Return the processed data to the frontend, formatted according to the API payload specification in [`docs/data-spec.md`](./data-spec.md#3-api-payloads).
+1.  Frontend request hits the `get_municipality_detail_handler`.
+2.  Handler calls `get_municipality_base_info_db` to get static details from the `municipalities` table.
+3.  Handler calls the relevant `MunicipalMoneyClient` methods (e.g., `get_total_revenue`, `get_audit_outcome`) to fetch live data from the API for the requested year.
+4.  The fetched API data (individual metrics) is converted into `FinancialDataPoint` structs.
+5.  Handler calls `upsert_financial_data` to save/update these metrics in the `financial_data` table.
+6.  Handler combines the base info (from step 2) and the fetched financial data (from step 3) into the `MunicipalityDetail` response struct.
+7.  Handler returns the `MunicipalityDetail` struct as a JSON response to the frontend.
+
+*(Note: Cache check/population is currently bypassed in the handler logic)*
+
+---
+
+#### Testing
+
+*   **Framework:** Rust's built-in test framework (`#[test]`, `cargo test`).
+*   **Integration Tests:** Placed in the `tests/` directory.
+    *   Use `#[tokio::test]` for async test functions.
+    *   API-dependent tests are marked with `#[ignore]` to prevent running them automatically during regular `cargo test` runs (run via `cargo test -- --ignored`).
+    *   Assertions involving `Option<Decimal>` values returned from API functions compare against `Option<Decimal>` values, e.g., `assert!(result >= Some(Decimal::ZERO))`.
 
 ---
 
@@ -187,12 +185,12 @@ The backend retrieves the core financial metrics for scoring as follows. All que
         *   `1800`: Gains on disposal of PPE - *(Added based on CPT 2023 data)*
     *   *Note: This list is based on observed data for CPT/2023/AUDA and may differ for other municipalities/years. Codes like 0900, 1500, 1900-2700 from the previous list were not present or had zero amounts in the test data.*
 
-2.  **Total Debt ([`get_total_debt`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:60:0-94:1))**
+2.  **Total Debt ([`get_total_debt`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:96:0-145:1))**
     *   **Cube**: `financial_position_v2`
     *   **Method**: Sum the `amount.sum` for all items where `item.code` is in the range `0310`–`0500` (inclusive), filtering by `amount_type.code:AUDA`. This reflects the current approach for total liabilities (debt), parsing `item.code` as an integer for range checking.
-    *   *Note: Historical data structures or specific municipal reporting might differ. The backend implements the 0310-0500 range summation.*
+    *   *Note: Historical data structures or specific municipal reporting might differ. The backend implements the 0310-0500 range summation.* Returns `Option<Decimal>`.
 
-3.  **Total Expenditure ([`get_total_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:96:0-145:1))**
+3.  **Total Expenditure ([`get_total_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:147:0-213:1))**
     *   **Cube**: `incexp_v2`
     *   **Method**: Use the `fetch_incexp_aggregate` function (as described for Revenue). Sum the `amount.sum` for the following `item.code`s observed in the response (example from CPT, 2023, AUDA):
         *   `3000`: Employee related costs - *(Added based on CPT 2023 data)*
@@ -205,24 +203,56 @@ The backend retrieves the core financial metrics for scoring as follows. All que
         *   `3700`: Transfers and grants - *(Label updated based on CPT 2023 data)*
         *   `3900`: Other expenditure - *(Added based on CPT 2023 data)*
         *   `4000`: Loss on disposal of PPE - *(Added based on CPT 2023 data)*
-    *   *Note: This list is based on observed data for CPT/2023/AUDA and may differ for other municipalities/years. Codes like 3800, 4100-4300, 4600, 4700, 4900, 5200 from the previous list were not present or had zero amounts in the test data.*
+    *   *Note: This list is based on observed data for CPT/2023/AUDA and may differ for other municipalities/years. Codes like 3800, 4100-4300, 4600, 4700, 4900, 5200 from the previous list were not present or had zero amounts in the test data.* Returns `Option<Decimal>`.
 
-4.  **Capital Expenditure ([`get_total_capital_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:148:0-197:1))**
+4.  **Capital Expenditure ([`get_capital_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:215:0-246:1))**
     *   **Cube**: `capital_v2`
-    *   **Method**: Get the aggregate `amount.sum` for all items in the cube (no additional item code filtering is currently applied). If business requirements change, item code filtering can be added as in the revenue/expenditure logic.
+    *   **Method**: Sum the `amount.sum` for all items where `item.code` is in the range `4100`–`4109` (inclusive), filtering by `amount_type.code:AUDA`. This reflects the current approach for total capital expenditure, parsing `item.code` as an integer for range checking.
+    *   *Note: This uses the `capital_v2` cube and aggregates specific item codes.* Returns `Option<Decimal>`.
 
-5.  **Audit Outcome ([`get_audit_outcome`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/audit.rs:10:0-58:1))**
-    *   **Cube**: `audit_opinions`
-    *   **Method**: Use the `client::fetch_audit_opinion_facts` method, which requests the `opinion.label` field. The response is parsed into the specific `types::AuditApiResponse` containing `types::AuditOpinionFact` structs. The `opinion_label` from the first fact (if any) is returned.
+5.  **Audit Outcome ([`get_audit_outcome`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/audit.rs:9:0-50:1))**
+    *   **Cube**: `audit_opinions_v2`
+    *   **Method**: Uses the `fetch_audit_opinion` function, which queries the `/facts` endpoint with filters for `demarcation.code`, `financial_year.year`, and `latest_opinion.label`. It extracts the `latest_opinion.label` value from the first fact in the response.
+    *   *Note: Assumes the API returns a single, relevant fact.* Returns `Option<String>`.
 
 ---
 
-#### Database Interaction
+#### Handlers (`src/handlers/municipalities.rs`)
 
-- **DBMS**: PostgreSQL + PostGIS extension.
-- **Schema Source of Truth**: `schema.sql` in the project root.
-- **Caching Strategy**: Store results from Municipal Money API (keyed by municipality code and year) in the `financial_data` table. Include a `last_updated` timestamp. Refresh cache based on a TTL (e.g., daily) or when new data is detected from the API.
-- **Static Data**: The `municipalities` and `municipal_geometries` tables store static info loaded initially.
+*   **`get_municipality_detail_handler`**: 
+    *   Handles `GET /api/municipalities/{municipality_code}`.
+    *   Fetches base static municipality details using `get_municipality_base_info_db`.
+    *   Fetches financial details (revenue, expenditure, debt, audit) for the specified year from the Municipal Money API via the `MunicipalMoneyClient`.
+    *   Combines the base info and fetched financial data into a `MunicipalityDetail` response.
+    *   Uses `upsert_financial_data` to save the fetched financial metrics to the database.
+    *   Currently, caching logic using `crate::utils::cache::Cache` is commented out.
+
+---
+
+#### Model Descriptions
+
+- `MapMunicipalityProperties`: Contains properties for each GeoJSON feature (`id`, `name`, `province`, `population`, `classification`, `score`). *(Updated to reflect current query)*
+- `MunicipalityDetail`: Represents the full data for the single municipality view endpoint.
+    - Includes fields from `MunicipalityDb`.
+    - Includes a `financials` field containing an array of `FinancialYearData` objects (holding `year`, `score`, `revenue`, etc. for each available year).
+    - Includes a `latest_score` field (likely derived from the most recent year in `financials`).
+    - Includes an optional `score_breakdown` struct (calculation TBD).
+- `FinancialYearData`: Represents financial data for a single year within the `MunicipalityDetail` struct (`year`, `score`, `revenue`, etc.). *(New struct)*
+
+---
+
+#### API Endpoints
+
+*   **`GET /api/municipalities`**
+    - Fetches GeoJSON FeatureCollection for the map view.
+    - Handler: `get_municipalities_map_handler` (TBC, in `handlers.rs`).
+    - Query: `get_data_for_map_view` (in `queries.rs`).
+    - Returns a `geojson::FeatureCollection`.
+*   **`GET /api/municipalities/{id}`**
+    - Fetches detailed info for a single municipality (identified by `id`), including an array of all available historical financial data (`financials`).
+    - Handler: `get_municipality_detail_handler` (TBC, in `handlers.rs`).
+    - Query: `get_municipality_detail` (in `queries.rs`).
+    - Returns a `MunicipalityDetail` struct (containing the `financials` array).
 
 ---
 
@@ -260,30 +290,3 @@ The backend retrieves the core financial metrics for scoring as follows. All que
 - `dotenv`
 - `config` (Optional, for more advanced config management)
 - `chrono` (For timestamps)
-
----
-
-#### Model Descriptions
-
-- `MapMunicipalityProperties`: Contains properties for each GeoJSON feature (`id`, `name`, `province`, `population`, `classification`, `score`). *(Updated to reflect current query)*
-- `MunicipalityDetail`: Represents the full data for the single municipality view endpoint.
-    - Includes fields from `MunicipalityDb`.
-    - Includes a `financials` field containing an array of `FinancialYearData` objects (holding `year`, `score`, `revenue`, etc. for each available year).
-    - Includes a `latest_score` field (likely derived from the most recent year in `financials`).
-    - Includes an optional `score_breakdown` struct (calculation TBD).
-- `FinancialYearData`: Represents financial data for a single year within the `MunicipalityDetail` struct (`year`, `score`, `revenue`, etc.). *(New struct)*
-
----
-
-#### API Endpoints
-
-*   **`GET /api/municipalities`**
-    - Fetches GeoJSON FeatureCollection for the map view.
-    - Handler: `get_municipalities_map_handler` (TBC, in `handlers.rs`).
-    - Query: `get_data_for_map_view` (in `queries.rs`).
-    - Returns a `geojson::FeatureCollection`.
-*   **`GET /api/municipalities/{id}`**
-    - Fetches detailed info for a single municipality (identified by `id`), including an array of all available historical financial data (`financials`).
-    - Handler: `get_municipality_detail_handler` (TBC, in `handlers.rs`).
-    - Query: `get_municipality_detail` (in `queries.rs`).
-    - Returns a `MunicipalityDetail` struct (containing the `financials` array).

@@ -20,6 +20,8 @@ geobuf = "0.1.4" # Corrected version to latest available
 bytes = "1.6.0"
 geojson = { version = "0.24", features = ["geo-types"] } # Added geojson
 geo-types = "0.7" # Dependency for geojson features
+rust_decimal = "1.37.1"
+rust_decimal_macros = "1.37.1"
 
 [dev-dependencies]
 reqwest = { version = "0.12.5", features = ["json"] }

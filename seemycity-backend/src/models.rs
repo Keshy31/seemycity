@@ -104,6 +104,14 @@ pub struct FinancialYearData {
     // Add other relevant fields from `financial_data` table if needed
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FinancialDataPoint {
+    pub municipality_code: String,
+    pub year: i32,
+    pub metric_name: String,
+    pub amount: Option<Decimal>,
+}
+
 // Detailed data structure for the /api/municipality/{id} view
 // Corresponds to data-spec.md section 3.2
 #[derive(Serialize, Deserialize, Debug, Clone)]

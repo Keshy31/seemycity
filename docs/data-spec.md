@@ -57,6 +57,12 @@ pub struct FinancialDataDb {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FinancialDataPoint {
+    pub metric_code: String, // e.g., "revenue", "debt"
+    pub amount: Option<Decimal>,
+}
 ```
 
 *(API response models like `MunicipalityBasicInfo`, `MapMunicipalityProperties`, `FinancialYearData`, `MunicipalityDetail` are also defined in `src/models.rs` but omitted here for brevity, see Section 3)*
@@ -88,23 +94,25 @@ interface MunicipalityDetails {
     id: string;
     name: string;
     province: string;
-    population: number | null;
-    classification: string | null;
-    website: string | null;
-    // ... other fields from municipalities table
-    financials: FinancialYearData[]; // Array of financial data per year
-    score_breakdown: any; // TBD: Define structure for score components
+    population: number | null; // From municipalities table (real -> f64)
+    classification: string | null; // From municipalities table
+    website: string | null; // From municipalities table
+    // Note: Other fields like address, phone, district_id/name from MunicipalityDb are fetched
+    // by get_municipality_base_info_db but might not be directly exposed in this specific API model currently.
+    financials: FinancialYearData[]; // Array of financial data per year (fetched from API)
+    geometry: any | null; // GeoJSON geometry value (from municipal_geometries table)
+    // score_breakdown: any; // TBD: Define structure for score components
 }
 
 interface FinancialYearData {
     year: number;
-    revenue: number | null;
-    expenditure: number | null;
-    capital_expenditure: number | null;
-    debt: number | null; // Total Liabilities (sum of items 0310-0500 based on current backend logic)
-    audit_outcome: string | null;
-    score: number | null;
-    // ... other relevant fields from `financial_data` table
+    revenue: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
+    expenditure: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
+    capital_expenditure: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
+    debt: number | null; // Total Liabilities (from financial_data, numeric -> Option<Decimal> -> f64 | null)
+    audit_outcome: string | null; // From financial_data
+    score: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
+    // ... other relevant fields from `financial_data` table if added
 }
 ```
 
@@ -192,9 +200,9 @@ Returns a GeoJSON `FeatureCollection` suitable for map display.
                 "id": "JHB01", // municipality.id
                 "name": "Johannesburg Metro (Mock)", // municipality.name
                 "province": "GP", // municipality.province
-                "population": 5635127, // municipality.population
+                "population": 5635127, // municipality.population (real -> f64)
                 "classification": "Metro", // municipality.classification
-                "score": 85.50 // latest financial_data.score (or derived)
+                "score": 85.50 // latest financial_data.score (numeric -> Option<Decimal> -> f64 | null)
             }
         }
         // ... more features
@@ -248,40 +256,26 @@ Returns detailed information for a single municipality identified by `{munic_id}
     "id": "JHB01",
     "name": "Johannesburg Metro (Mock)",
     "province": "GP",
-    "population": 5635127, // From municipalities table
+    "population": 5635127, // From municipalities table (real -> f64)
     "classification": "Metro", // From municipalities table
-    "website": "https://joburg.org.za", // From municipalities table
-
-    // Array of financial data, ordered by year (e.g., descending)
+    "website": "http://www.joburg.org.za", // From municipalities table
     "financials": [
         {
-            "year": 2023, 
-            "score": 85.50, // Score for this specific year (numeric(5,2))
-            "revenue": 70000000000,
-            "expenditure": 68000000000,
-            "capital_expenditure": 10000000000,
-            "debt": 30000000000, // Total Liabilities (sum of items 0310-0500 based on current logic)
-            "audit_outcome": "Qualified"
-        },
-        {
-            "year": 2022,
-            "score": 82.10, 
-            "revenue": 68000000000,
-            "expenditure": 65000000000,
-            "capital_expenditure": 9000000000,
-            "debt": 28000000000, // Total Liabilities (sum of items 0310-0500 based on current logic)
-            "audit_outcome": "Qualified"
+            "year": 2023,
+            "revenue": 7500000000.50, // numeric -> Option<Decimal> -> f64 | null
+            "expenditure": 7200000000.25, // numeric -> Option<Decimal> -> f64 | null
+            "capital_expenditure": 500000000.00, // numeric -> Option<Decimal> -> f64 | null
+            "debt": 12000000000.00, // numeric -> Option<Decimal> -> f64 | null
+            "audit_outcome": "Unqualified opinion",
+            "score": 85.50 // numeric -> Option<Decimal> -> f64 | null
         }
-        // ... more years
+        // ... data for other years
     ],
-    // Top-level score for easy access (e.g., latest year's score)
-    "latest_score": 85.50, // Matches score for 2023
-    // Score breakdown based on the latest year's data (TBD Implementation)
-    "score_breakdown": { 
-        "financial_health": 25.5, 
-        "infrastructure": 20.0, 
-        "efficiency": 18.0, 
+    "geometry": { // GeoJSON geometry value
+        "type": "Polygon",
+        "coordinates": [ /* ... */ ]
     }
+    // "score_breakdown": { /* ... */ } // TBD
 }
 ```
 
