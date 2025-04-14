@@ -102,9 +102,16 @@ async fn test_fetch_real_audit_outcome() {
     println!("Fetching audit outcome for {} year {}...", muni_code, year);
     // Assuming the function exists in muni_money::audit
     let result = muni_money::audit::get_audit_outcome(&client, muni_code, year).await;
-    println!("API call result: {:?}", result);
+    
+    // Print the raw result (Result<Option<String>, ApiClientError>)
+    println!("get_audit_outcome result: {:?}", result);
+    
     assert!(result.is_ok(), "API call failed: {:?}", result.err());
-     if let Ok(outcome) = result {
-        println!("Fetched audit outcome: {:?}", outcome);
+    
+     if let Ok(outcome_option) = result {
+        // Print the extracted Option<String>
+        println!("Fetched audit outcome Option: {:?}", outcome_option);
+        // You could add a more specific assertion if you know the expected outcome
+        // assert_eq!(outcome_option.as_deref(), Some("Unqualified - Emphasis of Matter items"));
     }
 }
