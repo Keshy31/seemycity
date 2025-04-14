@@ -17,14 +17,14 @@
 #### Architecture
 
 ##### High-Level Overview
-- **Backend**: Rust-based server (Actix Web, sqlx) handles API requests, data processing, and Postgres interactions.
+- **Backend**: Rust-based server (Actix Web, sqlx) handles API requests, data processing, and Postgres interactions. _Refactored for modularity and idiomatic Rust practices._
 - **Database**: Postgres + PostGIS stores cached financial data and static municipality details/geometries.
 - **Frontend**: SvelteKit + MapLibre GL JS delivers a static, reactive UI.
 - **Deployment**: Fly.io hosts the full stack (Rust + Postgres + Svelte).
 
 ##### Data Flow
 1. **External API**: Rust backend fetches data from Municipal Money API.
-2. **Processing & Caching**: Rust normalizes data, calculates scores, and caches in Postgres.
+2. **Processing & Caching**: Rust normalizes data (incl. current debt aggregation logic: sum of items 0310-0500), calculates scores, and caches in Postgres.
 3. **Internal API**: Rust serves processed data to Svelte frontend via REST endpoints.
 4. **UI**: Svelte frontend renders map, single, and comparison views.
 

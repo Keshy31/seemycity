@@ -71,15 +71,15 @@
     - [x] Define initial data models (`models::Municipality`)
     - [x] Implement configuration loading (`.env` via `dotenvy`)  
     - [x] Integrate PostgreSQL (`sqlx` connection pool setup) 
-    - [ ] **Refactor Municipal Money API Client:** (Current Task)
+    - [x] **Refactor Municipal Money API Client:**
         - [x] Create submodule `src/api/muni_money/`
-        - [x] Separate concerns into `types.rs`, `client.rs`, `financials.rs`, `audit.rs` (initially empty).
-    - [ ] **Implement API Client Logic (`src/api/muni_money/`)**:
+        - [x] Separate concerns into `types.rs`, `client.rs`, `financials.rs`, `audit.rs`.
+    - [x] **Implement API Client Logic (`src/api/muni_money/`)**:
         - [x] Implement core request logic in `client.rs`.
-        - [x] Implement specific financial data fetchers (`get_total_revenue`, etc.) in `financials.rs`.
+        - [x] Implement specific financial data fetchers (`get_total_revenue`, `get_total_debt`, etc.) in `financials.rs` _(including current debt aggregation logic: sum of items 0310-0500)_.
         - [x] Implement audit outcome fetcher in `audit.rs`.
-        - [x] Add robust error handling and potential fallback logic (e.g., for amount types).
-        - [ ] **Current Status:** Core client logic implemented and tested. Refactored audit outcome fetcher for type safety; integration tests now pass (as of 2025-04-14). Financial data fetchers still need live API verification once available.
+        - [x] Add robust error handling (`ApiClientError`, `Result`) and potential fallback logic (e.g., for amount types).
+        - [x] **Current Status:** API client refactor complete. Core logic implemented and tested. Audit outcome fetcher uses specific types and passes integration tests. Financial data fetchers implemented with current debt logic, awaiting live API verification. (as of 2025-04-14).
     - [x] **Implement Database Query Logic (`src/db/`)**:
         - [x] Create `src/db/queries.rs`.
         - [x] Add focused `sqlx` functions to fetch specific data (e.g., `get_data_for_map_view`, `get_municipality_detail`, `get_cached_financials`, `upsert_financial_data`).
@@ -137,8 +137,8 @@
 #### Milestones Summary
 - **Basic Web Up**: Achieved (Phase 1)
 - **DB Ready**: Achieved (Phase 2)
-- **Full UI (Dummy Data)**: Target after Phase 3
-- **Backend Ready**: Target after Phase 4
+- **Full UI (Dummy Data)**: Achieved (Phase 3)
+- **Backend Ready**: Target after Phase 4 *(API Client logic substantially complete)*
 - **Real Data Integration**: Target after Phase 5
 - **MVP Done**: Target after Phase 6
 - **Hierarchical View**: Target after Phase 7

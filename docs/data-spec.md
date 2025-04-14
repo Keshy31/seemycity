@@ -51,7 +51,7 @@ pub struct FinancialDataDb {
     pub revenue: Option<Decimal>,
     pub expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
-    pub debt: Option<Decimal>,
+    pub debt: Option<Decimal>, // Total Liabilities (sum of items 0310-0500 in financial_position_v2 cube, based on current implementation)
     pub audit_outcome: Option<String>,
     pub score: Option<Decimal>,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -101,7 +101,7 @@ interface FinancialYearData {
     revenue: number | null;
     expenditure: number | null;
     capital_expenditure: number | null;
-    debt: number | null;
+    debt: number | null; // Total Liabilities (sum of items 0310-0500 based on current backend logic)
     audit_outcome: string | null;
     score: number | null;
     // ... other relevant fields from `financial_data` table
@@ -155,7 +155,7 @@ CREATE TABLE financial_data (
     revenue numeric NULL,
     expenditure numeric NULL,
     capital_expenditure numeric NULL,            -- Added field
-    debt numeric NULL,
+    debt numeric NULL, -- Total Liabilities (sum of items 0310-0500 in financial_position_v2 cube, based on current implementation)
     audit_outcome text NULL,
     score numeric(5, 2) NULL,                  -- Calculated financial health score (0.00 - 100.00)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL,
@@ -225,7 +225,7 @@ Returns detailed information for a single municipality identified by `{id}` (whi
             "revenue": 50000000000.0,
             "expenditure": 48000000000.0,
             "capital_expenditure": 5000000000.0,
-            "debt": 15000000000.0,
+            "debt": 15000000000.0, // Total Liabilities (sum of items 0310-0500 based on current logic)
             "audit_outcome": "Unqualified",
             "score": 85.2
         }
@@ -260,7 +260,7 @@ Returns detailed information for a single municipality identified by `{munic_id}
             "revenue": 70000000000,
             "expenditure": 68000000000,
             "capital_expenditure": 10000000000,
-            "debt": 30000000000,
+            "debt": 30000000000, // Total Liabilities (sum of items 0310-0500 based on current logic)
             "audit_outcome": "Qualified"
         },
         {
@@ -269,7 +269,7 @@ Returns detailed information for a single municipality identified by `{munic_id}
             "revenue": 68000000000,
             "expenditure": 65000000000,
             "capital_expenditure": 9000000000,
-            "debt": 28000000000,
+            "debt": 28000000000, // Total Liabilities (sum of items 0310-0500 based on current logic)
             "audit_outcome": "Qualified"
         }
         // ... more years

@@ -62,31 +62,30 @@ pub async fn get_total_debt(
     municipality_code: &str,
     year: i32,
 ) -> Result<f64, ApiClientError> {
-    const DEBT_ITEM_CODE: &str = "0500"; // TOTAL LIABILITIES
-
     // Fetch all items using the new aggregate function
     log::info!("Fetching all finpos items via aggregate for debt calculation {} year {}", municipality_code, year);
     let response = client
         .fetch_finpos_aggregate(municipality_code, year, "AUDA") // Target audited figures
         .await?;
 
-    // Filter the results by item code and sum the amounts
+    // Sum all items where item.code is in the range 0310 to 0500 (inclusive)
     let total_debt: f64 = response
-        .cells // Use 'cells' field from FactsApiResponse<FinancialItemFact>
+        .cells
         .iter()
-        .filter_map(|fact: &FinancialItemFact| { // Explicit type annotation
-            if fact.item_code == DEBT_ITEM_CODE {
-                let amount = fact.amount.unwrap_or(0.0);
-                 log::trace!( // Use trace for item-level details
-                    "Debt item: code={}, label='{}', amount={}",
-                    fact.item_code,
-                    fact.item_label,
-                    amount
-                );
-                Some(amount)
-            } else {
-                None
+        .filter_map(|fact: &FinancialItemFact| {
+            if let Ok(code) = fact.item_code.parse::<u32>() {
+                if code >= 310 && code <= 500 {
+                    let amount = fact.amount.unwrap_or(0.0);
+                    log::trace!(
+                        "Debt item: code={}, label='{}', amount={}",
+                        fact.item_code,
+                        fact.item_label,
+                        amount
+                    );
+                    return Some(amount);
+                }
             }
+            None
         })
         .sum();
 

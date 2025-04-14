@@ -74,6 +74,16 @@ This document outlines the technical details for the Rust backend of the Municip
 
 ---
 
+#### Rust Backend Design Notes (2025 Refactor)
+
+*   **Modularization:** API client, financial logic, and endpoint handlers are separated into distinct modules for maintainability.
+*   **Encapsulation:** The `MunicipalMoneyClient` struct exposes only public getter methods for internal fields, enforcing encapsulation.
+*   **Error Handling:** All API and business logic functions return `Result<T, ApiClientError>`, leveraging idiomatic Rust error propagation.
+*   **Async:** All network and database operations are fully async, using `.await` and the Tokio runtime.
+*   **Testing:** Integration tests cover real API calls and are marked as ignored by default to avoid unnecessary external requests.
+
+---
+
 #### Configuration
 
 *   **Method:** Environment Variables
@@ -179,7 +189,8 @@ The backend retrieves the core financial metrics for scoring as follows. All que
 
 2.  **Total Debt ([`get_total_debt`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:60:0-94:1))**
     *   **Cube**: `financial_position_v2`
-    *   **Method**: Use `fetch_incexp_aggregate` (or a similar aggregate call for `financial_position_v2` if implemented, otherwise requires a separate function) to get the `amount.sum` measure for `item.code`: `0500` (TOTAL LIABILITIES), filtering by `amount_type.code:AUDA`. *(Note: This function currently uses `fetch_generic_financial_data` which was removed. This section needs updating once debt fetching is refactored).*
+    *   **Method**: Sum the `amount.sum` for all items where `item.code` is in the range `0310`–`0500` (inclusive), filtering by `amount_type.code:AUDA`. This reflects the current approach for total liabilities (debt), parsing `item.code` as an integer for range checking.
+    *   *Note: Historical data structures or specific municipal reporting might differ. The backend implements the 0310-0500 range summation.*
 
 3.  **Total Expenditure ([`get_total_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:96:0-145:1))**
     *   **Cube**: `incexp_v2`
@@ -198,7 +209,7 @@ The backend retrieves the core financial metrics for scoring as follows. All que
 
 4.  **Capital Expenditure ([`get_total_capital_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:148:0-197:1))**
     *   **Cube**: `capital_v2`
-    *   **Method**: Get the aggregate `amount.sum`.
+    *   **Method**: Get the aggregate `amount.sum` for all items in the cube (no additional item code filtering is currently applied). If business requirements change, item code filtering can be added as in the revenue/expenditure logic.
 
 5.  **Audit Outcome ([`get_audit_outcome`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/audit.rs:10:0-58:1))**
     *   **Cube**: `audit_opinions`
