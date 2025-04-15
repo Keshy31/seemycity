@@ -1,7 +1,8 @@
 use serde::{Serialize, Deserialize};
-use sqlx::{FromRow, types::{Decimal, chrono}};
+use sqlx::{FromRow, types::chrono};
 use uuid::Uuid;
 use serde_json::Value;
+use rust_decimal::Decimal;
 
 // --- Database Table Models ---
 
@@ -41,15 +42,19 @@ pub struct MunicipalityGeometryDb {
 pub struct FinancialDataDb {
     pub id: Uuid, // Primary key
     pub municipality_id: String, // Foreign key
-    #[sqlx(rename = "year")]
-    pub financial_year: i32,
+    pub year: i32,
     pub revenue: Option<Decimal>,
     pub expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
     // Make audit_outcome optional to match DB NULLable and query_as SELECT *
     pub audit_outcome: Option<String>,
-    pub score: Option<Decimal>,
+    // Add the new score fields to match the DB table
+    pub overall_score: Option<Decimal>,
+    pub financial_health_score: Option<Decimal>,
+    pub infrastructure_score: Option<Decimal>,
+    pub efficiency_score: Option<Decimal>,
+    pub accountability_score: Option<Decimal>,
     pub created_at: chrono::DateTime<chrono::Utc>, // Timestamp for cache management
     #[sqlx(default)] // Handle potential missing updated_at if not always set by upsert
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -70,7 +75,6 @@ pub struct MunicipalityBasicInfo {
 // Corresponds to data-spec.md section 3.1 properties
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MapMunicipalityProperties {
-    #[serde(rename = "code")]
     pub id: String,
     pub name: String,
     pub province: String,
@@ -85,7 +89,7 @@ pub struct MapMunicipalityProperties {
 
 // Data structure for individual financial year data within MunicipalityDetail
 // Corresponds to data-spec.md section 3.2 financials array items
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, FromRow)]
 pub struct FinancialYearData {
     pub year: i32,
     // Use Option<f64> for JSON compatibility, convert from Decimal
@@ -99,9 +103,17 @@ pub struct FinancialYearData {
     pub debt: Option<Decimal>,
     // Make audit_outcome optional
     pub audit_outcome: Option<String>,
+    // Add the new score fields
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
-    pub score: Option<Decimal>,
-    // Add other relevant fields from `financial_data` table if needed
+    pub overall_score: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub financial_health_score: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub infrastructure_score: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub efficiency_score: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub accountability_score: Option<Decimal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,7 +128,6 @@ pub struct FinancialDataPoint {
 // Corresponds to data-spec.md section 3.2
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MunicipalityDetail {
-    #[serde(rename = "code")]
     pub id: String,
     pub name: String,
     pub province: String,

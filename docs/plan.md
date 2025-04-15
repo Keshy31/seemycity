@@ -63,7 +63,7 @@
 
 ##### Phase 4: Backend Development
 - **Goal**: Build the Rust backend with Actix Web, `sqlx`, and integrate the Municipal Money API client.
-- **Status**: **Completed** (Core API structure ready, **Scoring Logic Pending**)
+- **Status**: **In Progress**
 - **Tasks:**
     *   [x] Initialize Rust project (`cargo new`, add initial dependencies: actix-web, sqlx, tokio, serde, reqwest, dotenvy, env_logger, rust_decimal, chrono)
     *   [x] Setup basic Actix Web server (root endpoint `/`, health check `/health`)
@@ -78,8 +78,11 @@
     *   [x] Setup integration tests for API client (`tests/muni_money_integration_test.rs`).
     *   [x] Implement application-level error handling (`src/errors.rs: AppError`).
     *   [x] Configure environment variables (`.env`, `src/config.rs`).
-    *   [ ] **Implement Scoring Logic**: Define the financial health scoring algorithm based on fetched metrics (revenue, expenditure, debt, audit opinion). Implement calculation in Rust (e.g., in a `src/scoring.rs` module). Update `financial_data` table or related structures to store/retrieve the calculated score.
-- **Milestone**: **Backend Ready** (API structure & endpoints): **Achieved**
+    *   [x] Refactor `/municipalities/{id}` endpoint to fetch missing data, trigger scoring, and upsert results.
+    *   [ ] Refactor scoring logic (`calculate_financial_score`) to use detailed sub-score functions.
+    *   [ ] Implement caching strategy.
+    *   [ ] Add endpoints for district/province aggregation (Post-MVP).
+- **Milestone**: **Backend Ready** (API structure & endpoints): **In Progress**
 
 ##### Phase 5: Frontend-Backend Integration
 - **Goal**: Connect SvelteKit frontend to the Rust API, replacing dummy data.
@@ -119,7 +122,7 @@
 1.  **Frontend First**: Basic SvelteKit + map deployed to Fly.io. **(Done)**
 2.  **DB Setup**: Postgres on Fly.io with static data. **(Done)**
 3.  **Frontend Expansion**: Full UI with dummy data, iterative deploys.
-4.  **Backend Build**: Rust API to process real data. **(Completed)**
+4.  **Backend Build**: Rust API to process real data. **(In Progress)**
 5.  **Integration**: Connect SvelteKit frontend to Rust API, replacing dummy data. **(In Progress)**
 6.  **Polish**: Final UX tweaks and testing.
 7.  **Hierarchical View**: Enhance map exploration with hierarchical drill-down and aggregated scores.
@@ -130,10 +133,9 @@
 - **Basic Web Up**: Achieved (Phase 1)
 - **DB Ready**: Achieved (Phase 2)
 - **Full UI (Dummy Data)**: Achieved (Phase 3)
-- **Backend Ready** (API Structure): **Achieved** (Phase 4)
-- **Backend Scoring Logic**: **PENDING** (Phase 4)
+- **Backend Ready** (API Structure): **In Progress** (Phase 4)
 - **Real Data Integration** (Initial Map Fetch): **Achieved** (Phase 5)
-- **Real Data Integration** (Full): **PENDING** (Phase 5)
+- **Real Data Integration** (Full): **Pending** (Phase 5)
 - **MVP Done**: Target after Phase 6
 - **Hierarchical View**: Target after Phase 7
 

@@ -5,7 +5,6 @@ use seemycity_backend::config; // Import config module
 use seemycity_backend::api::muni_money::client::MunicipalMoneyClient; // Import API Client
 use seemycity_backend::handlers::municipalities::{ // Import handlers
     get_municipality_detail_handler,
-    get_municipalities_map_handler,
 };
 use std::sync::Arc; // Import Arc if needed for Cache later, good practice
 
@@ -60,7 +59,6 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone())) // Share the pool
             .app_data(web::Data::new(api_client.clone())) // Share the API client
             // Register handlers
-            .service(get_municipalities_map_handler)
             .service(get_municipality_detail_handler)
     })
     .bind(("127.0.0.1", server_port))? 

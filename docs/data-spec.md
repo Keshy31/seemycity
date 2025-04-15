@@ -53,7 +53,12 @@ pub struct FinancialDataDb {
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>, // Total Liabilities (sum of items 0310-0500 in financial_position_v2 cube, based on current implementation)
     pub audit_outcome: Option<String>,
-    pub score: Option<Decimal>,
+    // Scores
+    pub overall_score: Option<Decimal>,
+    pub financial_health_score: Option<Decimal>,
+    pub infrastructure_score: Option<Decimal>,
+    pub efficiency_score: Option<Decimal>,
+    pub accountability_score: Option<Decimal>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -62,6 +67,23 @@ pub struct FinancialDataDb {
 pub struct FinancialDataPoint {
     pub metric_code: String, // e.g., "revenue", "debt"
     pub amount: Option<Decimal>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, FromRow)]
+pub struct FinancialYearData {
+    #[sqlx(rename = "year")] // Map 'year' column from DB query result
+    pub financial_year: i32, 
+    pub revenue: Option<Decimal>,
+    pub expenditure: Option<Decimal>,
+    pub capital_expenditure: Option<Decimal>,
+    pub debt: Option<Decimal>,
+    pub audit_outcome: Option<String>,
+    // Scores
+    pub overall_score: Option<Decimal>,
+    pub financial_health_score: Option<Decimal>,
+    pub infrastructure_score: Option<Decimal>,
+    pub efficiency_score: Option<Decimal>,
+    pub accountability_score: Option<Decimal>,
 }
 ```
 
@@ -78,7 +100,7 @@ interface MunicipalityFeatureProperties {
     id: string; // e.g., "BUF"
     name: string;
     province: string;
-    latest_score: number | null; // Latest available score (0-100)
+    latest_score: number | null; // Latest available overall_score (0-100)
     population: number | null; // Matches DB 'real', serialized as f64
     classification: string | null;
     // Add other properties needed for map popups or sidebar display
@@ -111,7 +133,12 @@ interface FinancialYearData {
     capital_expenditure: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
     debt: number | null; // Total Liabilities (from financial_data, numeric -> Option<Decimal> -> f64 | null)
     audit_outcome: string | null; // From financial_data
-    score: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
+    // Scores (numeric -> Option<Decimal> -> f64 | null)
+    overall_score: number | null; 
+    financial_health_score: number | null;
+    infrastructure_score: number | null;
+    efficiency_score: number | null;
+    accountability_score: number | null;
     // ... other relevant fields from `financial_data` table if added
 }
 ```
@@ -155,25 +182,37 @@ CREATE INDEX municipal_geometries_geom_geom_idx ON public.municipal_geometries U
 CREATE INDEX municipal_geometries_munic_id_idx ON public.municipal_geometries USING btree (munic_id); -- Matches DB index
 COMMENT ON TABLE municipal_geometries IS 'Stores geographic boundaries for South African municipalities.';
 
--- Table to store cached financial data and scores
+-- Table to store financial data per municipality per year
 CREATE TABLE financial_data (
-    id uuid NOT NULL DEFAULT gen_random_uuid(), -- Primary key
-    municipality_id varchar NOT NULL,            -- Foreign key to municipalities.id
-    year int4 NOT NULL,                          -- Financial year (Matches DB column name)
-    revenue numeric NULL,
-    expenditure numeric NULL,
-    capital_expenditure numeric NULL,            -- Added field
-    debt numeric NULL, -- Total Liabilities (sum of items 0310-0500 in financial_position_v2 cube, based on current implementation)
-    audit_outcome text NULL,
-    score numeric(5, 2) NULL,                  -- Calculated financial health score (0.00 - 100.00)
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL,
-    CONSTRAINT financial_data_pkey PRIMARY KEY (id),
-    CONSTRAINT financial_data_unique UNIQUE (municipality_id, year), -- Matches DB unique constraint
-    CONSTRAINT financial_data_municipalities_fk FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id) -- Matches DB FK
+    id uuid NOT NULL DEFAULT uuid_generate_v4(), -- Primary key
+    municipality_id varchar NOT NULL,             -- Foreign key to municipalities.id
+    year int NOT NULL,                            -- Financial year (e.g., 2023)
+    revenue numeric NULL,                         -- Total Revenue
+    expenditure numeric NULL,                     -- Total Expenditure
+    capital_expenditure numeric NULL,             -- Capital Expenditure
+    debt numeric NULL,                            -- Total Liabilities / Debt
+    audit_outcome text NULL,                      -- Latest Audit Opinion Label
+    -- Calculated Scores (stored after calculation)
+    overall_score numeric NULL,                   -- Overall Financial Health Score (0-100)
+    financial_health_score numeric NULL,          -- Component score (0-100)
+    infrastructure_score numeric NULL,            -- Component score (0-100)
+    efficiency_score numeric NULL,                -- Component score (0-100)
+    accountability_score numeric NULL,            -- Component score (0-100)
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE (municipality_id, year),               -- Ensure only one record per muni per year
+    FOREIGN KEY (municipality_id) REFERENCES municipalities(id)
 );
-CREATE INDEX financial_data_municipality_id_year_idx ON public.financial_data USING btree (municipality_id, year); -- Matches DB index
-COMMENT ON TABLE financial_data IS 'Stores cached financial metrics and calculated scores for municipalities, linked by municipality_id and year.';
+
+-- Trigger to automatically update updated_at timestamp
+CREATE TRIGGER set_timestamp_financial_data
+BEFORE UPDATE ON financial_data
+FOR EACH ROW
+EXECUTE PROCEDURE trigger_set_timestamp();
+
+-- Indexes
+CREATE INDEX idx_financial_data_municipality_year ON financial_data(municipality_id, year);
 ```
 
 ## 3. API Payloads
@@ -235,7 +274,11 @@ Returns detailed information for a single municipality identified by `{id}` (whi
             "capital_expenditure": 5000000000.0,
             "debt": 15000000000.0, // Total Liabilities (sum of items 0310-0500 based on current logic)
             "audit_outcome": "Unqualified",
-            "score": 85.2
+            "overall_score": 75.5,
+            "financial_health_score": 80.1,
+            "infrastructure_score": 70.0,
+            "efficiency_score": 72.3,
+            "accountability_score": 85.0
         }
         // ... more years
     ],
@@ -267,7 +310,11 @@ Returns detailed information for a single municipality identified by `{munic_id}
             "capital_expenditure": 500000000.00, // numeric -> Option<Decimal> -> f64 | null
             "debt": 12000000000.00, // numeric -> Option<Decimal> -> f64 | null
             "audit_outcome": "Unqualified opinion",
-            "score": 85.50 // numeric -> Option<Decimal> -> f64 | null
+            "overall_score": 85.50,
+            "financial_health_score": 80.1,
+            "infrastructure_score": 70.0,
+            "efficiency_score": 72.3,
+            "accountability_score": 85.0
         }
         // ... data for other years
     ],

@@ -38,8 +38,17 @@ pub async fn get_municipality_base_info_db(pool: &PgPool, muni_id: &str) -> Resu
 // Note: This is kept separate from the handler logic.
 // The handler implements the cache/API fetching logic using base_info + financials cache.
 pub async fn get_municipality_detail_db_only(pool: &PgPool, muni_id: &str) -> Result<Option<MunicipalityDetail>, AppError> {
-    // Fetch base municipality info
-    let base_info = get_municipality_base_info_db(pool, muni_id).await?;
+    log::debug!("Fetching full municipality detail from DB for ID: {}", muni_id);
+
+    // Fetch base municipality info first
+    // Keep using &str for this query as it expects the muni code (e.g., "BUF")
+    let base_info = sqlx::query_as!(
+        MunicipalityDb,
+        "SELECT * FROM municipalities WHERE id = $1",
+        muni_id
+    )
+    .fetch_optional(pool)
+    .await?;
 
     // If no base info, return None
     if base_info.is_none() {
@@ -48,11 +57,13 @@ pub async fn get_municipality_detail_db_only(pool: &PgPool, muni_id: &str) -> Re
     }
     let base_info_unwrapped = base_info.unwrap(); // Safe unwrap
 
-    // Fetch geometry
-    // Note: Consider moving geometry fetching to db/geo.rs if preferred
+    // Fetch geometry data using the string ID
     let geometry_row = sqlx::query!(
-        // Fetch geometry as GeoJSON string
-        "SELECT ST_AsGeoJSON(geom) AS geometry_geojson FROM municipal_geometries WHERE munic_id = $1",
+        r#"
+        SELECT ST_AsGeoJSON(geom) AS geometry_geojson 
+        FROM municipal_geometries 
+        WHERE munic_id = $1
+        "#,
         muni_id
     )
     .fetch_optional(pool)
@@ -73,7 +84,6 @@ pub async fn get_municipality_detail_db_only(pool: &PgPool, muni_id: &str) -> Re
     // Fetch all associated financial data from the database
     // Note: Uses a function assumed to be in db/financials.rs
     let financials: Vec<FinancialYearData> = crate::db::financials::get_all_financial_years_db(pool, muni_id).await?;
-
 
     // Construct the final MunicipalityDetail struct
     let detail = MunicipalityDetail {

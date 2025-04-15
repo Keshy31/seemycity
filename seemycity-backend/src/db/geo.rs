@@ -3,7 +3,8 @@ use sqlx::PgPool;
 use crate::models::MapMunicipalityProperties; // Use the specific model for map properties
 use crate::errors::AppError;
 use geojson; // For Feature struct
-use rust_decimal::Decimal; // Needed by MapMunicipalityProperties potentially via query macro
+// Add back the Decimal import needed for the query type override
+use rust_decimal::Decimal;
 use serde_json; // For converting properties struct
 
 // --- Geospatial Query Functions ---
@@ -11,11 +12,7 @@ use serde_json; // For converting properties struct
 // Function to get data needed for the /api/municipalities map view
 pub async fn get_data_for_map_view(
     pool: &PgPool,
-    limit: Option<i64>, // Use i64 for SQL LIMIT
 ) -> Result<Vec<geojson::Feature>, AppError> {
-    // Use i64::MAX (effectively infinite for practical purposes) if limit is None.
-    let query_limit = limit.unwrap_or(i64::MAX);
-
     // Fetch municipalities, geometry, and their latest scores
     let rows = sqlx::query!(
         r#"
@@ -29,7 +26,7 @@ pub async fn get_data_for_map_view(
             ST_AsGeoJSON(g.geom) AS geometry_geojson,
             -- Fetch the latest score for each municipality
             (
-                SELECT fd.score
+                SELECT fd.overall_score
                 FROM financial_data fd
                 WHERE fd.municipality_id = m.id
                 ORDER BY fd.year DESC
@@ -39,9 +36,7 @@ pub async fn get_data_for_map_view(
             municipalities m
         LEFT JOIN
             municipal_geometries g ON m.id = g.munic_id -- Use munic_id from geometries table
-        LIMIT $1 -- Add LIMIT clause
         "#,
-        query_limit // Bind the calculated limit value
     )
     .fetch_all(pool)
     .await?;

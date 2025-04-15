@@ -19,6 +19,9 @@ pub enum AppError {
     #[error("Not found: {0}")]
     NotFound(String),
 
+    #[error("Bad request: {0}")]
+    BadRequest(String), // Add BadRequest variant
+
     #[error("Internal server error: {0}")]
     InternalError(String),
     // Add other specific error types as needed
@@ -33,6 +36,7 @@ impl ResponseError for AppError {
             AppError::GeoJsonError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::ConfigError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST, // Add match arm for BadRequest
             AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

@@ -94,6 +94,7 @@ seemycity-frontend/
 - The main map view fetches a GeoJSON FeatureCollection from `/api/municipalities`. Other views fetch standard JSON from endpoints like `/api/municipalities/{id}`.
 - Data is stored in component state or Svelte stores for reactivity, generally matching the structures defined in the **Frontend Data Structures** section of [`docs/data-spec.md`](../docs/data-spec.md#12-frontend-svelte-typescript).
 - MapLibre GL JS is initialized in the Map component (`Map.svelte`), loading the fetched GeoJSON FeatureCollection as a data source and handling map interactions.
+- Single and Comparison views fetch financial data that now includes all calculated scores.
 
 ---
 

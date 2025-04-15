@@ -19,8 +19,9 @@ This document outlines the technical details for the Rust backend of the Municip
   - Key query functions (`src/db/queries.rs`):
     *   `get_all_municipalities_basic`: Fetches basic info (id, name, province) for all municipalities.
     *   `get_municipality_base_info_db`: Fetches detailed static info for a single municipality from the `municipalities` table (`MunicipalityDb` struct).
-    *   `get_financial_data_db`: Fetches financial data for a specific municipality and year from the `financial_data` table (`FinancialDataDb` struct).
-    *   `upsert_financial_data`: Accepts a slice of `FinancialDataPoint` structs and dynamically constructs an `INSERT ... ON CONFLICT DO UPDATE SET ...` SQL query to efficiently insert or update multiple financial metrics for a given municipality and year in a single transaction.
+    *   `get_all_financial_years_db`: Fetches all available financial records (including calculated scores) for a specific municipality from the `financial_data` table, ordered by year. Returns `Vec<FinancialYearData>`.
+    *   `upsert_complete_financial_record`: Accepts raw financial data (revenue, expenditure, debt, etc.) and calculated scores (`overall_score`, component scores). Performs an `INSERT ... ON CONFLICT DO UPDATE SET ...` to efficiently save or update the complete financial record, including scores, for a given municipality and year.
+    *   `get_data_for_map_view`: Fetches data needed for the map view, including municipality properties, geometry, and the latest `overall_score`.
     *   `get_municipality_geojson`: Fetches the GeoJSON geometry for a single municipality.
 
 ##### Asynchronous Runtime
@@ -56,16 +57,16 @@ This document outlines the technical details for the Rust backend of the Municip
 #### Database Interaction
 
 *   **Database:** PostgreSQL
-*   **Extension:** PostGIS (for geospatial queries - planned)
+*   **Extension:** PostGIS (for geospatial queries)
 *   **ORM/Query Builder:** `sqlx`
     *   Chosen for its compile-time query checking and async support.
     *   Connection pooling is managed via `sqlx::postgres::PgPoolOptions`.
     *   Error handling leverages `AppError::SqlxError(#[from] sqlx::Error)` for automatic conversion.
     *   Key query functions (`src/db/queries.rs`):
-        *   `get_all_municipalities_basic`: Fetches basic info (id, name, province) for all municipalities.
         *   `get_municipality_base_info_db`: Fetches detailed static info for a single municipality from the `municipalities` table (`MunicipalityDb` struct).
-        *   `get_financial_data_db`: Fetches financial data for a specific municipality and year from the `financial_data` table (`FinancialDataDb` struct).
-        *   `upsert_financial_data`: Accepts a slice of `FinancialDataPoint` structs and dynamically constructs an `INSERT ... ON CONFLICT DO UPDATE SET ...` SQL query to efficiently insert or update multiple financial metrics for a given municipality and year in a single transaction.
+        *   `get_all_financial_years_db`: Fetches all available financial records (including calculated scores) for a specific municipality from the `financial_data` table, ordered by year. Returns `Vec<FinancialYearData>`.
+        *   `upsert_complete_financial_record`: Accepts raw financial data (revenue, expenditure, debt, etc.) and calculated scores (`overall_score`, component scores). Performs an `INSERT ... ON CONFLICT DO UPDATE SET ...` to efficiently save or update the complete financial record, including scores, for a given municipality and year.
+        *   `get_data_for_map_view`: Fetches data needed for the map view, including municipality properties, geometry, and the latest `overall_score`.
         *   `get_municipality_geojson`: Fetches the GeoJSON geometry for a single municipality.
 
 ---
@@ -131,8 +132,27 @@ seemycity-backend/
 
 ##### API Endpoints
 
-- **`/api/municipalities`**: Returns a GeoJSON `FeatureCollection` containing municipality boundaries and basic data suitable for map display. See [`docs/data-spec.md`](./data-spec.md#31-get-apimunicipalities) for payload details.
-- **`/api/municipalities/{id}`**: Returns detailed financial data and score breakdown for a specific municipality ID. See [`docs/data-spec.md`](./data-spec.md#32-get-apimunicipalityid) for payload details.
+- **`/api/municipalities`**: Returns a GeoJSON `FeatureCollection` containing all municipalities.
+    *   Each feature includes basic properties like `id`, `name`, `province`, `population`, and the latest calculated `overall_score`.
+    *   Fetches data primarily from the `municipalities` and `municipal_geometries` tables, joining with `financial_data` to get the latest score.
+    *   Handler: `get_all_municipalities_handler`.
+    *   Payload defined in: `docs/data-spec.md#31-map-view-payload-apimunicipalities`.
+- **`/api/municipalities/{id}`**: Returns detailed information for a single municipality specified by its ID (e.g., "BUF").
+    *   **Data Flow & Caching:**
+        1.  Extracts `muni_id` from the path.
+        2.  Fetches base static info (`MunicipalityDb`) from the `municipalities` table using `get_municipality_base_info_db`. This includes population data needed for scoring.
+        3.  Determines the most recent financial year required (typically the previous calendar year).
+        4.  **Cache Check:** Queries the `financial_data` table for existing data *and scores* for the given `muni_id` and `year` using `get_all_financial_years_db`.
+        5.  **API Fetch & Score Calculation (if needed):** 
+            *   If data/scores for the required year are NOT found in the database cache:
+                *   Calls the Municipal Money API client functions (`get_total_revenue`, `get_total_expenditure`, etc.) to fetch the raw financial figures for the specific year.
+                *   Uses the functions in `src/scoring.rs` (e.g., `calculate_overall_score`) with the fetched financial data and the population figure to calculate all scores.
+                *   Calls `upsert_complete_financial_record` to store the fetched raw financial data *and* the newly calculated scores in the `financial_data` table.
+        6.  **Data Retrieval:** Reads the required financial data and scores (either freshly calculated or from the cache) from the `financial_data` table.
+        7.  Fetches the GeoJSON geometry from the `municipal_geometries` table.
+    *   **Response:** Constructs and returns a `MunicipalityDetail` object containing base info, geometry, and an array of `FinancialYearData` (including scores).
+    *   Handler: `get_municipality_detail_handler`.
+    *   Payload defined in: `docs/data-spec.md#32-detail-view-payload-apimunicipalitiesid`.
 - **`/api/health`**: Simple health check endpoint.
 
 See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgresql--postgis) for the complete database schema definition.
@@ -143,7 +163,7 @@ See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgre
 2.  Handler calls `get_municipality_base_info_db` to get static details from the `municipalities` table.
 3.  Handler calls the relevant `MunicipalMoneyClient` methods (e.g., `get_total_revenue`, `get_audit_outcome`) to fetch live data from the API for the requested year.
 4.  The fetched API data (individual metrics) is converted into `FinancialDataPoint` structs.
-5.  Handler calls `upsert_financial_data` to save/update these metrics in the `financial_data` table.
+5.  Handler calls `upsert_complete_financial_record` to save/update these metrics in the `financial_data` table.
 6.  Handler combines the base info (from step 2) and the fetched financial data (from step 3) into the `MunicipalityDetail` response struct.
 7.  Handler returns the `MunicipalityDetail` struct as a JSON response to the frontend.
 
@@ -156,10 +176,9 @@ See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgre
 1.  **Extract ID:** The handler receives the municipality ID (`muni_id`) from the URL path.
 2.  **Fetch Base Info:** It calls `db::municipalities::get_municipality_base_info_db` to retrieve static details (name, province, etc.) for the `muni_id` from the `municipalities` table. If not found, returns a 404 Not Found.
 3.  **Cache Check:**
-    a.  The handler calls `db::financials::get_latest_cached_year` to find the most recent year for which financial data might be cached for the `muni_id`.
-    b.  If a `latest_year` is found, it calls `db::financials::get_cached_financials` to retrieve the actual cached data (`FinancialDataDb` struct) for that `muni_id` and `latest_year`.
-    c.  If cached data is found, it checks the `updated_at` timestamp against the current time (`Utc::now()`) and the `CACHE_TTL_SECONDS` constant (currently ~91 days). 
-    d.  If the cached data is recent enough, it's converted to `FinancialYearData` and stored in `financial_data_to_use`. The process skips to step 6.
+    a.  The handler calls `db::financials::get_all_financial_years_db` to find all available financial records (including scores) for the `muni_id`.
+    b.  If cached data is found, it checks the `updated_at` timestamp against the current time (`Utc::now()`) and the `CACHE_TTL_SECONDS` constant (currently ~91 days). 
+    c.  If the cached data is recent enough, it's converted to `FinancialYearData` and stored in `financial_data_to_use`. The process skips to step 6.
 4.  **Fresh Data Fetch (if Cache Miss or Stale):** If `financial_data_to_use` is still `None` (meaning no cache entry, or the cache was stale):
     a.  A fixed `fetch_year` is set (currently hardcoded to `2023`).
     b.  The handler logs that it's fetching fresh data for the `muni_id` and `fetch_year`.
@@ -253,7 +272,7 @@ The backend retrieves the core financial metrics for scoring as follows. All que
     *   Fetches base static municipality details using `get_municipality_base_info_db`.
     *   Fetches financial details (revenue, expenditure, debt, audit) for the specified year from the Municipal Money API via the `MunicipalMoneyClient`.
     *   Combines the base info and fetched financial data into a `MunicipalityDetail` response.
-    *   Uses `upsert_financial_data` to save the fetched financial metrics to the database.
+    *   Uses `upsert_complete_financial_record` to save the fetched financial metrics to the database.
     *   Currently, caching logic using `crate::utils::cache::Cache` is commented out.
 
 ---
@@ -274,13 +293,13 @@ The backend retrieves the core financial metrics for scoring as follows. All que
 
 *   **`GET /api/municipalities`**
     - Fetches GeoJSON FeatureCollection for the map view.
-    - Handler: `get_municipalities_map_handler` (TBC, in `handlers.rs`).
-    - Query: `get_data_for_map_view` (in `queries.rs`).
+    - Handler: `get_all_municipalities_handler`.
+    - Query: `get_data_for_map_view`.
     - Returns a `geojson::FeatureCollection`.
 *   **`GET /api/municipalities/{id}`**
     - Fetches detailed info for a single municipality (identified by `id`), including an array of all available historical financial data (`financials`).
-    - Handler: `get_municipality_detail_handler` (TBC, in `handlers.rs`).
-    - Query: `get_municipality_detail` (in `queries.rs`).
+    - Handler: `get_municipality_detail_handler`.
+    - Query: `get_municipality_detail`.
     - Returns a `MunicipalityDetail` struct (containing the `financials` array).
 
 ---
