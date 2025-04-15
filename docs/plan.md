@@ -62,10 +62,9 @@
 - **Milestone**: Full UI (dummy) Ready.
 
 ##### Phase 4: Backend Development
-
-*   **Status**: **IN PROGRESS** (Core logic complete, Caching pending)
-*   **Goal**: Build the Rust backend with Actix Web, `sqlx`, and integrate the Municipal Money API client.
-*   **Tasks:**
+- **Goal**: Build the Rust backend with Actix Web, `sqlx`, and integrate the Municipal Money API client.
+- **Status**: **Completed**
+- **Tasks:**
     *   [x] Initialize Rust project (`cargo new`, add initial dependencies: actix-web, sqlx, tokio, serde, reqwest, dotenvy, env_logger, rust_decimal, chrono)
     *   [x] Setup basic Actix Web server (root endpoint `/`, health check `/health`)
     *   [x] Implement modular structure (`src/handlers`, `src/models`, `src/db`, `src/api`, `src/errors`, `src/utils`, `src/config`)
@@ -74,16 +73,16 @@
     *   [x] Build Municipal Money API client (`src/api/muni_money/`): Structure, request logic, response parsing, error handling (`ApiClientError`).
     *   [x] Implement core API endpoints (`src/handlers/municipalities.rs`):
         *   [x] `GET /api/municipalities/{id}`: Fetch data using DB queries and API client, combine results, perform `upsert_financial_data`.
-        *   [/] `GET /api/municipalities`: Basic structure exists but needs implementation for map data query.
-    *   [ ] Implement Caching Logic: Re-enable/implement caching layer (e.g., using `crate::utils::cache` or similar) within handlers to reduce external API calls.
+        *   [x] `GET /api/municipalities`: Basic structure exists but needs implementation for map data query.
+    *   [x] Implement Caching Logic: Implemented time-based cache check (`CACHE_TTL_SECONDS`) within the `/api/municipalities/{id}` handler.
     *   [x] Setup integration tests for API client (`tests/muni_money_integration_test.rs`).
     *   [x] Implement application-level error handling (`src/errors.rs: AppError`).
     *   [x] Configure environment variables (`.env`, `src/config.rs`).
-- **Milestone**: **Backend Ready**: **In Progress** (Core API & DB logic done, pending caching implementation)
+- **Milestone**: **Backend Ready**: **Achieved**
 
 ##### Phase 5: Frontend-Backend Integration
 - **Goal**: Connect SvelteKit frontend to the Rust API, replacing dummy data.
-- **Status**: **Not Started**
+- **Status**: **PENDING**
 - **Tasks**:
     - [ ] **Update Map View**: Fetch `/api/municipalities`, render real scores/GeoJSON. Deploy.
     - [ ] **Update Single View**: Fetch `/api/municipality/{id}`, display real metrics. Add refresh. Deploy.
@@ -96,6 +95,8 @@
 - **Tasks**:
     - [ ] **Polish UI**: Apply transitions, add feedback (e.g., toasts), test responsiveness/themes. Deploy.
     - [ ] **Testing**: Verify functionality, performance, accessibility. Handle edge cases (missing data).
+    - [ ] **Optimize `/api/municipalities` DB Query**: Current query takes ~13s. Investigate potential index optimizations on `municipalities`, `municipal_geometries`, and `financial_data` tables (especially on `year`, `municipality_id`, and geometry columns).
+    - [ ] **Reduce `/api/municipalities` Payload Size**: Current response is ~33MB. Explore using simplified geometries (`ST_SimplifyPreserveTopology`) or centroids (`ST_Centroid`) instead of full geometries for the map overview.
     - [ ] **Bug Fixes**: Address identified issues. Deploy fixes.
     - [ ] **Documentation**: Update README with final setup/deployment steps.
 - **Milestone**: MVP Done
@@ -116,8 +117,8 @@
 1.  **Frontend First**: Basic SvelteKit + map deployed to Fly.io. **(Done)**
 2.  **DB Setup**: Postgres on Fly.io with static data. **(Done)**
 3.  **Frontend Expansion**: Full UI with dummy data, iterative deploys.
-4.  **Backend Build**: Rust API to process real data.
-5.  **Integration**: Connect frontend to backend, use real data.
+4.  **Backend Build**: Rust API to process real data. **(Completed)**
+5.  **Integration**: Connect SvelteKit frontend to Rust API, replacing dummy data. **(Pending)**
 6.  **Polish**: Final UX tweaks and testing.
 7.  **Hierarchical View**: Enhance map exploration with hierarchical drill-down and aggregated scores.
 
@@ -127,8 +128,8 @@
 - **Basic Web Up**: Achieved (Phase 1)
 - **DB Ready**: Achieved (Phase 2)
 - **Full UI (Dummy Data)**: Achieved (Phase 3)
-- **Backend Ready**: **In Progress** (Core API & DB logic done, pending caching implementation)
-- **Real Data Integration**: Target after Phase 5
+- **Backend Ready**: **Achieved** (Phase 4)
+- **Real Data Integration**: **PENDING** (Phase 5)
 - **MVP Done**: Target after Phase 6
 - **Hierarchical View**: Target after Phase 7
 

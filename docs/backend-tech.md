@@ -151,6 +151,35 @@ See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgre
 
 ---
 
+#### Data Flow (`/api/municipalities/{id}` Handler)
+
+1.  **Extract ID:** The handler receives the municipality ID (`muni_id`) from the URL path.
+2.  **Fetch Base Info:** It calls `db::municipalities::get_municipality_base_info_db` to retrieve static details (name, province, etc.) for the `muni_id` from the `municipalities` table. If not found, returns a 404 Not Found.
+3.  **Cache Check:**
+    a.  The handler calls `db::financials::get_latest_cached_year` to find the most recent year for which financial data might be cached for the `muni_id`.
+    b.  If a `latest_year` is found, it calls `db::financials::get_cached_financials` to retrieve the actual cached data (`FinancialDataDb` struct) for that `muni_id` and `latest_year`.
+    c.  If cached data is found, it checks the `updated_at` timestamp against the current time (`Utc::now()`) and the `CACHE_TTL_SECONDS` constant (currently ~91 days). 
+    d.  If the cached data is recent enough, it's converted to `FinancialYearData` and stored in `financial_data_to_use`. The process skips to step 6.
+4.  **Fresh Data Fetch (if Cache Miss or Stale):** If `financial_data_to_use` is still `None` (meaning no cache entry, or the cache was stale):
+    a.  A fixed `fetch_year` is set (currently hardcoded to `2023`).
+    b.  The handler logs that it's fetching fresh data for the `muni_id` and `fetch_year`.
+    c.  It initiates **concurrent** calls to the `MunicipalMoneyClient` functions for the `muni_id` and `fetch_year`:
+        *   `get_total_revenue`
+        *   `get_total_expenditure`
+        *   `get_capital_expenditure`
+        *   `get_total_debt`
+        *   `get_audit_outcome`
+    d.  `tokio::join!` awaits all API calls to complete.
+    e.  Results are unwrapped (errors are propagated via `?`).
+    f.  The handler calls `db::financials::upsert_complete_financial_record` to insert or update the fetched financial data (revenue, expenditure, etc.) along with a generated UUID and current timestamp into the `financial_data` table for the `muni_id` and `fetch_year`.
+    g.  The freshly fetched data is converted to `FinancialYearData` and stored in `financial_data_to_use`.
+5.  **Construct Response:** The handler combines the `base_info` (from step 2) and the `financial_data_to_use` (either from cache in step 3d or fresh fetch in step 4g) into the `MunicipalityDetail` response struct.
+6.  **Return JSON:** The `MunicipalityDetail` struct is serialized to JSON and returned with an HTTP 200 OK status.
+
+*(Note: The `target_year` variable determined during the cache check is intentionally marked as unused (`_target_year`) because the actual year used for fetching fresh data is hardcoded as `fetch_year`)*
+
+---
+
 #### Testing
 
 *   **Framework:** Rust's built-in test framework (`#[test]`, `cargo test`).

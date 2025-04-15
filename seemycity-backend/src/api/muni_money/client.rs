@@ -52,22 +52,20 @@ impl MunicipalMoneyClient {
         year: i32,
     ) -> Result<AuditApiResponse, ApiClientError> {
         const AUDIT_OPINION_CUBE: &str = "audit_opinions";
-        // Define the specific fields we want from the audit opinions cube
-        const AUDIT_DRILLDOWNS: &str = "demarcation.code|demarcation.label|opinion.code|opinion.label|financial_year_end.year";
-        const AUDIT_AGGREGATES: &str = "amount.sum"; // Assuming we might still need a sum? Or just the labels?
+        // Corrected drilldowns - removed financial_year_end.year
+        const AUDIT_DRILLDOWNS: &str = "demarcation.code|demarcation.label|opinion.code|opinion.label";
+        // Removed AUDIT_AGGREGATES constant
 
-        // Base cuts for municipality and year
+        // Corrected cuts order and removed quotes around muni code (URL encoding handles this)
         let cuts = format!(
-            "demarcation.code:\"{}\"|financial_year_end.year:{}",
-            municipality_code, year
+            "financial_year_end.year:{}|demarcation.code:{}",
+            year, municipality_code 
         );
 
-        // Construct URL - Using aggregate endpoint for potential future consistency?
-        // Or should revert to /facts if that's more appropriate for this specific data?
-        // Let's assume /aggregate for now, similar to incexp.
+        // Construct URL - Removed aggregates parameter
         let url = format!(
-            "{}/cubes/{}/aggregate?drilldown={}&cut={}&aggregates={}",
-            self.base_url, AUDIT_OPINION_CUBE, AUDIT_DRILLDOWNS, cuts, AUDIT_AGGREGATES
+            "{}/cubes/{}/aggregate?drilldown={}&cut={}",
+            self.base_url, AUDIT_OPINION_CUBE, AUDIT_DRILLDOWNS, cuts
         );
 
         log::debug!("Fetching Audit Opinions URL: {}", url);

@@ -46,12 +46,8 @@ pub struct AuditOpinionFact {
     pub demarcation_label: String,
     #[serde(rename = "opinion.label")]
     pub opinion_label: String,
-    #[serde(rename = "financial_year_end.year")]
-    pub financial_year: i32,
     #[serde(rename = "opinion.code")]
     pub opinion_code: String,
-    #[serde(rename = "amount.sum")]
-    pub amount: Option<f64>,
 }
 
 /// Represents a single financial item entry from the aggregate endpoint.
