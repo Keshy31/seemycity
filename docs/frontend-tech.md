@@ -62,8 +62,8 @@ seemycity-frontend/
 │   ├── demo.spec.ts      # Example test
 │   ├── hooks.server.ts   # Server-side hooks (if needed)
 │   ├── lib/              # Reusable components, utilities, data types
-│   │   ├── components/   # UI Components (e.g., Map.svelte, Card.svelte)
-│   │   │   └── Map.svelte  # Placeholder for Map component
+│   │   ├── components/   # UI Components (e.g., MapComponent.svelte, Card.svelte)
+│   │   │   └── MapComponent.svelte  # Main map component
 │   │   ├── data/         # Data structures, dummy data
 │   │   │   └── dummyStore.ts # Exports dummyMunicipalitiesGeoJSON (for map) & dummyMunicipalityDetails (object mapping ID to details with financials array, latest_score, etc.). Contains helper functions.
 │   │   └── index.ts      # Barrel file for lib exports (optional)
@@ -93,7 +93,7 @@ seemycity-frontend/
 - The structure of the data received from the API is defined in the **API Payloads** section of [`docs/data-spec.md`](../docs/data-spec.md#3-api-payloads).
 - The main map view fetches a GeoJSON FeatureCollection from `/api/municipalities`. Other views fetch standard JSON from endpoints like `/api/municipalities/{id}`.
 - Data is stored in component state or Svelte stores for reactivity, generally matching the structures defined in the **Frontend Data Structures** section of [`docs/data-spec.md`](../docs/data-spec.md#12-frontend-svelte-typescript).
-- MapLibre GL JS is initialized in the Map component (`Map.svelte`), loading the fetched GeoJSON FeatureCollection as a data source and handling map interactions.
+- MapLibre GL JS is initialized in the Map component (`MapComponent.svelte`), loading the fetched GeoJSON FeatureCollection as a data source. Data-driven styling (e.g., `fill-color`) is applied based on the `overall_score` property within the GeoJSON features to visually represent financial health.
 - Single and Comparison views fetch financial data that now includes all calculated scores.
 
 ---

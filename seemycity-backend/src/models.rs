@@ -3,6 +3,7 @@ use sqlx::{FromRow, types::chrono};
 use uuid::Uuid;
 use serde_json::Value;
 use rust_decimal::Decimal;
+use geojson::Geometry;
 
 // --- Database Table Models ---
 
@@ -144,7 +145,6 @@ pub struct MunicipalityDetail {
     // pub last_updated: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-
 // Original struct - might be useful as a simplified API model if needed,
 // but doesn't map directly to DB tables easily.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -153,4 +153,21 @@ pub struct LegacyMunicipality {
     pub name: String,          // e.g., "Buffalo City Metropolitan Municipality"
     pub province: String,      // e.g., "Eastern Cape"
     pub financial_score: Option<f64>, // Score from 0.0 to 100.0
+}
+
+// --- GeoJSON Structures for Map Summary --- 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MapFeature {
+    #[serde(rename = "type")]
+    pub feature_type: String, // Should always be "Feature"
+    pub geometry: Option<Geometry>, // Use geojson crate's Geometry type
+    pub properties: MapMunicipalityProperties,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MapFeatureCollection {
+    #[serde(rename = "type")]
+    pub collection_type: String, // Should always be "FeatureCollection"
+    pub features: Vec<MapFeature>,
 }

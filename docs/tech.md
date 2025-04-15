@@ -25,7 +25,7 @@
 ##### Data Flow
 1. **External API**: Rust backend fetches data from Municipal Money API.
 2. **Processing & Caching**: Rust normalizes data (incl. current debt aggregation logic: sum of items 0310-0500), calculates scores, and caches in Postgres.
-3. **Internal API**: Rust serves processed data to Svelte frontend via REST endpoints.
+3. **Internal API**: Rust serves processed data to Svelte frontend via REST endpoints (`/api/municipalities` for GeoJSON map summary, `/api/municipalities/{id}` for detailed data).
 4. **UI**: Svelte frontend renders map, single, and comparison views.
 
 ---

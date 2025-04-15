@@ -100,7 +100,7 @@ interface MunicipalityFeatureProperties {
     id: string; // e.g., "BUF"
     name: string;
     province: string;
-    latest_score: number | null; // Latest available overall_score (0-100)
+    overall_score: number | null; // Latest available overall_score (0-100) from financial_data
     population: number | null; // Matches DB 'real', serialized as f64
     classification: string | null;
     // Add other properties needed for map popups or sidebar display
@@ -127,7 +127,7 @@ interface MunicipalityDetails {
 }
 
 interface FinancialYearData {
-    year: number;
+    financial_year: number; // Matches backend model field name
     revenue: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
     expenditure: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
     capital_expenditure: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
@@ -239,9 +239,9 @@ Returns a GeoJSON `FeatureCollection` suitable for map display.
                 "id": "JHB01", // municipality.id
                 "name": "Johannesburg Metro (Mock)", // municipality.name
                 "province": "GP", // municipality.province
-                "population": 5635127, // municipality.population (real -> f64)
-                "classification": "Metro", // municipality.classification
-                "score": 85.50 // latest financial_data.score (numeric -> Option<Decimal> -> f64 | null)
+                "classification": "Metro",
+                "population": 5635127,
+                "overall_score": 65.5 // Example latest overall score
             }
         }
         // ... more features
@@ -268,21 +268,28 @@ Returns detailed information for a single municipality identified by `{id}` (whi
     // ... other fields from municipalities table
     "financials": [
         {
-            "year": 2022,
-            "revenue": 50000000000.0,
-            "expenditure": 48000000000.0,
-            "capital_expenditure": 5000000000.0,
-            "debt": 15000000000.0, // Total Liabilities (sum of items 0310-0500 based on current logic)
-            "audit_outcome": "Unqualified",
-            "overall_score": 75.5,
-            "financial_health_score": 80.1,
+            "financial_year": 2023,
+            "revenue": 500000000.00,
+            "expenditure": 480000000.00,
+            "capital_expenditure": 80000000.00,
+            "debt": 120000000.00,
+            "audit_outcome": "Unqualified opinion with findings",
+            "overall_score": 75.2,
+            "financial_health_score": 80.0,
             "infrastructure_score": 70.0,
-            "efficiency_score": 72.3,
-            "accountability_score": 85.0
+            "efficiency_score": 72.5,
+            "accountability_score": 78.3
+        },
+        {
+            "financial_year": 2022,
+            "revenue": 480000000.00,
+            // ... other fields for 2022
+            "overall_score": 72.1
         }
         // ... more years
     ],
-    "score_breakdown": {} // TBD: Define structure for score components
+    "geometry": { /* ... */ } // Standard GeoJSON geometry object
+    // "score_breakdown": { /* ... */ } // Future addition
 }
 ```
 
@@ -304,7 +311,7 @@ Returns detailed information for a single municipality identified by `{munic_id}
     "website": "http://www.joburg.org.za", // From municipalities table
     "financials": [
         {
-            "year": 2023,
+            "financial_year": 2023,
             "revenue": 7500000000.50, // numeric -> Option<Decimal> -> f64 | null
             "expenditure": 7200000000.25, // numeric -> Option<Decimal> -> f64 | null
             "capital_expenditure": 500000000.00, // numeric -> Option<Decimal> -> f64 | null
@@ -318,11 +325,8 @@ Returns detailed information for a single municipality identified by `{munic_id}
         }
         // ... data for other years
     ],
-    "geometry": { // GeoJSON geometry value
-        "type": "Polygon",
-        "coordinates": [ /* ... */ ]
-    }
-    // "score_breakdown": { /* ... */ } // TBD
+    "geometry": { /* ... */ } // Standard GeoJSON geometry object
+    // "score_breakdown": { /* ... */ } // Future addition
 }
 ```
 

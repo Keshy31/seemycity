@@ -63,7 +63,7 @@
 
 ##### Phase 4: Backend Development
 - **Goal**: Build the Rust backend with Actix Web, `sqlx`, and integrate the Municipal Money API client.
-- **Status**: **In Progress**
+- **Status**: **Completed** (Core API endpoints implemented)
 - **Tasks:**
     *   [x] Initialize Rust project (`cargo new`, add initial dependencies: actix-web, sqlx, tokio, serde, reqwest, dotenvy, env_logger, rust_decimal, chrono)
     *   [x] Setup basic Actix Web server (root endpoint `/`, health check `/health`)
@@ -73,26 +73,26 @@
     *   [x] Build Municipal Money API client (`src/api/muni_money/`): Structure, request logic, response parsing, error handling (`ApiClientError`).
     *   [x] Implement core API endpoints (`src/handlers/municipalities.rs`):
         *   [x] `GET /api/municipalities/{id}`: Fetch data using DB queries and API client, combine results, perform `upsert_financial_data`.
-        *   [x] `GET /api/municipalities`: Basic structure exists but needs implementation for map data query.
+        *   [x] `GET /api/municipalities`: Implemented to return GeoJSON summary for map view.
     *   [x] Implement Caching Logic: Implemented time-based cache check (`CACHE_TTL_SECONDS`) within the `/api/municipalities/{id}` handler.
     *   [x] Setup integration tests for API client (`tests/muni_money_integration_test.rs`).
     *   [x] Implement application-level error handling (`src/errors.rs: AppError`).
     *   [x] Configure environment variables (`.env`, `src/config.rs`).
     *   [x] Refactor `/municipalities/{id}` endpoint to fetch missing data, trigger scoring, and upsert results.
-    *   [ ] Refactor scoring logic (`calculate_financial_score`) to use detailed sub-score functions.
-    *   [ ] Implement caching strategy.
+    *   [x] Refactor scoring logic (`calculate_financial_score`) to use detailed sub-score functions.
+    *   [ ] Implement caching strategy (for calculated scores).
     *   [ ] Add endpoints for district/province aggregation (Post-MVP).
-- **Milestone**: **Backend Ready** (API structure & endpoints): **In Progress**
+- **Milestone**: **Backend Ready** (API Structure & Endpoints): **Achieved**
 
 ##### Phase 5: Frontend-Backend Integration
 - **Goal**: Connect SvelteKit frontend to the Rust API, replacing dummy data.
-- **Status**: **In Progress** (Basic map data fetch complete)
+- **Status**: **In Progress** (Initial map fetch complete)
 - **Tasks**:
-    - [x] **Update Map View (Initial Fetch)**: Fetch `/api/municipalities`, connect to backend via proxy, display basic GeoJSON shapes. (API Key requirement removed, using basic style).
+    - [x] **Update Map View (Initial Fetch)**: Fetch `/api/municipalities`, connect to backend via proxy, display basic GeoJSON shapes.
     - [ ] **Update Map View (Data Styling)**: Implement data-driven styling to color municipalities based on fetched scores (requires backend scoring logic).
     - [ ] **Update Single View**: Fetch `/api/municipality/{id}`, display real metrics. Add refresh. Deploy.
     - [ ] **Update Comparison View**: Fetch multiple `/api/municipality/{id}`, show real comparisons. Deploy.
-- **Milestone**: Real Data Integration (Full)
+- **Milestone**: Real Data Integration (Initial Map Fetch): **Achieved**
 
 ##### Phase 6: Polish and Testing
 - **Goal**: Refine UI/UX, add tests, fix bugs, finalize documentation.
@@ -122,7 +122,7 @@
 1.  **Frontend First**: Basic SvelteKit + map deployed to Fly.io. **(Done)**
 2.  **DB Setup**: Postgres on Fly.io with static data. **(Done)**
 3.  **Frontend Expansion**: Full UI with dummy data, iterative deploys.
-4.  **Backend Build**: Rust API to process real data. **(In Progress)**
+4.  **Backend Build**: Rust API to process real data. **(Done)**
 5.  **Integration**: Connect SvelteKit frontend to Rust API, replacing dummy data. **(In Progress)**
 6.  **Polish**: Final UX tweaks and testing.
 7.  **Hierarchical View**: Enhance map exploration with hierarchical drill-down and aggregated scores.
@@ -133,7 +133,7 @@
 - **Basic Web Up**: Achieved (Phase 1)
 - **DB Ready**: Achieved (Phase 2)
 - **Full UI (Dummy Data)**: Achieved (Phase 3)
-- **Backend Ready** (API Structure): **In Progress** (Phase 4)
+- **Backend Ready** (API Structure & Endpoints): **Achieved** (Phase 4)
 - **Real Data Integration** (Initial Map Fetch): **Achieved** (Phase 5)
 - **Real Data Integration** (Full): **Pending** (Phase 5)
 - **MVP Done**: Target after Phase 6
@@ -157,4 +157,4 @@
 ### Feedback
 This plan reflects the current progress, prioritizing getting the database populated before expanding the frontend significantly.
 
-**Current Focus**: Implementing the backend financial scoring logic (Phase 4). Frontend integration will resume after scoring is available.
+**Current Focus**: Implementing the map data styling (Phase 5) and backend financial scoring logic (Phase 4).

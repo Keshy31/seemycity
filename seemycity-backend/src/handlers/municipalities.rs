@@ -1,14 +1,15 @@
 // Add these imports at the top of the file if they are missing
 use actix_web::{get, web, HttpResponse}; // Import actix_web components
+use serde::Deserialize; // Import Deserialize
 use crate::api::muni_money::audit::get_audit_outcome; // Correct audit import path
 use crate::api::muni_money::client::MunicipalMoneyClient;
 use crate::api::muni_money::financials::{ // Correct financials import path
     get_capital_expenditure, get_total_debt, get_total_expenditure, get_total_revenue,
 };
 use crate::db::financials::{get_all_financial_years_db, upsert_complete_financial_record}; // Import DB functions
-use crate::db::municipalities::get_municipality_base_info_db; // Import DB functions
+use crate::db::municipalities::{get_municipality_base_info_db, get_municipalities_summary_for_map}; // <-- Add new DB function
 use crate::errors::AppError; // Import custom error type
-use crate::models::{FinancialYearData, MunicipalityDetail}; // Keep model imports
+use crate::models::{FinancialYearData, MunicipalityDetail, MapFeatureCollection}; // <-- Add MapFeatureCollection
 use crate::scoring::{calculate_financial_score, ScoringInput};
 use sqlx::PgPool as DbPool;
 use tokio; // Import tokio
@@ -179,4 +180,34 @@ async fn get_municipality_detail_handler(
 
     log::info!("END: Handling request for /api/municipalities/{}", muni_id_str);
     Ok(HttpResponse::Ok().json(response))
+}
+
+// --- Handler for fetching municipality list/summary (GeoJSON) ---
+
+// Define query parameters for the list endpoint
+#[derive(Deserialize, Debug)]
+pub struct ListQuery { 
+    limit: Option<i64>, // Optional limit parameter
+}
+
+// GET /api/municipalities
+#[get("/api/municipalities")]
+pub async fn get_municipalities_list_handler(
+    pool: web::Data<DbPool>,
+    query: web::Query<ListQuery>, // Extract query parameters
+) -> Result<HttpResponse, AppError> {
+    let limit = query.limit;
+    log::info!("START: Handling request for /api/municipalities with limit: {:?}", limit);
+
+    // Fetch the features using the new DB function
+    let map_features = get_municipalities_summary_for_map(&pool, limit).await?;
+
+    // Construct the FeatureCollection
+    let feature_collection = MapFeatureCollection {
+        collection_type: "FeatureCollection".to_string(),
+        features: map_features,
+    };
+
+    log::info!("END: Returning {} features for /api/municipalities", feature_collection.features.len());
+    Ok(HttpResponse::Ok().json(feature_collection))
 }

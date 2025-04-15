@@ -1,79 +1,14 @@
 <script lang="ts">
-  import { page } from '$app/stores';
   import Icon from '@iconify/svelte';
-  import { onMount } from 'svelte';
 
-  // Define structure for the items within the financials array
-  interface FinancialYearDetails {
-    year: number;
-    revenue?: number | null;
-    expenditure?: number | null;
-    capital_expenditure?: number | null;
-    debt?: number | null;
-    audit_outcome?: string | null;
-    overall_score?: number | null;
-    financial_health_score?: number | null;
-    infrastructure_score?: number | null;
-    efficiency_score?: number | null;
-    accountability_score?: number | null;
-  }
+  /** @type {import('./$types').PageData} */
+  export let data; // Data is passed from +page.ts load function
 
-  // Update main interface to include the financials array
-  interface MunicipalityDetails {
-    id: string;
-    name: string;
-    province: string;
-    population?: number | null;
-    classification?: string | null;
-    website?: string | null;
-    financials: FinancialYearDetails[];
-  }
-
-  $: id = $page.params.id;
-
-  let muniDetails: MunicipalityDetails | null = null;
-  let isLoading = true;
-  let error: string | null = null;
+  // Access the municipality data directly from the prop
+  $: muniDetails = data.municipality;
 
   // Helper to safely get the first financial record
   $: firstFinancialRecord = muniDetails?.financials?.[0];
-
-  onMount(async () => {
-    if (!id) {
-      error = "Municipality ID not found in URL.";
-      isLoading = false;
-      return;
-    }
-    isLoading = true;
-    error = null;
-    try {
-      const response = await fetch(`/api/municipalities/${id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`Municipality with ID '${id}' not found.`);
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-      }
-      const rawData = await response.json();
-      console.log('Fetched Muni Details (Raw):', rawData); // Log raw data
-
-      // Basic validation before assigning
-      if (rawData && typeof rawData === 'object' && Array.isArray(rawData.financials)) {
-         muniDetails = rawData as MunicipalityDetails;
-      } else {
-          console.error('Received unexpected data structure:', rawData);
-          throw new Error('Received unexpected data structure from API.');
-      }
-
-    } catch (e: any) {
-      console.error('Error fetching municipality details:', e);
-      error = e.message || 'Failed to load municipality data.';
-      muniDetails = null; // Clear data on error
-    } finally {
-      isLoading = false;
-    }
-  });
 
   function formatCurrency(value: number | null | undefined): string {
     if (value == null) return 'N/A';
@@ -118,26 +53,21 @@
     ? formatPercentage((financials.capital_expenditure / financials.expenditure) * 100)
     : 'N/A';
   $: efficiencyScoreFormatted = financials?.efficiency_score != null ? `${formatScore(financials.efficiency_score)} / 100` : 'N/A';
-
 </script>
 
 <svelte:head>
-	<title>{muniDetails ? muniDetails.name : 'Municipality Details'} - SeeMyCity</title>
+	<title>{muniDetails?.name ?? 'Municipality Details'} - SeeMyCity</title>
 	<meta name="description" content={`Financial health details for ${muniDetails?.name ?? 'a municipality'}.`} />
 </svelte:head>
 
 <div class="container mx-auto p-4 pt-20"> 
-  {#if isLoading}
-	<p>Loading municipality details...</p>
-	{:else if error}
-	<p class="text-red-500">Error loading data: {error}</p>
-	{:else if muniDetails && financials}
+  {#if muniDetails && financials}
 	<!-- Header: Name, Province, Score -->
 	<div class="flex justify-between items-center mb-6 p-4 rounded-lg shadow-md" style="background-color: var(--background, #FDF6E3); color: var(--text, #3C2F2F);">
 		<div>
 			<h1 class="text-3xl font-bold font-heading">{muniDetails.name}</h1>
-			<p class="text-lg text-gray-600">{muniDetails.province_name}</p>
-			<p class="text-sm text-gray-500">Category: {muniDetails.category}</p>
+			<p class="text-lg text-gray-600">{muniDetails.province}</p>
+			<p class="text-sm text-gray-500">Category: {muniDetails.classification ?? 'N/A'}</p>
 		</div>
 		<div class="text-right">
 			<p class="text-sm font-medium uppercase tracking-wider">Overall Score</p>
@@ -148,7 +78,7 @@
 		</div>
 	</div>
 
-	<!-- Key Metrics Row (NEW) -->
+	<!-- Key Metrics Row -->
 	<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 		<!-- Revenue Per Capita -->
 		<div class="metric-card">
@@ -176,7 +106,7 @@
 		</div>
 	</div>
 
-	<!-- Score Breakdown Section (NEW) -->
+	<!-- Score Breakdown Section -->
 	<div class="mb-6 p-4 rounded-lg shadow-md bg-white">
 		<h2 class="text-xl font-semibold mb-3 font-heading">Score Breakdown</h2>
 		<div class="space-y-3">
@@ -207,10 +137,10 @@
 		</div>
 	</div>
 
-	<!-- Other Financial Details (Example) -->
+	<!-- Financial Details Section -->
 	<div class="p-4 rounded-lg shadow-md bg-white">
 		<h2 class="text-xl font-semibold mb-3 font-heading">Financial Details ({financials.year})</h2>
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+		<dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
 			<div>
 				<p>
 					<span class="font-medium">Total Revenue:</span> {formatCurrency(financials.revenue)}
@@ -227,11 +157,11 @@
 					<span class="font-medium">Total Debt:</span> {formatCurrency(financials.debt)}
 				</p>
 			</div>
-		</div>
+		</dl>
 	</div>
 
 	{:else}
-	<p>Municipality data not found or format is incorrect.</p>
+	<p>Municipality data or financials for the requested year not available.</p>
 	{/if}
 </div>
 
@@ -253,27 +183,45 @@
 
 	// Key Metric Card Styling
 	.metric-card {
-		@apply bg-white p-4 rounded-lg shadow text-center flex flex-col items-center justify-center;
+		background-color: #fff;
+		padding: 1rem;
+		border-radius: 0.5rem;
+		box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.1);
 		color: var(--text, #3C2F2F);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
 
 		.metric-icon {
-			@apply text-3xl mb-2;
+			font-size: 2rem;
+			margin-bottom: 0.5rem;
 			color: var(--primary-color, #008080);
 		}
 		.metric-label {
-			@apply text-sm font-medium text-gray-500 mb-1;
+			font-size: 1.125rem;
+			font-weight: 500;
+			margin-bottom: 0.25rem;
 		}
 		.metric-value {
-			@apply text-lg font-semibold;
+			font-size: 0.875rem;
+			color: var(--primary-color, #008080);
+			font-weight: bold;
 		}
 	}
 
 	// Score Breakdown Item Styling
 	.breakdown-item {
-		@apply flex justify-between items-center border-b border-gray-200 pb-2;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		border-bottom: 1px solid #ddd;
+		padding-bottom: 0.5rem;
+		margin-bottom: 0.5rem;
 		&:last-child {
 			border-bottom: none;
 			padding-bottom: 0;
+			margin-bottom: 0;
 		}
 	}
 
@@ -287,4 +235,43 @@
          background-color: var(--background, #FDF6E3); // Apply background from rules/ux
     }
 
+	.metric-label { 
+		font-size: 1.125rem; /* Equivalent to text-lg */
+		font-weight: 500;
+		margin-bottom: 0.25rem;
+	}
+
+	.metric-value {
+		font-size: 0.875rem; /* Equivalent to text-sm */
+		color: var(--primary-color, #008080);
+		font-weight: bold;
+	}
+
+	.financial-detail-label { 
+		font-size: 0.75rem; /* Equivalent to text-xs */
+		color: #6b7280; /* Equivalent to text-gray-500 */
+		font-weight: normal;
+	}
+
+	.financial-detail-value {
+		font-size: 1.125rem; /* Equivalent to text-lg */
+		font-weight: 600; /* Equivalent to font-semibold */
+		margin-bottom: 0.5rem; /* Equivalent to mb-2 */
+	}
+
+	// Styles for dl/dt/dd for Financial Details (if using that structure)
+	dl { 
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr)); /* Equivalent to grid-cols-2 */
+		gap: 1rem; /* Equivalent to gap-4 */
+		font-size: 0.875rem; /* Equivalent to text-sm */
+	}
+
+	dt {
+		font-weight: 500;
+	}
+
+	dd { 
+		text-align: right;
+	}
 </style>

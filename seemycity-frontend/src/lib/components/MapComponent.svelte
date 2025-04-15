@@ -69,8 +69,8 @@
     isLoading = true;
     error = null;
     try {
-      // TEMP: Limit to 3 results for faster development loading
-      const response = await fetch('/api/municipalities?limit=3');
+      // TEMP: Limit to 5 results for faster development loading
+      const response = await fetch('/api/municipalities?limit=5'); 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
