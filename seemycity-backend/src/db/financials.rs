@@ -4,6 +4,7 @@ use crate::models::{FinancialDataDb, FinancialYearData}; // Add necessary models
 use crate::errors::AppError;
 use rust_decimal::Decimal; // For upsert function
 use chrono::Utc; // For upsert and timestamp checks
+use uuid::Uuid; // Import Uuid
 
 // --- Financial Data Query Functions ---
 
@@ -67,14 +68,16 @@ pub async fn upsert_complete_financial_record(
     accountability_score: Option<Decimal>,
 ) -> Result<(), AppError> {
     let now = Utc::now();
+    let record_id = Uuid::new_v4(); // Generate a new UUID v4
+
     sqlx::query!(
         r#"
         INSERT INTO financial_data (
-            municipality_id, year, revenue, expenditure, capital_expenditure, debt, audit_outcome,
+            id, municipality_id, year, revenue, expenditure, capital_expenditure, debt, audit_outcome,
             overall_score, financial_health_score, infrastructure_score, efficiency_score, accountability_score, 
             created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         ON CONFLICT (municipality_id, year) DO UPDATE SET
             revenue = EXCLUDED.revenue,
             expenditure = EXCLUDED.expenditure,
@@ -88,6 +91,7 @@ pub async fn upsert_complete_financial_record(
             accountability_score = EXCLUDED.accountability_score,
             updated_at = EXCLUDED.updated_at
         "#,
+        record_id, // Pass the generated UUID as the first parameter
         municipality_id,
         year,
         revenue,
@@ -100,8 +104,8 @@ pub async fn upsert_complete_financial_record(
         infrastructure_score,
         efficiency_score,
         accountability_score,
-        now,
-        now
+        now, // created_at (only set on INSERT)
+        now // updated_at (set on INSERT and UPDATE)
     )
     .execute(pool)
     .await?;

@@ -10,7 +10,6 @@ use crate::db::municipalities::get_municipality_base_info_db; // Import DB funct
 use crate::errors::AppError; // Import custom error type
 use crate::models::{FinancialYearData, MunicipalityDetail}; // Keep model imports
 use crate::scoring::{calculate_financial_score, ScoringInput};
-use chrono::{Datelike, Utc};
 use sqlx::PgPool as DbPool;
 use tokio; // Import tokio
 
@@ -34,8 +33,7 @@ async fn get_municipality_detail_handler(
     let population_opt = base_info_unwrapped.population;
 
     // Determine the financial year to fetch/calculate for
-    let current_year = Utc::now().year();
-    let fetch_year = current_year - 1; // Use the previous year
+    let fetch_year = 2023; // Hardcode to 2023 for now
     log::debug!("Muni: {}, Determined fetch year: {}", muni_id_str, fetch_year);
 
     // Fetch existing financial records from DB
@@ -117,7 +115,7 @@ async fn get_municipality_detail_handler(
         capital_expenditure: financial_data.capital_expenditure,
         debt: financial_data.debt,
         audit_outcome: financial_data.audit_outcome.clone(),
-        population: population_opt,
+        population: population_opt.map(|p| p as u32), // Cast f32 to u32
     };
 
     // Calculate scores using the (potentially updated) financial data

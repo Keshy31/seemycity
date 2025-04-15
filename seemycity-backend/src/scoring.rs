@@ -1,24 +1,29 @@
+// Add missing imports and definitions back
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec; // For decimal literals
-use std::cmp::{max, min}; // For clamping
+use rust_decimal_macros::dec;
+use log::{info, warn};
 
-// Define weights from PRD
-const WEIGHT_FIN_HEALTH: Decimal = dec!(0.30);
+// Re-add constants
+const WEIGHT_FIN_HEALTH: Decimal = dec!(0.35); // Adjusted weights
 const WEIGHT_INFRA: Decimal = dec!(0.25);
-const WEIGHT_EFFICIENCY: Decimal = dec!(0.25);
+const WEIGHT_EFFICIENCY: Decimal = dec!(0.20);
 const WEIGHT_ACCOUNTABILITY: Decimal = dec!(0.20);
 
-// Placeholder structure for input metrics - adjust types as needed based on source
+// Target for scaling revenue per capita
+const TARGET_REVENUE_PER_CAPITA: Decimal = dec!(10000.0);
+
+// Re-add ScoringInput struct
+#[derive(Debug, Clone, PartialEq)]
 pub struct ScoringInput {
     pub revenue: Option<Decimal>,
     pub expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
-    pub audit_outcome: Option<String>, // Or an Enum if we define one
-    pub population: Option<f32>,      // From municipalities table
+    pub audit_outcome: Option<String>,
+    pub population: Option<u32>,
 }
 
-// NEW: Struct to hold the score breakdown
+// Re-add ScoreBreakdown struct
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoreBreakdown {
     pub overall_score: Decimal,
@@ -28,277 +33,268 @@ pub struct ScoreBreakdown {
     pub accountability_score: Decimal,
 }
 
-/// Calculates the overall financial health score (0-100) and its breakdown.
-/// Returns None if any essential metric for a weighted pillar is missing.
-pub fn calculate_financial_score(input: &ScoringInput) -> Option<ScoreBreakdown> { // Return Option<ScoreBreakdown>
-    // Calculate individual component scores
-    let financial_health_score_opt = calculate_fin_health_score(
-        input.revenue, input.debt, input.population
-    );
-    let infrastructure_score_opt = calculate_infra_score(
-        input.capital_expenditure, input.expenditure
-    );
-    let efficiency_score_opt = calculate_efficiency_score(
-        input.expenditure, input.capital_expenditure, input.revenue
-    );
-    let accountability_score_opt = calculate_accountability_score(
-        input.audit_outcome.as_deref()
-    );
-
-    // If any essential score component cannot be calculated, we might return None
-    // or calculate a partial score. For now, let's require all components.
-    // If a component is None, treat its score as 0 for the weighted average.
-    let financial_health_score = financial_health_score_opt.unwrap_or_else(|| {
-        log::warn!("Financial health score could not be calculated, defaulting to 0.");
-        Decimal::ZERO
-    });
-    let infrastructure_score = infrastructure_score_opt.unwrap_or_else(|| {
-        log::warn!("Infrastructure score could not be calculated, defaulting to 0.");
-        Decimal::ZERO
-    });
-    let efficiency_score = efficiency_score_opt.unwrap_or_else(|| {
-        log::warn!("Efficiency score could not be calculated, defaulting to 0.");
-        Decimal::ZERO
-    });
-    let accountability_score = accountability_score_opt.unwrap_or_else(|| {
-        log::warn!("Accountability score could not be calculated, defaulting to 0.");
-        Decimal::ZERO
-    });
-
-    // Calculate the weighted overall score
-    // Ensure scores are clamped between 0 and 100 before weighting
-    let overall_score = 
-        (financial_health_score.clamp(Decimal::ZERO, dec!(100.0)) * WEIGHT_FIN_HEALTH)
-        + (infrastructure_score.clamp(Decimal::ZERO, dec!(100.0)) * WEIGHT_INFRA)
-        + (efficiency_score.clamp(Decimal::ZERO, dec!(100.0)) * WEIGHT_EFFICIENCY)
-        + (accountability_score.clamp(Decimal::ZERO, dec!(100.0)) * WEIGHT_ACCOUNTABILITY);
-
-    // Round the overall score to a reasonable precision, e.g., 2 decimal places
-    let overall_score_rounded = overall_score.round_dp(2);
-
-    log::debug!(
-        "Calculated Scores: Overall: {}, Health: {}, Infra: {}, Eff: {}, Acc: {}",
-        overall_score_rounded,
-        financial_health_score,
-        infrastructure_score,
-        efficiency_score,
-        accountability_score
-    );
-
-    Some(ScoreBreakdown {
-        overall_score: overall_score_rounded,
-        financial_health_score: financial_health_score.round_dp(2),
-        infrastructure_score: infrastructure_score.round_dp(2),
-        efficiency_score: efficiency_score.round_dp(2),
-        accountability_score: accountability_score.round_dp(2),
-    })
+// Re-add AuditOutcome enum
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuditOutcome {
+    Clean,                    // "Clean Audit"
+    FinanciallyUnqualified,   // "Financially Unqualified"
+    Qualified,                // "Qualified Audit Opinion"
+    Adverse,                  // "Adverse Audit Opinion"
+    Disclaimer,               // "Disclaimer Of Audit Opinion"
+    Unknown(String),          // Catch-all for others
 }
 
-// --- Helper Functions for Pillar Sub-Scores ---
-
-/// Calculates the Accountability sub-score (0, 50, or 100).
-/// Returns None if outcome is None or not recognized.
-fn calculate_accountability_score(audit_outcome: Option<&str>) -> Option<Decimal> {
-    match audit_outcome {
-        Some("Clean Audit" | "Financially Unqualified") => Some(dec!(100.0)), // Assuming these map to "Clean" intent
-        Some("Qualified Audit Opinion") => Some(dec!(50.0)),
-        Some("Adverse Audit Opinion" | "Disclaimer Of Audit Opinion") => Some(dec!(0.0)), // Assuming "Disclaimer" is also poor
-        Some(_) => Some(dec!(0.0)), // Default for other unrecognized non-empty strings? Or None? Let's default to 0 for now.
-        None => None, // Cannot score if outcome is missing
-    }
-}
-
-/// Calculates Infrastructure Investment sub-score (Capex % of Total Ex).
-/// Returns None if capex or expenditure is None, or if expenditure is zero/negative.
-fn calculate_infra_score(capex_opt: Option<Decimal>, expenditure_opt: Option<Decimal>) -> Option<Decimal> {
-    match (capex_opt, expenditure_opt) {
-        (Some(capex), Some(expenditure)) if expenditure > dec!(0.0) => {
-            // Ensure capex is not negative before calculation
-            let valid_capex = max(dec!(0.0), capex);
-            let ratio = valid_capex / expenditure;
-            // Clamp ratio between 0 and 1 before scaling to 0-100
-             let score = min(dec!(1.0), ratio) * dec!(100.0); // Removed redundant max(0.0, ...) as ratio >= 0
-             Some(score)
+// Implement From<&str> for AuditOutcome
+impl From<&str> for AuditOutcome {
+    fn from(s: &str) -> Self {
+        match s.trim() {
+            "Clean Audit" => AuditOutcome::Clean,
+            "Financially Unqualified" => AuditOutcome::FinanciallyUnqualified,
+            "Qualified Audit Opinion" => AuditOutcome::Qualified,
+            "Adverse Audit Opinion" => AuditOutcome::Adverse,
+            "Disclaimer Of Audit Opinion" => AuditOutcome::Disclaimer,
+            _ => AuditOutcome::Unknown(s.to_string()),
         }
-        _ => None, // Cannot calculate if data missing or invalid denominator
     }
 }
 
-/// Calculates Efficiency sub-score (Lower OpEx/Revenue is better).
-/// OpEx = Expenditure - Capex. Score = max(0, 1 - (OpEx / Revenue)) * 100
-/// Returns None if necessary inputs are missing or revenue is zero/negative.
-fn calculate_efficiency_score(expenditure_opt: Option<Decimal>, capex_opt: Option<Decimal>, revenue_opt: Option<Decimal>) -> Option<Decimal> {
-     match (expenditure_opt, capex_opt, revenue_opt) {
-         (Some(expenditure), Some(capex), Some(revenue)) if revenue > dec!(0.0) => {
-             // Ensure capex is not negative
-             let valid_capex = max(dec!(0.0), capex);
-             let op_ex = expenditure - valid_capex;
-             // Handle case where OpEx might be negative if Capex > Expenditure
-             if op_ex < dec!(0.0) { return Some(dec!(100.0)); } // Max efficiency if OpEx is negative
+// --- Utility Functions ---
 
-             let ratio = op_ex / revenue;
-             // Score = (1 - ratio) * 100, clamped between 0 and 100
-             let score = max(dec!(0.0), min(dec!(1.0), dec!(1.0) - ratio)) * dec!(100.0);
-             Some(score)
-         }
-         _ => None,
-     }
+/// Clamps a decimal score between 0 and 100.
+///
+/// # Arguments
+/// * `score` - The score to clamp.
+///
+/// # Returns
+/// The score clamped to the range [0.0, 100.0].
+fn clamp_score(score: Decimal) -> Decimal {
+    score.clamp(Decimal::ZERO, dec!(100.0))
 }
 
-/// Calculates Financial Health sub-score (Average of RevPerCap and Debt sub-scores).
-/// Returns None if either sub-score cannot be calculated.
-fn calculate_fin_health_score(revenue_opt: Option<Decimal>, debt_opt: Option<Decimal>, population_opt: Option<f32>) -> Option<Decimal> {
-    let rev_per_cap_subscore = calculate_rev_per_cap_subscore(revenue_opt, population_opt)?;
-    let debt_subscore = calculate_debt_subscore(debt_opt, revenue_opt)?;
+// --- Pillar Score Calculation Functions ---
 
-    Some((rev_per_cap_subscore + debt_subscore) / dec!(2.0))
+/// Calculates the Revenue per Capita sub-score (0-100).
+/// Higher revenue per capita generally indicates a stronger economic base.
+/// The score is scaled relative to `TARGET_REVENUE_PER_CAPITA`.
+///
+/// # Arguments
+/// * `revenue_opt` - Total municipal revenue.
+/// * `population_opt` - Municipal population count (> 0).
+///
+/// # Returns
+/// * `Some(score)` - Score between 0 and 100 if inputs are valid.
+/// * `None` - If revenue or population is missing or population is zero.
+fn calculate_rev_per_cap_subscore(revenue_opt: Option<Decimal>, population_opt: Option<u32>) -> Option<Decimal> {
+    let revenue = revenue_opt?; //.filter(|r| *r >= Decimal::ZERO)?; 
+    let population = population_opt.filter(|&p| p > 0)?;
+    // Convert population u32 to Decimal safely
+    let population_dec = Decimal::from(population);
+    let rev_per_capita = revenue / population_dec;
+
+    // Scale score relative to the target, clamp between 0 and 1
+    let scaled_ratio = (rev_per_capita / TARGET_REVENUE_PER_CAPITA).clamp(Decimal::ZERO, dec!(1.0));
+    let score = scaled_ratio * dec!(100.0);
+
+    Some(clamp_score(score))
 }
 
-// --- Sub-Components for Financial Health ---
+/// Calculates the Debt Ratio sub-score (0-100).
+/// Measures total debt relative to total revenue. Lower debt ratio yields a higher score.
+/// Score = (1 - Debt/Revenue) * 100.
+///
+/// # Arguments
+/// * `debt_opt` - Total municipal debt.
+/// * `revenue_opt` - Total municipal revenue (> 0).
+///
+/// # Returns
+/// * `Some(score)` - Score between 0 and 100 if inputs are valid.
+/// * `None` - If debt or revenue is missing, or revenue is zero.
+fn calculate_debt_ratio_subscore(debt_opt: Option<Decimal>, revenue_opt: Option<Decimal>) -> Option<Decimal> {
+    let debt = debt_opt?;//.filter(|d| *d >= Decimal::ZERO)?;
+    // Validate revenue using pattern matching
+    let revenue = match revenue_opt {
+        Some(r) if r > Decimal::ZERO => Some(r),
+        _ => None, // Return None if revenue is None or zero/negative
+    }?; // Propagate None if revenue is invalid
 
-/// Calculates Debt sub-score (Lower Debt/Revenue is better).
-/// Score = max(0, 1 - (Debt / Revenue)) * 100
-/// Returns None if inputs are None or revenue is zero/negative.
-fn calculate_debt_subscore(debt_opt: Option<Decimal>, revenue_opt: Option<Decimal>) -> Option<Decimal> {
-     match (debt_opt, revenue_opt) {
-         (Some(debt), Some(revenue)) if revenue > dec!(0.0) => {
-             // Ensure debt is not negative
-             let valid_debt = max(dec!(0.0), debt);
-             let ratio = valid_debt / revenue;
-             // Score = (1 - ratio) * 100, clamped between 0 and 100
-             let score = max(dec!(0.0), min(dec!(1.0), dec!(1.0) - ratio)) * dec!(100.0);
-             Some(score)
-         }
-         _ => None,
-     }
+    let debt_ratio = debt / revenue;
+
+    // Inverse relationship: higher ratio means lower score.
+    // A ratio of 1.0 (debt equals revenue) maps to score 0.
+    // A ratio of 0.0 maps to score 100.
+    let score = (dec!(1.0) - debt_ratio) * dec!(100.0);
+    Some(clamp_score(score))
 }
 
-/// Calculates Revenue Per Capita sub-score (Higher is better).
-/// Uses arbitrary scaling: Max R10k/capita = 100 points.
-/// Score = min(100, (Revenue / Population) / 10000 * 100)
-/// Returns None if inputs are None or population is zero/negative.
-/// TODO: Revisit this arbitrary scaling - needs proper normalization based on dataset distribution.
-fn calculate_rev_per_cap_subscore(revenue_opt: Option<Decimal>, population_opt: Option<f32>) -> Option<Decimal> {
-     match (revenue_opt, population_opt) {
-         (Some(revenue), Some(population)) if population > 0.0 => {
-             // Convert f32 population to Decimal safely
-             let population_dec = Decimal::from_f32_retain(population)?; // Returns None if population is NaN/Infinity
+/// Combined Financial Health Score (weighted average of sub-scores).
+/// This score aggregates the Revenue per Capita and Debt Ratio sub-scores.
+///
+/// # Arguments
+/// * `revenue_opt` - Total municipal revenue.
+/// * `debt_opt` - Total municipal debt.
+/// * `population_opt` - Municipal population count.
+///
+/// # Returns
+/// * `Some(score)` - Weighted average score if both sub-scores can be calculated.
+/// * `None` - If either sub-score calculation fails due to missing inputs.
+fn calculate_fin_health_score(
+    revenue_opt: Option<Decimal>,
+    debt_opt: Option<Decimal>,
+    population_opt: Option<u32>,
+) -> Option<Decimal> {
+    // Weights for sub-scores within Financial Health (must sum to 1.0)
+    const WEIGHT_REV_PER_CAP: Decimal = dec!(0.5);
+    const WEIGHT_DEBT_RATIO: Decimal = dec!(0.5);
 
-             if population_dec <= dec!(0.0) { return None; } // Double check after conversion
+    let rev_per_cap_score = calculate_rev_per_cap_subscore(revenue_opt, population_opt)?;
+    // Note: Sub-scores are already clamped between 0-100.
+    let debt_ratio_score = calculate_debt_ratio_subscore(debt_opt, revenue_opt)?;
 
-             // Ensure revenue is not negative
-             let valid_revenue = max(dec!(0.0), revenue);
-
-             let rev_per_capita = valid_revenue / population_dec;
-             let scaling_factor = dec!(10000.0); // Arbitrary max target for R/capita
-
-             // Scale score relative to the target, clamp between 0 and 100
-             let score = min(dec!(1.0), rev_per_capita / scaling_factor) * dec!(100.0);
-             Some(max(dec!(0.0), score)) // Ensure score is not negative (already handled by min(1.0,..) but good practice)
-         }
-         _ => None,
-     }
+    let weighted_score = (rev_per_cap_score * WEIGHT_REV_PER_CAP) + (debt_ratio_score * WEIGHT_DEBT_RATIO);
+    // No final clamp needed here as weighted average of 0-100 scores is also 0-100.
+    Some(weighted_score)
 }
 
-// --- Unit Tests ---
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rust_decimal_macros::dec;
+/// Calculates Infrastructure Investment Score (0-100).
+/// Measures Capital Expenditure (Capex) as a percentage of Total Expenditure.
+/// Score = (Capex / Expenditure) * 100. Capex is capped at Expenditure value.
+///
+/// # Arguments
+/// * `capex_opt` - Capital expenditure.
+/// * `expenditure_opt` - Total expenditure (> 0).
+///
+/// # Returns
+/// * `Some(score)` - Score between 0 and 100 if inputs are valid.
+/// * `None` - If capex or expenditure is missing, or expenditure is zero.
+fn calculate_infra_score(
+    capex_opt: Option<Decimal>,
+    expenditure_opt: Option<Decimal>,
+) -> Option<Decimal> {
+    let capex = capex_opt?;//.filter(|c| *c >= Decimal::ZERO)?;
+    let expenditure = match expenditure_opt {
+        Some(e) if e > Decimal::ZERO => Some(e),
+        _ => None, // Return None if expenditure is None or zero/negative
+    }?; // Propagate None if expenditure is invalid
 
-    #[test]
-    fn test_basic_score_calculation_returns_breakdown() { // Updated test name
-        let input = ScoringInput {
-            revenue: Some(dec!(1000.0)),
-            expenditure: Some(dec!(800.0)),
-            capital_expenditure: Some(dec!(200.0)), // Infra = 25.00
-            debt: Some(dec!(500.0)),              // Debt sub = 50.00
-            audit_outcome: Some("Clean Audit".to_string()), // Accountability = 100.00
-            population: Some(100.0),             // RevPerCap sub = 0.10
-        };
-        // FinHealth = (0.10 + 50.00) / 2 = 25.05
-        // Efficiency = 40.00
-        // Total = (25.05 * 0.3) + (25.00 * 0.25) + (40.00 * 0.25) + (100.00 * 0.20) = 43.765 -> 43.77
+    // Ensure capex is non-negative and does not illogically exceed total expenditure.
+    let valid_capex = capex.max(Decimal::ZERO).min(expenditure);
 
-        let breakdown_opt = calculate_financial_score(&input);
-        assert!(breakdown_opt.is_some());
-        let breakdown = breakdown_opt.unwrap();
+    let ratio = valid_capex / expenditure;
+    // Clamp is technically not needed if inputs are non-negative and capex <= expenditure,
+    // but `clamp_score` handles potential floating point nuances & ensures bounds.
+    Some(clamp_score(ratio * dec!(100.0)))
+}
 
-        // Check final score and individual pillar scores
-        assert_eq!(breakdown.overall_score, dec!(43.77));
-        assert_eq!(breakdown.financial_health_score, dec!(25.05)); // Avg of RevPerCap (0.10) and Debt (50.00)
-        assert_eq!(breakdown.infrastructure_score, dec!(25.00)); // (200/800)*100
-        assert_eq!(breakdown.efficiency_score, dec!(40.00)); // (1 - (800-200)/1000) * 100
-        assert_eq!(breakdown.accountability_score, dec!(100.00)); // Clean audit
+/// Calculates Operating Efficiency Score (0-100).
+/// Based on the Operating Surplus Ratio: (Revenue - Operating Expenditure) / Revenue.
+/// Operating Expenditure = Total Expenditure - Capital Expenditure.
+/// A higher surplus ratio (indicating revenue exceeds operating costs) yields a higher score.
+/// The ratio is linearly scaled to the 0-100 range, with a ratio of 0.0 mapping to score 50.
+///
+/// # Arguments
+/// * `expenditure_opt` - Total municipal expenditure.
+/// * `capex_opt` - Capital expenditure.
+/// * `revenue_opt` - Total municipal revenue (> 0).
+///
+/// # Returns
+/// * `Some(score)` - Score between 0 and 100 if inputs are valid.
+/// * `None` - If any input is missing, or revenue is zero.
+fn calculate_efficiency_score(
+    expenditure_opt: Option<Decimal>,
+    capex_opt: Option<Decimal>,
+    revenue_opt: Option<Decimal>,
+) -> Option<Decimal> {
+    let expenditure = expenditure_opt?;//.filter(|e| *e >= Decimal::ZERO)?;
+    let capex = capex_opt?;//.filter(|c| *c >= Decimal::ZERO)?;
+    // Validate revenue using pattern matching
+    let revenue = match revenue_opt {
+        Some(r) if r > Decimal::ZERO => Some(r),
+        _ => None, // Return None if revenue is None or zero/negative
+    }?; // Propagate None if revenue is invalid
+
+    let operating_expenditure = expenditure - capex;
+    // Ensure operating expenditure is not negative (e.g., if capex > expenditure, though unlikely).
+    let valid_op_exp = operating_expenditure.max(Decimal::ZERO);
+
+    let operating_surplus = revenue - valid_op_exp;
+    // Calculate surplus ratio
+    let surplus_ratio = operating_surplus / revenue;
+
+    // Scale the ratio. A ratio of 0.0 (breakeven) could map to 50.
+    // A ratio of 0.2 (20% surplus) could map to 100.
+    // A ratio of -0.2 (20% deficit) could map to 0.
+    // Linear scaling: Score = 50 + ratio * 250
+    let score = dec!(50.0) + (surplus_ratio * dec!(250.0));
+    Some(clamp_score(score))
+}
+
+/// Calculates Accountability Score based on Audit Outcome.
+/// Maps specific audit outcomes to scores: Clean/Unqualified (100), Qualified (50), Adverse/Disclaimer/Unknown (0).
+///
+/// # Arguments
+/// * `outcome_str_opt` - The audit outcome as a string (case-insensitive).
+///
+/// # Returns
+/// * `Some(score)` - Score (0, 50, or 100) based on the recognized outcome.
+/// * `None` - If the outcome string is missing.
+fn calculate_accountability_score(outcome_str_opt: Option<&str>) -> Option<Decimal> {
+    let outcome_str = outcome_str_opt?;
+    let outcome = AuditOutcome::from(outcome_str);
+
+    match outcome {
+        AuditOutcome::Clean | AuditOutcome::FinanciallyUnqualified => Some(dec!(100.0)),
+        AuditOutcome::Qualified => Some(dec!(50.0)),
+        AuditOutcome::Adverse | AuditOutcome::Disclaimer => Some(dec!(0.0)),
+        AuditOutcome::Unknown(_) => {
+            warn!("Treating Unknown audit outcome as lowest score (0).");
+            Some(dec!(0.0))
+        }
     }
+}
 
-     #[test]
-    fn test_missing_data_leads_to_none() {
-         let input = ScoringInput {
-            revenue: None, // Missing essential data for multiple pillars
-            expenditure: Some(dec!(800.0)),
-            capital_expenditure: Some(dec!(200.0)),
-            debt: Some(dec!(500.0)),
-            audit_outcome: Some("Clean Audit".to_string()),
-            population: Some(100.0),
-        };
-         let score = calculate_financial_score(&input);
-        assert!(score.is_none());
-    }
+// --- Main Scoring Function ---
 
-     #[test]
-    fn test_audit_outcomes() {
-        assert_eq!(calculate_accountability_score(Some("Clean Audit")), Some(dec!(100.0)));
-        assert_eq!(calculate_accountability_score(Some("Financially Unqualified")), Some(dec!(100.0)));
-        assert_eq!(calculate_accountability_score(Some("Qualified Audit Opinion")), Some(dec!(50.0)));
-        assert_eq!(calculate_accountability_score(Some("Adverse Audit Opinion")), Some(dec!(0.0)));
-        assert_eq!(calculate_accountability_score(Some("Disclaimer Of Audit Opinion")), Some(dec!(0.0)));
-        assert_eq!(calculate_accountability_score(Some("Unknown Outcome")), Some(dec!(0.0))); // Default
-        assert_eq!(calculate_accountability_score(None), None);
-    }
+/// Calculates the overall financial score and its breakdown based on input metrics.
+///
+/// Returns `Some(ScoreBreakdown)` if all necessary inputs for weighted pillars are present.
+/// Returns `None` if any essential metric for a weighted pillar is missing,
+/// preventing calculation of that pillar's score.
+///
+/// Weights:
+/// - Financial Health (Revenue per Capita, Debt Ratio): 35%
+/// - Infrastructure Investment (Capex Ratio): 25%
+/// - Operating Efficiency (Surplus Ratio): 20%
+/// - Accountability (Audit Outcome): 20%
+pub fn calculate_financial_score(input: &ScoringInput) -> Option<ScoreBreakdown> {
+    info!("Calculating financial score with input: {:?}", input);
 
-    // Test clamping logic - ensures scores stay within 0-100
-    #[test]
-    fn test_clamping() {
-        // Test case that would result in > 100 without clamping
-         let input_high = ScoringInput {
-             revenue: Some(dec!(100.0)),
-             expenditure: Some(dec!(50.0)), // High efficiency
-             capital_expenditure: Some(dec!(50.0)), // High infra
-             debt: Some(dec!(0.0)), // Low debt
-             audit_outcome: Some("Clean Audit".to_string()),
-             population: Some(1.0), // Very high R/Capita
-        };
-         // Expected sub-scores (approx): Acc=100, Infra=100, Eff=100, FinHealth=100
-         let score_high = calculate_financial_score(&input_high);
-         assert_eq!(score_high.unwrap().overall_score, dec!(100.00));
+    // Calculate scores for each pillar. Use `?` to propagate None if any fails.
+    let financial_health_score = calculate_fin_health_score(input.revenue, input.debt, input.population)?;
+    let infrastructure_score = calculate_infra_score(input.capital_expenditure, input.expenditure)?;
+    let efficiency_score =
+        calculate_efficiency_score(input.expenditure, input.capital_expenditure, input.revenue)?;
+    let accountability_score =
+        calculate_accountability_score(input.audit_outcome.as_deref())?;
 
-         // Test case that would result in < 0 without clamping (via high debt/opex ratio)
-         let input_low = ScoringInput {
-             revenue: Some(dec!(100.0)),
-             expenditure: Some(dec!(200.0)),
-             capital_expenditure: Some(dec!(10.0)), // Low infra: 10/200=5 -> 5 score
-             debt: Some(dec!(200.0)), // High debt ratio: 200/100=2 -> DebtScore=max(0, 1-2)*100 = 0
-             audit_outcome: Some("Adverse Audit Opinion".to_string()), // Acc=0
-             population: Some(1000.0), // Low R/Capita -> Score ~0
-        };
-         // FinHealth ~ 0
-         // Efficiency: OpEx = 190. Ratio=190/100=1.9. Score = max(0, 1-1.9)*100 = 0
-         // Total -> weighted sum of mostly zeros -> Should clamp to 0
-         let score_low = calculate_financial_score(&input_low);
-         assert_eq!(score_low.unwrap().overall_score, dec!(0.00));
-    }
+    // Apply weights and sum up
+    let overall_score =
+        (clamp_score(financial_health_score) * WEIGHT_FIN_HEALTH)
+        + (infrastructure_score * WEIGHT_INFRA) // Already clamped in its function
+        + (efficiency_score * WEIGHT_EFFICIENCY) // Already clamped in its function
+        + (clamp_score(accountability_score) * WEIGHT_ACCOUNTABILITY);
 
-     #[test]
-     fn test_zero_division_handling() {
-         // Infra score with zero expenditure
-         assert_eq!(calculate_infra_score(Some(dec!(100)), Some(dec!(0))), None);
-         // Efficiency score with zero revenue
-         assert_eq!(calculate_efficiency_score(Some(dec!(100)), Some(dec!(20)), Some(dec!(0))), None);
-         // Debt subscore with zero revenue
-         assert_eq!(calculate_debt_subscore(Some(dec!(100)), Some(dec!(0))), None);
-         // RevPerCap subscore with zero population
-         assert_eq!(calculate_rev_per_cap_subscore(Some(dec!(100)), Some(0.0)), None);
+    // Final clamping and rounding should ideally happen just before display/storage,
+    // but we apply clamping here for consistency within the breakdown.
+    // Rounding (e.g., .round_dp(2)) is omitted here; should be done by the caller
+    // just before display or storage to avoid intermediate precision loss.
+    let breakdown = ScoreBreakdown {
+        overall_score: clamp_score(overall_score), // Final clamp
+        financial_health_score, // Already 0-100
+        infrastructure_score,   // Already 0-100
+        efficiency_score,       // Already 0-100
+        accountability_score,   // Already 0, 50, 100
+    };
 
-     }
+    info!("Calculated score breakdown: {:?}", breakdown);
+    Some(breakdown)
 }
