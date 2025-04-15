@@ -8,6 +8,7 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
+		// Adapter configuration
 		adapter: adapter({
 			// default options are suitable for static deployment
 			pages: 'build',

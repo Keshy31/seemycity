@@ -1,185 +1,277 @@
 <script lang="ts">
-  // src/lib/components/MapComponent.svelte
-  import maplibregl from 'maplibre-gl'; // Default import
-  import type { Map, MapLibreEvent, GeoJSONSource, LngLatLike, Popup, MapMouseEvent } from 'maplibre-gl'; // Import Map type directly
-  import type { FeatureCollection } from 'geojson'; // Import GeoJSON types
-  const { NavigationControl } = maplibregl; // Only destructure NavigationControl value now
-
-  import 'maplibre-gl/dist/maplibre-gl.css';
-  import { onMount, tick } from 'svelte';
+  import maplibregl from 'maplibre-gl'; // Use default import
+  import type { FeatureCollection } from 'geojson'; // Type-only import
+  import type { Map, NavigationControl, Popup, MapMouseEvent, MapLibreEvent } from 'maplibre-gl'; // Import types separately
+  import { onMount, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores'; // For accessing map style URL
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation'; // Import goto
-  import { dummyMunicipalitiesGeoJSON } from '$lib/data/dummyStore'; // Import from store
 
   // Unique ID for the map container
   const mapId = `map-${Math.random().toString(36).substring(2, 15)}`;
 
   let mapContainer: HTMLElement | undefined;
-  let map: Map | undefined; // << Use the directly imported Map type
+  // Destructure needed values from the default import
+  const { Map: MapClass, NavigationControl: NavigationControlClass, Popup: PopupClass } = maplibregl; // Rename all conflicting variables
+  let map: Map | undefined; // Define map instance variable
 
-  onMount(() => {
-    tick().then(() => {
-        console.log('MapComponent onMount: Component mounted.');
+  // State for fetched data
+  let geojsonData: FeatureCollection | null = null;
+  let isLoading = true;
+  let error: string | null = null;
 
-        if (!mapContainer) {
-            console.error("MapComponent onMount: mapContainer element not ready even after tick.");
-            return; // Cannot proceed
+  // Define the type for properties based on backend response
+  // Match the JSON keys returned by the API (uses serde rename)
+  interface MunicipalityFeatureProperties {
+    id: string; // Renamed from 'id' in backend model
+    name: string;
+    province: string;
+    financial_score: number | null; // Renamed from 'latest_score', type is number after JSON deserialization
+    population: number | null;
+    classification: string | null;
+    // add other properties as needed
+  }
+
+  const initialCenter: [number, number] = [24.7, -29]; // Correct order: Lng, Lat
+  const initialZoom = 4.5; // Slightly more zoomed in
+
+  // Basic inline style - Plain background
+  const mapStyle = {
+    version: 8,
+    name: 'Blank Background',
+    sources: {},
+    layers: [
+      {
+        id: 'background',
+        type: 'background',
+        paint: {
+          'background-color': '#FDF6E3' // Use UX background color
+        }
+      }
+    ]
+  };
+
+  // Define color scale for scores (0-100)
+  const SCORE_COLORS = [
+    0, 'rgba(215, 25, 28, 0.7)',    // Red (Low Score)
+    25, 'rgba(253, 174, 97, 0.7)', // Orange
+    50, 'rgba(255, 255, 191, 0.7)',// Yellow
+    75, 'rgba(166, 217, 106, 0.7)',// Light Green
+    100, 'rgba(26, 150, 65, 0.7)'  // Dark Green (High Score)
+  ];
+  const DEFAULT_COLOR = 'rgba(150, 150, 150, 0.5)'; // Grey for missing scores
+
+  // Fetch data when the component mounts
+  onMount(async () => {
+    console.log('MapComponent onMount: Fetching data.');
+    if (!browser) return; // Don't run on server
+
+    isLoading = true;
+    error = null;
+    try {
+      // TEMP: Limit to 3 results for faster development loading
+      const response = await fetch('/api/municipalities?limit=3');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      geojsonData = await response.json();
+      console.log('Fetched GeoJSON data:', geojsonData);
+    } catch (e: any) {
+      console.error('Error fetching map data:', e);
+      error = e.message || 'Failed to load map data.';
+      geojsonData = null; // Clear data on error
+    } finally {
+      isLoading = false; // Set loading false whether success or error
+    }
+  });
+
+  // Reactive statement to initialize the map *after* loading is complete
+  // and the container element exists.
+  $: if (browser && !isLoading && !error && mapContainer && geojsonData && !map) {
+    console.log('Reactive block: Initializing map.');
+
+    try {
+      map = new MapClass({
+        container: mapContainer, // Use the bound element
+        style: mapStyle,
+        center: initialCenter,
+        zoom: initialZoom
+      });
+
+      // Add zoom and rotation controls
+      map.addControl(new NavigationControlClass(), 'top-right');
+
+      map.on('load', () => {
+        console.log('Map loaded event fired');
+        if (!map || !geojsonData) { // Extra checks
+          console.error('Map or geojsonData not available on load event');
+          return;
         }
 
-        // --- MAP INITIALIZATION (Moved here) ---
-        console.log('MapComponent: Initializing map...');
+        // Add source with fetched data
         try {
-            map = new maplibregl.Map({ // << Use maplibregl.Map constructor here
-                container: mapId, // Using ID string for the container
-                style: 'https://demotiles.maplibre.org/style.json', // Example style
-                center: [22.9375, -30.5595], // Centered on South Africa
-                zoom: 4,
-            });
+          map.addSource('municipalities-source', {
+            type: 'geojson',
+            data: geojsonData
+          });
+          console.log('API GeoJSON source added.');
 
-            // Add zoom and rotation controls to the map.
-            map.addControl(new NavigationControl(), 'top-right');
+          // Add layer
+          map.addLayer({
+            id: 'municipalities-layer',
+            type: 'fill',
+            source: 'municipalities-source',
+            layout: {},
+            paint: {
+              // Use a 'case' expression to handle null scores first
+              // Then use 'interpolate' for scores that exist
+              'fill-color': [
+                'case',
+                ['==', ['get', 'financial_score'], null], // Check if score is null
+                DEFAULT_COLOR, // Color for null scores
+                [ // Color for non-null scores (interpolate)
+                  'interpolate',
+                  ['linear'],
+                  ['get', 'financial_score'], // Get the score value
+                  ...SCORE_COLORS // Spread the color stops array
+                ]
+              ],
+              'fill-opacity': 0.7, // Keep consistent opacity
+              'fill-outline-color': '#3C2F2F'
+            }
+          });
+          console.log('Layer added.');
 
-            map.on('load', () => {
-                console.log('Map loaded event fired');
-                // Ensure map is defined within this scope for TypeScript
-                if (!map) {
-                    console.error("Map became undefined before 'load' event completed?");
-                    return;
-                }
+          // --- Layer Interaction Logic ---
+          // Click event listener
+          map.on('click', 'municipalities-layer', (e: MapMouseEvent & { features?: any[] }) => {
+            if (!e.features || e.features.length === 0) return;
+            const feature = e.features[0];
+            const props = feature.properties as MunicipalityFeatureProperties;
+            const coordinates = e.lngLat;
+            const featureId = feature.properties.id;
+            const featureName = feature.properties.name || 'Unnamed Municipality';
+            const featureScore = feature.properties.financial_score !== undefined ? `${feature.properties.financial_score} / 100` : 'N/A';
 
-                // Add dummy source
-                try {
-                    map.addSource('municipalities-source', {
-                        type: 'geojson',
-                        // Use the imported data
-                        data: dummyMunicipalitiesGeoJSON 
-                    });
-                    console.log('Dummy source added.');
-                } catch (error) {
-                    console.error('Error adding dummy source:', error);
-                }
-                
-                // Add dummy layer
-                try {
-                    map.addLayer({
-                        id: 'municipalities-layer',
-                        type: 'fill',
-                        source: 'municipalities-source',
-                        layout: {},
-                        paint: {
-                            'fill-color': '#008080', // Teal color
-                            'fill-opacity': 0.6
-                        }
-                    });
-                    console.log('Dummy layer added.');
-                } catch (error) {
-                    console.error('Error adding dummy layer:', error);
-                }
+            const popupHTML = `
+              <div>
+                <h3 class="popup-nav-link" data-id="${featureId}" style="cursor: pointer; text-decoration: underline; color: var(--primary-color, #008080); margin-bottom: 5px;">${featureName}</h3>
+                <p>Score: ${featureScore}</p>
+                <small>ID: ${featureId}</small>
+              </div>
+            `;
 
-                // Click event listener for the municipalities layer
-                map.on('click', 'municipalities-layer', (e: MapMouseEvent & { features?: any[] }) => {
-                    console.log('Click event on municipalities-layer', e.features);
-                    if (!e.features || e.features.length === 0) {
-                        console.log('No features found at click point.');
-                        return;
-                    }
+            const popup = new PopupClass()
+              .setLngLat(coordinates)
+              .setHTML(popupHTML);
+            
+            if (map) popup.addTo(map);
 
-                    const feature = e.features[0];
-                    const coordinates = e.lngLat;
-                    const featureId = feature.properties.id; // Get the ID
-                    const featureName = feature.properties.name || 'Unnamed Municipality';
-                    const featureScore = feature.properties.score !== undefined ? `${feature.properties.score} / 100` : 'N/A';
-
-                    // Create HTML content for the popup with a clickable header
-                    const popupHTML = `
-                        <div>
-                            <h3 class="popup-nav-link" data-id="${featureId}" style="cursor: pointer; text-decoration: underline; color: var(--primary-color, #008080); margin-bottom: 5px;">${featureName}</h3>
-                            <p>Score: ${featureScore}</p>
-                            <small>ID: ${featureId}</small>
-                        </div>
-                    `;
-
-                    // Ensure existing popups are closed (optional, good practice)
-                    // closePopup(); // You might need a function to track and close existing popups if desired
-
-                    const popup = new maplibregl.Popup()
-                        .setLngLat(coordinates)
-                        .setHTML(popupHTML);
-                    
-                    // Ensure map is defined before adding popup    
-                    if (map) {
-                        popup.addTo(map); 
-                    } else {
-                        console.error("Cannot add popup, map is undefined.");
-                        return; // Exit if map is somehow undefined here
-                    }
-                     
-                    // Use setTimeout to ensure popup DOM is ready
-                    setTimeout(() => {
-                        console.log('Popup opened event fired.'); // <-- Log 1
-                        const popupElem = popup.getElement();
-                        const header = popupElem.querySelector('.popup-nav-link');
-                        if (header) {
-                            // Add listener to the header specifically
-                            header.addEventListener('click', () => {
-                                const navId = header.getAttribute('data-id');
-                                if (navId) {
-                                    console.log(`Navigating to /${navId}`);
-                                    goto(`/${navId}`);
-                                }
-                            });
-                        } else {
-                            console.error("Could not find '.popup-nav-link' element inside popup.");
-                        }
-                    }, 0); // Delay of 0 milliseconds
+            // Add event listener to the popup's content *after* it's added
+            setTimeout(() => {
+              const popupElem = popup.getElement();
+              const header = popupElem.querySelector('.popup-nav-link');
+              if (header) {
+                header.addEventListener('click', () => {
+                  const navId = header.getAttribute('data-id');
+                  if (navId) goto(`/${navId}`);
                 });
+              }
+            }, 0);
+          });
 
-                // Change cursor to pointer when hovering over the municipalities layer
-                if (map) { // Check map before attaching listener
-                    map.on('mouseenter', 'municipalities-layer', () => {
-                        if (map) { // Check map again before using inside callback
-                            map.getCanvas().style.cursor = 'pointer';
-                        }
-                    });
-                }
+          // Mouse enter/leave for cursor
+          map.on('mouseenter', 'municipalities-layer', () => {
+            if (map) map.getCanvas().style.cursor = 'pointer';
+          });
+          map.on('mouseleave', 'municipalities-layer', () => {
+            if (map) map.getCanvas().style.cursor = '';
+          });
+          // --- End Layer Interaction Logic ---
 
-                if (map) { // Check map before attaching listener
-                    map.on('mouseleave', 'municipalities-layer', () => {
-                        if (map) { // Check map again before using inside callback
-                            map.getCanvas().style.cursor = '';
-                        }
-                    });
-                }
-            });
-
-            map.on('error', (e: MapLibreEvent) => { // Keep MapLibreEvent type here
-                console.error('MapLibre error:', e);
-            });
-
-        } catch (error) {
-            console.error('Failed to initialize MapLibre map:', error);
+        } catch (layerError) {
+          console.error('Error adding source or layer:', layerError);
+          error = 'Failed to add map layers.';
         }
-        // --- END MAP INITIALIZATION ---
+      });
 
-        // Cleanup function
-        return () => {
-            console.log('MapComponent cleanup: Removing map.');
-            map?.remove();
-            map = undefined;
-        };
-    });
+      // Use 'any' for the event type to safely access potential 'error' property
+      map.on('error', (e: any) => {
+        console.error('MapLibre error:', e);
+        error = e.error?.message || 'An unknown map error occurred.';
+      });
+
+    } catch (initError) {
+      console.error('Failed to initialize map:', initError);
+      error = 'Failed to initialize map.';
+    }
+  }
+
+  onDestroy(() => {
+    if (map) {
+      console.log('MapComponent onDestroy: Removing map.');
+      map.remove(); // Clean up the map instance
+      map = undefined;
+    }
   });
 
 </script>
 
-<!-- Bind the actual map container element -->
-<div id="{mapId}" bind:this={mapContainer} class="map-container"></div>
+<!-- Basic Loading/Error UI -->
+{#if isLoading}
+  <p>Loading map data...</p>
+{:else if error}
+  <p>Error loading map: {error}</p>
+{:else}
+  <!-- Bind the actual map container element -->
+  <div id="{mapId}" bind:this={mapContainer} class="map-container"></div>
+{/if}
+
+<!-- Simple Legend Placeholder -->
+<div class="legend">
+  <h4>Financial Score</h4>
+  <div><span class="legend-color" style="background-color: rgba(26, 150, 65, 0.7);"></span> High (100)</div>
+  <div><span class="legend-color" style="background-color: rgba(166, 217, 106, 0.7);"></span></div>
+  <div><span class="legend-color" style="background-color: rgba(255, 255, 191, 0.7);"></span> Mid (50)</div>
+  <div><span class="legend-color" style="background-color: rgba(253, 174, 97, 0.7);"></span></div>
+  <div><span class="legend-color" style="background-color: rgba(215, 25, 28, 0.7);"></span> Low (0)</div>
+  <div><span class="legend-color" style="background-color: rgba(150, 150, 150, 0.5);"></span> N/A</div>
+</div>
 
 <style>
   /* Styles specific to the map container */
   .map-container {
     width: 100%;
     height: 100%; /* Fill the parent wrapper */
+  }
+
+  /* Legend Styling */
+  .legend {
+    position: absolute;
+    bottom: 30px;
+    right: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    line-height: 1.5;
+    z-index: 1; /* Ensure legend is above map tiles */
+    color: #3C2F2F;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .legend h4 {
+    margin: 0 0 5px 0;
+    text-align: center;
+  }
+  .legend div {
+    display: flex;
+    align-items: center;
+  }
+  .legend-color {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    margin-right: 5px;
+    border: 1px solid #ccc;
   }
 </style>

@@ -9,6 +9,7 @@ pub mod errors;
 pub mod handlers;
 pub mod models;
 pub mod utils;
+pub mod scoring;
 
 // Re-export key items for convenience
 pub use api::{ApiClientError, MunicipalMoneyClient};
