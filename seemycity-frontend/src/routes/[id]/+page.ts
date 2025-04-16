@@ -40,8 +40,9 @@ export const load: PageLoad = async ({ params, fetch }) => {
 	}
 
 	try {
-		// Construct the API URL
-		const apiUrl = `/api/municipalities/${muniId}`;
+		// Construct the API URL using the environment variable
+		const baseApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'; // Fallback for local dev
+		const apiUrl = `${baseApiUrl}/api/municipalities/${muniId}`;
 		console.log(`[+page.ts] Fetching municipality details from: ${apiUrl}`);
 
 		const response = await fetch(apiUrl);

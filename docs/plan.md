@@ -80,7 +80,7 @@
     *   [x] Configure environment variables (`.env`, `src/config.rs`).
     *   [x] Refactor `/municipalities/{id}` endpoint to fetch missing data, trigger scoring, and upsert results.
     *   [x] Refactor scoring logic (`calculate_financial_score`) to use detailed sub-score functions.
-    *   [ ] Implement caching strategy (for calculated scores).
+    *   [x] Implement caching strategy (for calculated scores).
     *   [ ] Add endpoints for district/province aggregation (Post-MVP).
 - **Milestone**: **Backend Ready** (API Structure & Endpoints): **Achieved**
 
@@ -94,17 +94,20 @@
     - [ ] **Update Comparison View**: Fetch multiple `/api/municipality/{id}`, show real comparisons. Deploy.
 - **Milestone**: Real Data Integration (Initial Map Fetch): **Achieved**
 
-##### Phase 6: Polish and Testing
-- **Goal**: Refine UI/UX, add tests, fix bugs, finalize documentation.
-- **Status**: **Not Started**
+##### Phase 6: Polish & Optimization
+- **Goal**: Final UX tweaks, testing, and performance improvements.
+- **Status**: **Planned**
 - **Tasks**:
-    - [ ] **Polish UI**: Apply transitions, add feedback (e.g., toasts), test responsiveness/themes. Deploy.
-    - [ ] **Testing**: Verify functionality, performance, accessibility. Handle edge cases (missing data).
-    - [ ] **Optimize `/api/municipalities` DB Query**: Current query takes ~13s. Investigate potential index optimizations on `municipalities`, `municipal_geometries`, and `financial_data` tables (especially on `year`, `municipality_id`, and geometry columns).
-    - [ ] **Reduce `/api/municipalities` Payload Size**: Current response is ~33MB. Explore using simplified geometries (`ST_SimplifyPreserveTopology`) or centroids (`ST_Centroid`) instead of full geometries for the map overview.
-    - [ ] **Bug Fixes**: Address identified issues. Deploy fixes.
-    - [ ] **Documentation**: Update README with final setup/deployment steps.
-- **Milestone**: MVP Done
+    *   [ ] Conduct thorough cross-browser/device testing.
+    *   [ ] Refine UI/UX based on testing feedback (animations, layout adjustments).
+    *   [ ] Improve accessibility (ARIA attributes, keyboard navigation).
+    *   **Map Performance Optimization:**
+        *   [ ] Move initial GeoJSON fetch from `MapComponent.svelte` (`onMount`) to a server `load` function (e.g., in `src/routes/+layout.ts` or `src/routes/+page.ts`).
+        *   [ ] Backend: Investigate and implement Vector Tile generation (e.g., using PostGIS `ST_AsMVT` or a tile server like `pg_tileserv`).
+        *   [ ] Frontend: Update `MapComponent.svelte` to consume Vector Tiles instead of large GeoJSON.
+        *   [ ] (Optional) Backend: Implement geometry simplification (e.g., `ST_SimplifyPreserveTopology`) for GeoJSON/Vector Tiles.
+    *   [ ] Final code cleanup and documentation review.
+- **Milestone**: MVP Ready for Wider Testing: **Planned**
 
 ##### Phase 7: Post-MVP Enhancements (Hierarchical View)
 - **Goal**: Enhance map exploration with hierarchical drill-down and aggregated scores.

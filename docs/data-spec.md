@@ -85,9 +85,46 @@ pub struct FinancialYearData {
     pub efficiency_score: Option<Decimal>,
     pub accountability_score: Option<Decimal>,
 }
-```
 
-*(API response models like `MunicipalityBasicInfo`, `MapMunicipalityProperties`, `FinancialYearData`, `MunicipalityDetail` are also defined in `src/models.rs` but omitted here for brevity, see Section 3)*
+#### API Response Models (src/models.rs)
+
+*(These structs define the shape of data returned by the API endpoints, e.g., `/api/municipality/{id}`)*
+
+```rust
+// src/models.rs (Simplified view)
+use serde::{Serialize, Deserialize};
+use sqlx::types::Decimal;
+use serde_json::Value;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FinancialYearData {
+    pub year: i32,
+    // Decimal fields serialized as Option<f64> or null
+    pub revenue: Option<Decimal>,
+    pub expenditure: Option<Decimal>,
+    pub capital_expenditure: Option<Decimal>,
+    pub debt: Option<Decimal>,
+    pub audit_outcome: Option<String>,
+    pub overall_score: Option<Decimal>,
+    pub financial_health_score: Option<Decimal>,
+    pub infrastructure_score: Option<Decimal>,
+    pub efficiency_score: Option<Decimal>,
+    pub accountability_score: Option<Decimal>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MunicipalityDetail {
+    pub id: String,
+    pub name: String,
+    pub province: String,
+    // f32 serialized as Option<f64> or null
+    pub population: Option<f32>,
+    pub classification: Option<String>,
+    pub website: Option<String>,
+    pub financials: Vec<FinancialYearData>,
+    pub geometry: Option<Value>, // GeoJSON
+}
+```
 
 ### 1.2. Frontend (Svelte/TypeScript)
 
@@ -107,39 +144,36 @@ interface MunicipalityFeatureProperties {
 }
 ```
 
-#### `MunicipalityDetails` (Derived from API)
+#### `MunicipalityDetail` (Derived from API)
 
-Detailed information for the single municipality view.
+Detailed information for the single municipality view and comparison view.
 
 ```typescript
-interface MunicipalityDetails {
-    id: string;
-    name: string;
-    province: string;
-    population: number | null; // From municipalities table (real -> f64)
-    classification: string | null; // From municipalities table
-    website: string | null; // From municipalities table
-    // Note: Other fields like address, phone, district_id/name from MunicipalityDb are fetched
-    // by get_municipality_base_info_db but might not be directly exposed in this specific API model currently.
-    financials: FinancialYearData[]; // Array of financial data per year (fetched from API)
-    geometry: any | null; // GeoJSON geometry value (from municipal_geometries table)
-    // score_breakdown: any; // TBD: Define structure for score components
-}
-
+// src/lib/types.ts
 interface FinancialYearData {
-    financial_year: number; // Matches backend model field name
-    revenue: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
-    expenditure: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
-    capital_expenditure: number | null; // From financial_data (numeric -> Option<Decimal> -> f64 | null)
-    debt: number | null; // Total Liabilities (from financial_data, numeric -> Option<Decimal> -> f64 | null)
+    year: number; // Matches API 'year'
+    revenue: number | null; // From financial_data (Decimal -> f64 | null)
+    expenditure: number | null; // From financial_data (Decimal -> f64 | null)
+    capital_expenditure: number | null; // From financial_data (Decimal -> f64 | null)
+    debt: number | null; // Total Liabilities (Decimal -> f64 | null)
     audit_outcome: string | null; // From financial_data
-    // Scores (numeric -> Option<Decimal> -> f64 | null)
-    overall_score: number | null; 
+    // Scores (Decimal -> f64 | null)
+    overall_score: number | null;
     financial_health_score: number | null;
     infrastructure_score: number | null;
     efficiency_score: number | null;
     accountability_score: number | null;
-    // ... other relevant fields from `financial_data` table if added
+}
+
+interface MunicipalityDetail {
+    id: string;
+    name: string;
+    province: string;
+    population: number | null; // From municipalities (f32 -> f64 | null)
+    classification: string | null; // From municipalities
+    website: string | null; // From municipalities
+    financials: FinancialYearData[]; // Array of financial data per year (from API)
+    geometry?: any | null; // GeoJSON geometry value (from API)
 }
 ```
 

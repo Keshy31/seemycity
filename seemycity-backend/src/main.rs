@@ -1,4 +1,4 @@
-use actix_web::{App, HttpServer, web, middleware::Logger};
+use actix_web::{App, HttpServer, web, middleware::Logger, http};
 use dotenvy::dotenv; // To load .env file
 use seemycity_backend::db; // Import db module (which contains create_pool and queries)
 use seemycity_backend::config; // Import config module
@@ -8,6 +8,7 @@ use seemycity_backend::handlers::municipalities::{ // Import handlers
     get_municipalities_list_handler, // Import the new handler
 };
 use std::sync::Arc; // Import Arc if needed for Cache later, good practice
+use actix_cors::Cors; // Import CORS
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -55,12 +56,24 @@ async fn main() -> std::io::Result<()> {
 
     // Start Actix Web server
     HttpServer::new(move || {
+        // Define CORS settings
+        let cors = Cors::default()
+              .allowed_origin("http://localhost:5173") // Allow frontend dev origin
+              // In production, you might want to restrict this further or use allowed_origin_fn
+              // .allowed_origin("YOUR_PRODUCTION_FRONTEND_URL") 
+              .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+              .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT, http::header::CONTENT_TYPE])
+              .supports_credentials()
+              .max_age(3600);
+
         App::new()
             .wrap(Logger::default()) // Add logger middleware
+            .wrap(cors) // Add CORS middleware
             .app_data(web::Data::new(pool.clone())) // Share the pool
             .app_data(web::Data::new(api_client.clone())) // Share the API client
-            // Register handlers (relying on #[get(...)] attributes on handlers)
-            .service(get_municipality_detail_handler)
+            // Explicitly register the detail route
+            .route("/api/municipalities/{id}", web::get().to(get_municipality_detail_handler))
+             // Keep using .service() for the list handler as its path is defined by its macro
             .service(get_municipalities_list_handler)
     })
     .bind(("127.0.0.1", server_port))? 

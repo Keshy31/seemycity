@@ -12,7 +12,6 @@ pub async fn root_handler() -> impl Responder {
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api")
-            .service(municipalities::get_municipality_detail_handler)
             // Add other handlers here
     );
 }

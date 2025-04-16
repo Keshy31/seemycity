@@ -15,14 +15,14 @@ use sqlx::PgPool as DbPool;
 use tokio; // Import tokio
 
 // Replace the existing function with this one:
-#[get("/api/municipalities/{id}")]
-async fn get_municipality_detail_handler(
+// Handler to get details for a single municipality by ID
+pub async fn get_municipality_detail_handler(
     path: web::Path<String>,
     pool: web::Data<DbPool>,
     api_client: web::Data<MunicipalMoneyClient>,
 ) -> Result<HttpResponse, AppError> {
     let muni_id_str = path.into_inner();
-    log::info!("START: Handling request for /api/municipalities/{}", muni_id_str);
+    log::info!("START: Handling request for /api/municipality/{}", muni_id_str); // Updated log message path
 
     // Fetch base municipality info
     let base_info = get_municipality_base_info_db(&pool, &muni_id_str).await?;
