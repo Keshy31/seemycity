@@ -90,7 +90,7 @@
 - **Tasks**:
     - [x] **Update Map View (Initial Fetch)**: Fetch `/api/municipalities`, connect to backend via proxy, display basic GeoJSON shapes.
     - [x] **Update Map View (Data Styling)**: Implement data-driven styling to color municipalities based on fetched scores (requires backend scoring logic).
-    - [ ] **Update Single View**: Fetch `/api/municipality/{id}`, display real metrics. Add refresh. Deploy.
+    - [x] **Update Single View**: Fetch `/api/municipality/{id}`, display real metrics. Add refresh. Deploy.
     - [ ] **Update Comparison View**: Fetch multiple `/api/municipality/{id}`, show real comparisons. Deploy.
 - **Milestone**: Real Data Integration (Initial Map Fetch): **Achieved**
 
