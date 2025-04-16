@@ -86,13 +86,13 @@
 
 ##### Phase 5: Frontend-Backend Integration
 - **Goal**: Connect SvelteKit frontend to the Rust API, replacing dummy data.
-- **Status**: **In Progress** (Initial map fetch complete)
+- **Status**: **Completed** (All core views integrated)
 - **Tasks**:
     - [x] **Update Map View (Initial Fetch)**: Fetch `/api/municipalities`, connect to backend via proxy, display basic GeoJSON shapes.
     - [x] **Update Map View (Data Styling)**: Implement data-driven styling to color municipalities based on fetched scores (requires backend scoring logic).
     - [x] **Update Single View**: Fetch `/api/municipality/{id}`, display real metrics. Add refresh. Deploy.
-    - [ ] **Update Comparison View**: Fetch multiple `/api/municipality/{id}`, show real comparisons. Deploy.
-- **Milestone**: Real Data Integration (Initial Map Fetch): **Achieved**
+    - [x] **Update Comparison View**: Fetch multiple `/api/municipality/{id}`, show real comparisons. Deploy.
+- **Milestone**: Real Data Integration (Full): **Achieved**
 
 ##### Phase 6: Polish & Optimization
 - **Goal**: Final UX tweaks, testing, and performance improvements.
@@ -126,7 +126,7 @@
 2.  **DB Setup**: Postgres on Fly.io with static data. **(Done)**
 3.  **Frontend Expansion**: Full UI with dummy data, iterative deploys.
 4.  **Backend Build**: Rust API to process real data. **(Done)**
-5.  **Integration**: Connect SvelteKit frontend to Rust API, replacing dummy data. **(In Progress)**
+5.  **Integration**: Connect SvelteKit frontend to Rust API, replacing dummy data. **(Done)**
 6.  **Polish**: Final UX tweaks and testing.
 7.  **Hierarchical View**: Enhance map exploration with hierarchical drill-down and aggregated scores.
 
@@ -138,7 +138,7 @@
 - **Full UI (Dummy Data)**: Achieved (Phase 3)
 - **Backend Ready** (API Structure & Endpoints): **Achieved** (Phase 4)
 - **Real Data Integration** (Initial Map Fetch): **Achieved** (Phase 5)
-- **Real Data Integration** (Full): **Pending** (Phase 5)
+- **Real Data Integration** (Full): **Achieved** (Phase 5)
 - **MVP Done**: Target after Phase 6
 - **Hierarchical View**: Target after Phase 7
 

@@ -19,7 +19,7 @@ pub async fn get_cached_financials(
         FinancialDataDb,
         r#"
         SELECT
-            id, municipality_id, year, revenue, expenditure, capital_expenditure, debt, audit_outcome,
+            id, municipality_id, year, revenue, operational_expenditure, capital_expenditure, debt, audit_outcome,
             overall_score, financial_health_score, infrastructure_score, efficiency_score, accountability_score,
             created_at, updated_at
         FROM financial_data
@@ -57,7 +57,7 @@ pub async fn upsert_complete_financial_record(
     municipality_id: &str,
     year: i32,
     revenue: Option<Decimal>,
-    expenditure: Option<Decimal>,
+    operational_expenditure: Option<Decimal>,
     capital_expenditure: Option<Decimal>,
     debt: Option<Decimal>,
     audit_outcome: Option<String>,
@@ -73,14 +73,14 @@ pub async fn upsert_complete_financial_record(
     sqlx::query!(
         r#"
         INSERT INTO financial_data (
-            id, municipality_id, year, revenue, expenditure, capital_expenditure, debt, audit_outcome,
+            id, municipality_id, year, revenue, operational_expenditure, capital_expenditure, debt, audit_outcome,
             overall_score, financial_health_score, infrastructure_score, efficiency_score, accountability_score, 
             created_at, updated_at
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         ON CONFLICT (municipality_id, year) DO UPDATE SET
             revenue = EXCLUDED.revenue,
-            expenditure = EXCLUDED.expenditure,
+            operational_expenditure = EXCLUDED.operational_expenditure,
             capital_expenditure = EXCLUDED.capital_expenditure,
             debt = EXCLUDED.debt,
             audit_outcome = EXCLUDED.audit_outcome,
@@ -95,7 +95,7 @@ pub async fn upsert_complete_financial_record(
         municipality_id,
         year,
         revenue,
-        expenditure,
+        operational_expenditure,
         capital_expenditure,
         debt,
         audit_outcome,
@@ -124,7 +124,7 @@ pub async fn get_all_financial_years_db(pool: &PgPool, muni_id: &str) -> Result<
         SELECT
             year, 
             revenue,
-            expenditure,
+            operational_expenditure,
             capital_expenditure,
             debt,
             audit_outcome,

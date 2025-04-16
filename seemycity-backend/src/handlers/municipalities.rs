@@ -12,6 +12,8 @@ use crate::errors::AppError; // Import custom error type
 use crate::models::{FinancialYearData, MunicipalityDetail, MapFeatureCollection}; // <-- Add MapFeatureCollection
 use crate::scoring::{calculate_financial_score, ScoringInput};
 use sqlx::PgPool as DbPool;
+use std::sync::atomic::{AtomicBool, Ordering}; // <-- Add AtomicBool imports
+use std::sync::Arc; // <-- Add Arc
 use tokio; // Import tokio
 
 // Replace the existing function with this one:
@@ -57,26 +59,35 @@ pub async fn get_municipality_detail_handler(
         });
 
     // --- Concurrently Fetch Missing Data from API ---
+    // Flag to track if any API call was actually made
+    let data_fetched_from_api = Arc::new(AtomicBool::new(false));
+
     let (revenue_res, expenditure_res, capex_res, debt_res, audit_res) = tokio::join!(
         async {
             if financial_data.revenue.is_none() {
                 log::debug!("Muni: {}, Fetching Revenue for {}", muni_id_str, fetch_year);
+                // Set flag indicating an API call is happening
+                data_fetched_from_api.store(true, Ordering::Relaxed);
                 get_total_revenue(&api_client, &muni_code, fetch_year).await
             } else {
                 Ok(financial_data.revenue) // Use existing value
             }
         },
         async {
-            if financial_data.expenditure.is_none() {
+            // Rename field access for API check
+            if financial_data.operational_expenditure.is_none() { 
                 log::debug!("Muni: {}, Fetching Expenditure for {}", muni_id_str, fetch_year);
+                data_fetched_from_api.store(true, Ordering::Relaxed);
                 get_total_expenditure(&api_client, &muni_code, fetch_year).await
             } else {
-                Ok(financial_data.expenditure)
+                // Rename field access when using existing value
+                Ok(financial_data.operational_expenditure) 
             }
         },
         async {
             if financial_data.capital_expenditure.is_none() {
                 log::debug!("Muni: {}, Fetching Capex for {}", muni_id_str, fetch_year);
+                data_fetched_from_api.store(true, Ordering::Relaxed);
                 get_capital_expenditure(&api_client, &muni_code, fetch_year).await
             } else {
                 Ok(financial_data.capital_expenditure)
@@ -85,6 +96,7 @@ pub async fn get_municipality_detail_handler(
         async {
             if financial_data.debt.is_none() {
                 log::debug!("Muni: {}, Fetching Debt for {}", muni_id_str, fetch_year);
+                data_fetched_from_api.store(true, Ordering::Relaxed);
                 get_total_debt(&api_client, &muni_code, fetch_year).await
             } else {
                 Ok(financial_data.debt)
@@ -93,6 +105,7 @@ pub async fn get_municipality_detail_handler(
         async {
             if financial_data.audit_outcome.is_none() {
                 log::debug!("Muni: {}, Fetching Audit Outcome for {}", muni_id_str, fetch_year);
+                data_fetched_from_api.store(true, Ordering::Relaxed);
                 get_audit_outcome(&api_client, &muni_code, fetch_year).await
             } else {
                 Ok(financial_data.audit_outcome.clone()) // Clone Option<String>
@@ -103,7 +116,8 @@ pub async fn get_municipality_detail_handler(
     // --- Update Financial Data with Fetched Results ---
     // Log errors from API calls but proceed; scoring might still be possible partially
     financial_data.revenue = revenue_res.map_err(|e| log::error!("Muni: {}, Failed Revenue fetch: {}", muni_id_str, e)).ok().flatten();
-    financial_data.expenditure = expenditure_res.map_err(|e| log::error!("Muni: {}, Failed Expenditure fetch: {}", muni_id_str, e)).ok().flatten();
+    // Rename field when updating from API result
+    financial_data.operational_expenditure = expenditure_res.map_err(|e| log::error!("Muni: {}, Failed Expenditure fetch: {}", muni_id_str, e)).ok().flatten(); 
     financial_data.capital_expenditure = capex_res.map_err(|e| log::error!("Muni: {}, Failed Capex fetch: {}", muni_id_str, e)).ok().flatten();
     financial_data.debt = debt_res.map_err(|e| log::error!("Muni: {}, Failed Debt fetch: {}", muni_id_str, e)).ok().flatten();
     financial_data.audit_outcome = audit_res.map_err(|e| log::error!("Muni: {}, Failed Audit fetch: {}", muni_id_str, e)).ok().flatten();
@@ -112,7 +126,8 @@ pub async fn get_municipality_detail_handler(
     log::debug!("Muni: {}, Calculating scores for year {}", muni_id_str, fetch_year);
     let scoring_input = ScoringInput {
         revenue: financial_data.revenue,
-        expenditure: financial_data.expenditure,
+        // Rename field in scoring input
+        operational_expenditure: financial_data.operational_expenditure, 
         capital_expenditure: financial_data.capital_expenditure,
         debt: financial_data.debt,
         audit_outcome: financial_data.audit_outcome.clone(),
@@ -137,30 +152,52 @@ pub async fn get_municipality_detail_handler(
         financial_data.accountability_score = None;
     }
 
-    // --- Upsert Data and Scores to DB ---
-    log::debug!("Muni: {}, Upserting financial data for year {}", muni_id_str, fetch_year);
-    match upsert_complete_financial_record(
-        &pool,
-        &muni_code, // Use the cloned muni_code
-        fetch_year,
-        financial_data.revenue,
-        financial_data.expenditure,
-        financial_data.capital_expenditure,
-        financial_data.debt,
-        financial_data.audit_outcome.clone(), // Clone Option<String> again
-        financial_data.overall_score,
-        financial_data.financial_health_score,
-        financial_data.infrastructure_score,
-        financial_data.efficiency_score,
-        financial_data.accountability_score,
-    )
-    .await
-    {
-        Ok(_) => log::debug!("Muni: {}, Successfully upserted data for {}", muni_id_str, fetch_year),
-        Err(e) => {
-            // Log DB error but don't fail the request; return potentially stale data
-            log::error!("Muni: {}, Failed to upsert data for {}: {}", muni_id_str, fetch_year, e);
+    // --- Upsert Data and Scores to DB (Conditional) ---
+    if data_fetched_from_api.load(Ordering::Relaxed) {
+        log::debug!(
+            "Muni: {}, New data fetched from API. Upserting financial data for year {}",
+            muni_id_str,
+            fetch_year
+        );
+        match upsert_complete_financial_record(
+            &pool,
+            &muni_code, // Use the cloned muni_code
+            fetch_year,
+            financial_data.revenue,
+            // Rename argument in upsert call
+            financial_data.operational_expenditure, 
+            financial_data.capital_expenditure,
+            financial_data.debt,
+            financial_data.audit_outcome.clone(), // Clone Option<String> again
+            financial_data.overall_score,
+            financial_data.financial_health_score,
+            financial_data.infrastructure_score,
+            financial_data.efficiency_score,
+            financial_data.accountability_score,
+        )
+        .await
+        {
+            Ok(_) => log::info!(
+                "Muni: {}, Successfully upserted data for {}",
+                muni_id_str,
+                fetch_year
+            ),
+            Err(e) => {
+                // Log DB error but don't fail the request; return potentially stale data
+                log::error!(
+                    "Muni: {}, Failed to upsert data for {}: {}",
+                    muni_id_str,
+                    fetch_year,
+                    e
+                );
+            }
         }
+    } else {
+        log::debug!(
+            "Muni: {}, No new data fetched from API. Skipping upsert for year {}.",
+            muni_id_str,
+            fetch_year
+        );
     }
 
     // --- Prepare and Return Response ---

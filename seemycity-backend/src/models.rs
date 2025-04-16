@@ -45,7 +45,8 @@ pub struct FinancialDataDb {
     pub municipality_id: String, // Foreign key
     pub year: i32,
     pub revenue: Option<Decimal>,
-    pub expenditure: Option<Decimal>,
+    // Rename this field to match the DB column
+    pub operational_expenditure: Option<Decimal>, 
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
     // Make audit_outcome optional to match DB NULLable and query_as SELECT *
@@ -96,8 +97,9 @@ pub struct FinancialYearData {
     // Use Option<f64> for JSON compatibility, convert from Decimal
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
     pub revenue: Option<Decimal>,
+    // Rename this field as well
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
-    pub expenditure: Option<Decimal>,
+    pub operational_expenditure: Option<Decimal>, 
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
     pub capital_expenditure: Option<Decimal>, // Added this field
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]

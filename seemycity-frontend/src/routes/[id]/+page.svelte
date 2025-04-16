@@ -128,14 +128,20 @@
   // $: firstFinancialRecord = municipality?.financials?.[0];
 
   // Calculate Capex % based on Total Expenditure (OpEx + CapEx)
-  // $: capexPercentage = (() => {
-  //   const capex = firstFinancialRecord?.capital_expenditure;
-  //   const opex = firstFinancialRecord?.expenditure; // expenditure is OpEx
-  //   if (capex == null || opex == null) return 'N/A';
-  //   const totalExpenditure = opex + capex;
-  //   if (totalExpenditure === 0) return 'N/A'; // Avoid division by zero
-  //   return ((capex / totalExpenditure) * 100).toFixed(1) + '%';
-  // })();
+  $: capexPercentageFormatted = (() => {
+    // Ensure latestFinancials are loaded
+    if (!data?.latestFinancials) return 'N/A';
+
+    const capex = data.latestFinancials.capital_expenditure;
+    const opex = data.latestFinancials.expenditure;
+
+    if (capex == null || opex == null) return 'N/A';
+
+    const totalExpenditure = opex + capex;
+    if (totalExpenditure === 0) return 'N/A'; // Avoid division by zero
+
+    return ((capex / totalExpenditure) * 100).toFixed(1) + '%';
+  })();
 
   // $: efficiencyScoreFormatted = firstFinancialRecord?.efficiency_score != null ? `${formatScore(firstFinancialRecord.efficiency_score)} / 100` : 'N/A';
 
@@ -199,15 +205,9 @@
         <!-- Capex % -->
         <div class="metric-card">
           <Icon icon="mdi:home-group" class="metric-icon" />
-          <p class="metric-label">Capex %</p>
+          <p class="metric-label">Capital Spend %</p>
           <p class="metric-value">
-            {pageData.latestFinancials.expenditure && pageData.latestFinancials.capital_expenditure
-              ? (
-                  (pageData.latestFinancials.capital_expenditure /
-                    pageData.latestFinancials.expenditure) *
-                  100
-                ).toFixed(1) + '%'
-              : 'N/A'}
+            {capexPercentageFormatted}
           </p>
         </div>
         <!-- Efficiency Score -->

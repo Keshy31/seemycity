@@ -29,7 +29,7 @@ const INFRA_RATIO_BEST: Decimal = dec!(0.30); // Score 100
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoringInput {
     pub revenue: Option<Decimal>,
-    pub expenditure: Option<Decimal>,
+    pub operational_expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
     pub audit_outcome: Option<String>,
@@ -189,17 +189,17 @@ fn calculate_fin_health_score(
 /// Higher ratio generally yields a higher score.
 ///
 /// # Arguments
-/// * `opex_opt` - Operational expenditure (from input.expenditure).
+/// * `operational_expenditure_opt` - Operational expenditure.
 /// * `capex_opt` - Capital expenditure.
 ///
 /// # Returns
 /// * `Some(score)` - Score between 0 and 100 if inputs are valid.
-/// * `None` - If opex or capex is missing, or total expenditure is zero/negative.
+/// * `None` - If operational_expenditure or capex is missing, or total expenditure is zero/negative.
 fn calculate_infra_score(
-    opex_opt: Option<Decimal>,
+    operational_expenditure_opt: Option<Decimal>,
     capex_opt: Option<Decimal>,
 ) -> Option<Decimal> {
-    let opex = opex_opt?;
+    let opex = operational_expenditure_opt?;
     let capex = capex_opt?;
 
     let total_expenditure = opex + capex;
@@ -247,17 +247,17 @@ fn calculate_infra_score(
 /// Score = 100 if Ratio <= 0.85; Score = 0 if Ratio >= 1.15. Linear scaling between.
 ///
 /// # Arguments
-/// * `opex_opt` - Operational expenditure.
+/// * `operational_expenditure_opt` - Operational expenditure.
 /// * `revenue_opt` - Total municipal revenue (> 0).
 ///
 /// # Returns
 /// * `Some(score)` - Score between 0 and 100 if inputs are valid.
-/// * `None` - If opex or revenue is missing, or revenue is zero/negative.
+/// * `None` - If operational_expenditure or revenue is missing, or revenue is zero/negative.
 fn calculate_efficiency_score(
-    opex_opt: Option<Decimal>,
+    operational_expenditure_opt: Option<Decimal>,
     revenue_opt: Option<Decimal>,
 ) -> Option<Decimal> {
-    let opex = opex_opt?;
+    let opex = operational_expenditure_opt?;
     let revenue = match revenue_opt {
         Some(r) if r > Decimal::ZERO => Some(r),
         _ => None, // Return None if revenue is None or zero/negative
@@ -342,12 +342,12 @@ pub fn calculate_financial_score(input: &ScoringInput) -> Option<ScoreBreakdown>
     let fin_health_score = calculate_fin_health_score(input.revenue, input.debt, input.population)
         .unwrap_or(Decimal::ZERO);
 
-    // Infra score takes OpEx (input.expenditure) and CapEx
-    let infra_score = calculate_infra_score(input.expenditure, input.capital_expenditure) // Pass OpEx (input.expenditure) and CapEx
+    // Infra score takes OpEx (input.operational_expenditure) and CapEx
+    let infra_score = calculate_infra_score(input.operational_expenditure, input.capital_expenditure) // Pass OpEx (input.operational_expenditure) and CapEx
         .unwrap_or(Decimal::ZERO);
 
-    // Efficiency score takes OpEx (input.expenditure) and Revenue
-    let efficiency_score = calculate_efficiency_score(input.expenditure, input.revenue) // Pass OpEx (input.expenditure) and Revenue
+    // Efficiency score takes OpEx (input.operational_expenditure) and Revenue
+    let efficiency_score = calculate_efficiency_score(input.operational_expenditure, input.revenue) // Pass OpEx (input.operational_expenditure) and Revenue
         .unwrap_or(Decimal::ZERO);
 
     // Accountability score calculation now returns Decimal directly, defaulting to 0
