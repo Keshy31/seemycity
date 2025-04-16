@@ -1,35 +1,8 @@
 // src/routes/[id]/+page.ts
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-
-// Define the expected structure based on models.rs
-// Use 'number' for fields serialized from Decimal/f32
-// Renamed from FinancialYearDetails for clarity and consistency with backend
-interface FinancialYearData {
-	year: number;
-	revenue: number | null;
-	expenditure: number | null;
-	capital_expenditure: number | null;
-	debt: number | null;
-	audit_outcome: string | null;
-	overall_score: number | null;
-	financial_health_score: number | null;
-	infrastructure_score: number | null;
-	efficiency_score: number | null;
-	accountability_score: number | null;
-}
-
-// Renamed from MunicipalityDetails for clarity and consistency with backend
-interface MunicipalityDetail {
-	id: string;
-	name: string;
-	province: string;
-	population: number | null;
-	classification: string | null;
-	website: string | null;
-	financials: FinancialYearData[];
-	geometry: object | null; // Represent GeoJSON geometry as a generic object for now
-}
+// Import shared types
+import type { FinancialYearData, MunicipalityDetail } from '../../lib/types';
 
 export const load: PageLoad = async ({ params, fetch }) => {
 	// Use muniId for clarity

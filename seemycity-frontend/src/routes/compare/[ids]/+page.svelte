@@ -72,7 +72,7 @@
                         <p class="py-2">{formatPopulation(muni.population)}</p>
                         <p class="py-2">{muni.financials?.[0]?.year ?? 'N/A'}</p>
                         <p class="py-2">{formatCurrency(muni.financials?.[0]?.revenue)}</p>
-                        <p class="py-2">{formatCurrency(muni.financials?.[0]?.expenditure)}</p>
+                        <p class="py-2">{formatCurrency(muni.financials?.[0]?.operational_expenditure)}</p>
                         <p class="py-2">{formatCurrency(muni.financials?.[0]?.debt)}</p>
                         <p class="py-2">{muni.financials?.[0]?.audit_outcome ?? 'N/A'}</p>
                     </div>

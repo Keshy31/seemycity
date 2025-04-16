@@ -133,7 +133,8 @@
     if (!data?.latestFinancials) return 'N/A';
 
     const capex = data.latestFinancials.capital_expenditure;
-    const opex = data.latestFinancials.expenditure;
+    // Update to use operational_expenditure
+    const opex = data.latestFinancials.operational_expenditure; 
 
     if (capex == null || opex == null) return 'N/A';
 
@@ -270,7 +271,7 @@
               <span class="font-medium">Total Revenue:</span> {formatCurrency(pageData.latestFinancials.revenue)}
             </p>
             <p>
-              <span class="font-medium">Total Expenditure:</span> {formatCurrency(pageData.latestFinancials.expenditure)}
+              <span class="font-medium">Total Expenditure:</span> {formatCurrency(pageData.latestFinancials.operational_expenditure)}
             </p>
           </div>
           <div>
