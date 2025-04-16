@@ -24,17 +24,36 @@
 1. **Data Source**:
    - Fetch financial data from the Municipal Money API (http://municipaldata.treasury.gov.za/api) for the latest year (e.g., 2024).
    - Incorporate static population data from external sources (e.g., StatsSA) and GeoJSON boundaries from the [Municipal Demarcation Board ArcGIS Hub](https://spatialhub-mdb-sa.opendata.arcgis.com/) for per-capita metrics and map visualization.
-2. **Scoring System**:
-   - Calculate a composite score (0-100) for each municipality based on four pillars:
-     - **Financial Health (30%)**: Revenue per capita, debt-to-revenue ratio.
-     - **Infrastructure Investment (25%)**: Capital expenditure as a percentage of total expenditure.
-     - **Efficiency & Service Delivery (25%)**: Operating expenditure ratio.
-     - **Accountability (20%)**: Audit outcome (e.g., Clean = 100, Qualified = 50, Adverse = 0).
-   - Normalize metrics and weight them to produce a transparent, comparable score.
+2. **Scoring System**: 
+   - Calculate a composite score (0-100) for each municipality based on four weighted pillars, detailed below. Pillar scores default to 0 if required data is missing or invalid (e.g., NULL, zero denominator). 
+   - **Accountability (20% weight)**:
+     - Metric: Audit Outcome (string from `financial_data.audit_outcome`).
+     - Scoring (0-100): Map outcome string to score:
+       - "Unqualified - No findings": **100**
+       - "Unqualified - Emphasis of Matter items": **75**
+       - "Qualified": **50**
+       - "Adverse" or "Disclaimer": **25**
+       - "Outstanding", NULL, or any other value: **0**
+   - **Infrastructure Investment (25% weight)**:
+     - Metric: Capital Expenditure as a Percentage of Total Expenditure (`CapEx Ratio = capital_expenditure / (expenditure + capital_expenditure)`).
+     - Scoring (0-100): Normalize based on CapEx Ratio. Higher ratio = higher score. Score 100 if Ratio >= 0.30, Score 50 if Ratio == 0.15, Score 0 if Ratio <= 0.05, with linear scaling between these points.
+   - **Efficiency & Service Delivery (25% weight)**:
+     - Metric: Operational Expenditure Ratio (`OpEx Ratio = expenditure / revenue`).
+     - Scoring (0-100): Normalize based on OpEx Ratio. Lower ratio = higher score, centered around breakeven (Ratio 1.0 = Score 50). Score 100 if Ratio <= 0.85, Score 0 if Ratio >= 1.15, with linear scaling between these points.
+   - **Financial Health (30% weight)**:
+     - Combines two sub-metrics (requires `population` from `municipalities` table):
+     - Sub-Metric 1: Debt-to-Revenue Ratio (`Debt Ratio = debt / revenue`).
+       - Scoring (0-100): Normalize based on range [0.1, 1.5]. Lower ratio is better. `Debt Score = 100 * (1 - max(0, min(1, (Debt Ratio - 0.1) / (1.5 - 0.1))))`.
+     - Sub-Metric 2: Revenue per Capita (`Rev Per Capita = revenue / population`).
+       - Scoring (0-100): Normalize based on range [R5,000, R20,000]. Higher is better. `Rev Per Capita Score = 100 * max(0, min(1, (Rev Per Capita - 5000) / (20000 - 5000)))`.
+     - Pillar Score (0-100): `Score = (Debt Score * 0.5) + (Rev Per Capita Score * 0.5)`.
+   - **Overall Score (0-100)**:
+     - Metric: Weighted average of the four pillar scores.
+     - Scoring: `Overall = (Accountability Score * 0.20) + (Infrastructure Score * 0.25) + (Efficiency Score * 0.25) + (Financial Health Score * 0.30)`.
 3. **Views**:
-   - **Map View**: Display municipalities on a choropleth map, color-coded by score. Users can click a municipality to navigate to its Single View. (Province/District level views are post-MVP).
-   - **Single View**: Show a selected municipality’s score, metrics, and score breakdown.
-   - **Comparison View**: Present side-by-side metrics and scores for multiple municipalities.
+   - **Map View**: Display municipalities on a choropleth map, color-coded by the `Overall Score`. Users can click a municipality to navigate to its Single View. (Province/District level views are post-MVP).
+   - **Single View**: Show a selected municipality’s `Overall Score`, key metrics, and the breakdown of the four pillar scores.
+   - **Comparison View**: Present side-by-side metrics and scores (including `Overall Score`) for multiple municipalities.
 4. **Data Storage**:
    - Cache API data in a local Postgres database, updated quarterly or on manual refresh.
    - Pre-populate municipality details (name, province, population, GeoJSON) for map and per-capita calculations.

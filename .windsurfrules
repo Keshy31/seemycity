@@ -28,12 +28,6 @@
   background = "#FDF6E3"
   text = "#3C2F2F"
   
-# Map Configuration
-[map]
-  provider = "leaflet"
-  center = "-30.5595, 22.9375"
-  zoom = 6
-  
 # Performance
 [performance]
   target_load_time = 2000

@@ -49,9 +49,15 @@
   $: population = muniDetails?.population;
   $: overallScore = financials?.overall_score;
   $: revenuePerCapita = formatRevenuePerCapita(financials?.revenue, population);
-  $: capexPercentage = (financials?.capital_expenditure != null && financials?.expenditure != null && financials.expenditure !== 0)
-    ? formatPercentage((financials.capital_expenditure / financials.expenditure) * 100)
-    : 'N/A';
+  // Calculate Capex % based on Total Expenditure (OpEx + CapEx)
+  $: capexPercentage = (() => {
+    const capex = financials?.capital_expenditure;
+    const opex = financials?.expenditure; // expenditure is OpEx
+    if (capex == null || opex == null) return 'N/A';
+    const totalExpenditure = opex + capex;
+    if (totalExpenditure === 0) return 'N/A'; // Avoid division by zero
+    return formatPercentage((capex / totalExpenditure) * 100);
+  })();
   $: efficiencyScoreFormatted = financials?.efficiency_score != null ? `${formatScore(financials.efficiency_score)} / 100` : 'N/A';
 </script>
 
