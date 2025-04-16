@@ -1,7 +1,7 @@
 <script lang="ts">
-  import maplibregl from 'maplibre-gl'; // Use default import
+  import maplibregl from 'maplibre-gl'; // Use only default import
   import type { FeatureCollection } from 'geojson'; // Type-only import
-  import type { Map, NavigationControl, Popup, MapMouseEvent, MapLibreEvent } from 'maplibre-gl'; // Import types separately
+  import type { LngLatLike, Map, StyleSpecification, MapMouseEvent } from 'maplibre-gl'; // Import types separately
   import { onMount, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores'; // For accessing map style URL
   import { browser } from '$app/environment';
@@ -36,7 +36,7 @@
   const initialZoom = 4.5; // Slightly more zoomed in
 
   // Basic inline style - Plain background
-  const mapStyle = {
+  const mapStyle: StyleSpecification = {
     version: 8,
     name: 'Blank Background',
     sources: {},
@@ -121,26 +121,20 @@
             id: 'municipalities-layer',
             type: 'fill',
             source: 'municipalities-source',
-            layout: {},
             paint: {
-              // Use a 'case' expression to handle null scores first
-              // Then use 'interpolate' for scores that exist
-              'fill-color': [
-                'case',
-                ['==', ['get', 'financial_score'], null], // Check if score is null
-                DEFAULT_COLOR, // Color for null scores
-                [ // Color for non-null scores (interpolate)
-                  'interpolate',
-                  ['linear'],
-                  ['get', 'financial_score'], // Get the score value
-                  ...SCORE_COLORS // Spread the color stops array
-                ]
-              ],
-              'fill-opacity': 0.7, // Keep consistent opacity
-              'fill-outline-color': '#3C2F2F'
+              'fill-color': '#cccccc', // Default color before data-driven styling is applied
+              'fill-opacity': 0.6,
+              'fill-outline-color': '#3C2F2F', // Charcoal for outlines
             }
           });
-          console.log('Layer added.');
+
+          // Apply data-driven styling based on financial_score
+          map.setPaintProperty('municipalities-layer', 'fill-color', [
+            'step',
+            ['get', 'financial_score'], // Get the score property
+            DEFAULT_COLOR, // Default color for null/missing scores (Grey)
+            ...SCORE_COLORS // Use the defined color scale
+          ]);
 
           // --- Layer Interaction Logic ---
           // Click event listener
