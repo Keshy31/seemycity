@@ -2,82 +2,102 @@
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-// Define structure for the items within the financials array
-interface FinancialYearDetails {
+// Define the expected structure based on models.rs
+// Use 'number' for fields serialized from Decimal/f32
+// Renamed from FinancialYearDetails for clarity and consistency with backend
+interface FinancialYearData {
 	year: number;
-	revenue?: number | null;
-	expenditure?: number | null;
-	capital_expenditure?: number | null;
-	debt?: number | null;
-	audit_outcome?: string | null;
-	overall_score?: number | null; // Backend sends Decimal (number/string), adjust if needed
-	financial_health_score?: number | null;
-	infrastructure_score?: number | null;
-	efficiency_score?: number | null;
-	accountability_score?: number | null;
+	revenue: number | null;
+	expenditure: number | null;
+	capital_expenditure: number | null;
+	debt: number | null;
+	audit_outcome: string | null;
+	overall_score: number | null;
+	financial_health_score: number | null;
+	infrastructure_score: number | null;
+	efficiency_score: number | null;
+	accountability_score: number | null;
 }
 
-// Update main interface to include the financials array
-// Match this with the Rust MunicipalityDetail struct
-interface MunicipalityDetails {
+// Renamed from MunicipalityDetails for clarity and consistency with backend
+interface MunicipalityDetail {
 	id: string;
 	name: string;
-	province: string; // Changed from province_name
-	population?: number | null; // Backend sends f32, might be received as number
-	classification?: string | null; // Changed from category
-	website?: string | null;
-	financials: FinancialYearDetails[];
-    geometry?: any; // Add if needed
+	province: string;
+	population: number | null;
+	classification: string | null;
+	website: string | null;
+	financials: FinancialYearData[];
+	geometry: object | null; // Represent GeoJSON geometry as a generic object for now
 }
 
 export const load: PageLoad = async ({ params, fetch }) => {
-	const { id } = params; // Get the municipality ID from the route parameter
+	// Use muniId for clarity
+	const muniId = params.id;
 
-	if (!id) {
-		throw error(400, 'Municipality ID is required.');
+	if (!muniId) {
+		throw error(400, 'Municipality ID is required');
 	}
 
 	try {
 		// Construct the API URL
-		const apiUrl = `/api/municipalities/${id}`;
+		const apiUrl = `/api/municipalities/${muniId}`;
 		console.log(`[+page.ts] Fetching municipality details from: ${apiUrl}`);
 
 		const response = await fetch(apiUrl);
 
 		if (!response.ok) {
-			let errorBody = { message: response.statusText };
+			// Improved error message handling
+			let errorMessage = `Failed to fetch data: ${response.statusText}`;
 			try {
-				errorBody = await response.json();
+				const errorBody = await response.json();
+				errorMessage = errorBody.message || errorMessage; // Use backend message if available
 			} catch (e) {
-				// Ignore if response body is not JSON
+				// Ignore if response body isn't JSON or empty
 			}
-			console.error(`[+page.ts] API Error (${response.status}): ${errorBody.message || 'Unknown error'}`);
-			throw error(response.status, `Failed to load municipality data: ${errorBody.message || response.statusText}`);
+			console.error(`[+page.ts] API Error (${response.status}): ${errorMessage}`);
+			throw error(response.status, errorMessage);
 		}
 
-		const municipalityData: MunicipalityDetails = await response.json();
+		// Use the corrected interface name
+		const municipalityData: MunicipalityDetail = await response.json();
 
+		// Validate the core structure minimally
 		if (!municipalityData || typeof municipalityData !== 'object' || !municipalityData.id) {
             console.error('[+page.ts] Received unexpected data structure:', municipalityData);
-			throw error(500, `Received invalid data structure for municipality ID ${id}`);
+			throw error(500, `Received invalid data structure for municipality ID ${muniId}`);
 		}
 
-		console.log('[+page.ts] Successfully fetched municipality data:', municipalityData);
+		// Sort financials array by year descending to easily get the latest
+        // Ensure financials exist and is an array before sorting
+        if (Array.isArray(municipalityData.financials)) {
+            municipalityData.financials.sort((a, b) => b.year - a.year);
+        } else {
+            municipalityData.financials = []; // Ensure it's an empty array if null/undefined
+        }
 
-		// Return the data to be used by the +page.svelte component
+        // Extract the latest financial data (first element after sorting)
+        const latestFinancials: FinancialYearData | null = municipalityData.financials.length > 0
+            ? municipalityData.financials[0]
+            : null;
+
+		console.log(`[+page.ts] Successfully fetched data for ${municipalityData.name}`);
+
+		// Return both the full data and the latest financials separately
 		return {
-			municipality: municipalityData
+			municipality: municipalityData,
+            latestFinancials: latestFinancials
 		};
 
 	} catch (err: any) {
 		console.error('[+page.ts] Error loading municipality data:', err);
 
-		// Handle SvelteKit errors specifically (re-throw)
-		if (err.status && err.body) {
-			throw error(err.status, err.body.message);
+		// Handle SvelteKit errors specifically (re-throw if it has status)
+		if (err.status) {
+			throw err; // Re-throw SvelteKit error object
 		}
 
 		// Handle generic fetch errors or errors thrown above
-		throw error(500, `An error occurred while fetching municipality data: ${err.message || 'Unknown error'}`);
+		throw error(500, `An unexpected error occurred while fetching municipality data: ${err.message || 'Unknown error'}`);
 	}
 };
