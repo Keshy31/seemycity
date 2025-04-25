@@ -62,9 +62,17 @@ seemycity-frontend/
 │   ├── demo.spec.ts      # Example test
 │   ├── hooks.server.ts   # Server-side hooks (if needed)
 │   ├── lib/              # Reusable components, utilities, data types
-│   │   ├── components/   # UI Components (e.g., MapComponent.svelte, Card.svelte)
-│   │   │   └── MapComponent.svelte  # Main map component
-│   │   ├── data/         # Data structures, dummy data
+│   │   ├── components/   # UI Components 
+│   │   │   ├── MapComponent.svelte
+│   │   │   ├── detail/         # Components specific to single/comparison views
+│   │   │   │   ├── PageHeader.svelte
+│   │   │   │   ├── KeyMetricsGrid.svelte
+│   │   │   │   ├── MetricCard.svelte
+│   │   │   │   └── ScoreBreakdown.svelte
+│   │   │   ├── ui/             # General reusable UI elements
+│   │   │   │   ├── ErrorMessage.svelte
+│   │   │   │   ├── LoadingSpinner.svelte
+│   │   │   │   └── ProgressBar.svelte
 │   │   │   └── dummyStore.ts # Exports dummyMunicipalitiesGeoJSON (for map) & dummyMunicipalityDetails (object mapping ID to details with financials array, latest_score, etc.). Contains helper functions.
 │   │   └── index.ts      # Barrel file for lib exports (optional)
 │   └── routes/           # Application pages and API routes
