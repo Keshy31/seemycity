@@ -43,17 +43,6 @@
     return 'background-color: var(--score-low-color, #CD5C5C);';
   }
 
-  // Helper to format website URL for display
-  function formatWebsite(url: string | null | undefined): string {
-    if (!url) return 'N/A';
-    try {
-      const parsedUrl = new URL(url);
-      return parsedUrl.hostname.replace(/^www\./, ''); // Remove www.
-    } catch (e) {
-      return url; // Return original if parsing fails
-    }
-  }
-
   // Access the municipality data directly from the prop
   // $: muniDetails = data.municipality;
 
@@ -103,53 +92,53 @@
 {:then pageData}
   <!-- Access resolved data -->
   <div class="detail-container">
-    <!-- Display only if latestFinancials exist -->
     {#if pageData.latestFinancials}
       <!-- Key Metrics Grid - Render the component -->
       <KeyMetricsGrid financials={pageData.latestFinancials} population={pageData.municipality.population} />
+
+      <!-- Score Breakdown Section -->
+      <div class="score-breakdown-section">
+        <h2 class="section-title">Score Breakdown</h2>
+        <!-- Financial Health -->
+        <div class="score-row">
+          <span class="score-pillar-label">Financial Health (30%)</span>
+          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.financial_health_score)}>
+            {formatScore(pageData.latestFinancials.financial_health_score)}
+          </span>
+          <span class="score-suffix">/ 100</span>
+        </div>
+        <!-- Infrastructure Investment -->
+        <div class="score-row">
+          <span class="score-pillar-label">Infrastructure Inv. (25%)</span>
+          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.infrastructure_score)}>
+            {formatScore(pageData.latestFinancials.infrastructure_score)}
+          </span>
+           <span class="score-suffix">/ 100</span>
+        </div>
+        <!-- Efficiency & Service Delivery -->
+        <div class="score-row">
+          <span class="score-pillar-label">Efficiency & Service Delivery (25%)</span>
+          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.efficiency_score)}>
+            {formatScore(pageData.latestFinancials.efficiency_score)}
+          </span>
+           <span class="score-suffix">/ 100</span>
+        </div>
+        <!-- Accountability -->
+        <div class="score-row">
+          <span class="score-pillar-label">Accountability (20%)</span>
+          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.accountability_score)}>
+            {formatScore(pageData.latestFinancials.accountability_score)}
+          </span>
+           <span class="score-suffix">/ 100</span>
+        </div>
+      </div>
+
     {:else}
       <!-- Message if no financial data is available -->
       <div class="no-data-message">
         <p>No financial data available for the latest year.</p>
       </div>
     {/if}
-
-    <!-- Score Breakdown Section -->
-    <div class="score-breakdown-section">
-      <h2 class="section-title">Score Breakdown</h2>
-      <!-- Financial Health -->
-      <div class="score-row">
-        <span class="score-pillar-label">Financial Health (30%)</span>
-        <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.financial_health_score)}>
-          {formatScore(pageData.latestFinancials.financial_health_score)}
-        </span>
-        <span class="score-suffix">/ 100</span>
-      </div>
-      <!-- Infrastructure Investment -->
-      <div class="score-row">
-        <span class="score-pillar-label">Infrastructure Inv. (25%)</span>
-        <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.infrastructure_score)}>
-          {formatScore(pageData.latestFinancials.infrastructure_score)}
-        </span>
-         <span class="score-suffix">/ 100</span>
-      </div>
-      <!-- Efficiency & Service Delivery -->
-      <div class="score-row">
-        <span class="score-pillar-label">Efficiency & Service Delivery (25%)</span>
-        <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.efficiency_score)}>
-          {formatScore(pageData.latestFinancials.efficiency_score)}
-        </span>
-         <span class="score-suffix">/ 100</span>
-      </div>
-      <!-- Accountability -->
-      <div class="score-row">
-        <span class="score-pillar-label">Accountability (20%)</span>
-        <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.accountability_score)}>
-          {formatScore(pageData.latestFinancials.accountability_score)}
-        </span>
-         <span class="score-suffix">/ 100</span>
-      </div>
-    </div>
 
     <!-- About Section -->
     <div class="about-section">

@@ -19,17 +19,17 @@
 
   // Total Expenditure for percentage calculations
   $: totalExpenditure = financials
-    ? (financials.opex ?? 0) + (financials.capex ?? 0)
+    ? (financials.operational_expenditure ?? 0) + (financials.capital_expenditure ?? 0)
     : 0;
 
   // Capital Spend Percentage
   $: capexPercentage = financials && totalExpenditure > 0
-    ? formatPercentage(financials.capex, totalExpenditure)
+    ? formatPercentage(financials.capital_expenditure, totalExpenditure)
     : 'N/A';
 
   // Operational Spend Percentage
   $: opexPercentage = financials && totalExpenditure > 0
-    ? formatPercentage(financials.opex, totalExpenditure)
+    ? formatPercentage(financials.operational_expenditure, totalExpenditure)
     : 'N/A';
 
 </script>
