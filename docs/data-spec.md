@@ -49,7 +49,7 @@ pub struct FinancialDataDb {
     #[sqlx(rename = "year")] // Maps DB 'year' to this field
     pub financial_year: i32,
     pub revenue: Option<Decimal>,
-    pub expenditure: Option<Decimal>,
+    pub operational_expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>, // Total Liabilities (sum of items 0310-0500 in financial_position_v2 cube, based on current implementation)
     pub audit_outcome: Option<String>,
@@ -74,7 +74,7 @@ pub struct FinancialYearData {
     #[sqlx(rename = "year")] // Map 'year' column from DB query result
     pub financial_year: i32, 
     pub revenue: Option<Decimal>,
-    pub expenditure: Option<Decimal>,
+    pub operational_expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
     pub audit_outcome: Option<String>,
@@ -101,7 +101,7 @@ pub struct FinancialYearData {
     pub year: i32,
     // Decimal fields serialized as Option<f64> or null
     pub revenue: Option<Decimal>,
-    pub expenditure: Option<Decimal>,
+    pub operational_expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
     pub audit_outcome: Option<String>,
@@ -153,11 +153,11 @@ Detailed information for the single municipality view and comparison view.
 interface FinancialYearData {
     year: number; // Matches API 'year'
     revenue: number | null; // From financial_data (Decimal -> f64 | null)
-    expenditure: number | null; // From financial_data (Decimal -> f64 | null)
+    operational_expenditure: number | null; // From financial_data (Decimal -> f64 | null)
     capital_expenditure: number | null; // From financial_data (Decimal -> f64 | null)
     debt: number | null; // Total Liabilities (Decimal -> f64 | null)
     audit_outcome: string | null; // From financial_data
-    // Scores (Decimal -> f64 | null)
+    // Scores
     overall_score: number | null;
     financial_health_score: number | null;
     infrastructure_score: number | null;
@@ -222,9 +222,9 @@ CREATE TABLE financial_data (
     municipality_id varchar NOT NULL,             -- Foreign key to municipalities.id
     year int NOT NULL,                            -- Financial year (e.g., 2023)
     revenue numeric NULL,                         -- Total Revenue
-    expenditure numeric NULL,                     -- Total Expenditure
+    operational_expenditure numeric NULL,         -- Total Operational Expenditure
     capital_expenditure numeric NULL,             -- Capital Expenditure
-    debt numeric NULL,                            -- Total Liabilities / Debt
+    debt numeric NULL,                            -- Total Liabilities
     audit_outcome text NULL,                      -- Latest Audit Opinion Label
     -- Calculated Scores (stored after calculation)
     overall_score numeric NULL,                   -- Overall Financial Health Score (0-100)
@@ -304,7 +304,7 @@ Returns detailed information for a single municipality identified by `{id}` (whi
         {
             "financial_year": 2023,
             "revenue": 500000000.00,
-            "expenditure": 480000000.00,
+            "operational_expenditure": 480000000.00,
             "capital_expenditure": 80000000.00,
             "debt": 120000000.00,
             "audit_outcome": "Unqualified opinion with findings",
@@ -347,7 +347,7 @@ Returns detailed information for a single municipality identified by `{munic_id}
         {
             "financial_year": 2023,
             "revenue": 7500000000.50, // numeric -> Option<Decimal> -> f64 | null
-            "expenditure": 7200000000.25, // numeric -> Option<Decimal> -> f64 | null
+            "operational_expenditure": 7200000000.25, // numeric -> Option<Decimal> -> f64 | null
             "capital_expenditure": 500000000.00, // numeric -> Option<Decimal> -> f64 | null
             "debt": 12000000000.00, // numeric -> Option<Decimal> -> f64 | null
             "audit_outcome": "Unqualified opinion",

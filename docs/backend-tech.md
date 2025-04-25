@@ -83,7 +83,7 @@ This document outlines the technical details for the Rust backend of the Municip
 *   **Structure (`src/api/muni_money/`):**
     *   `client.rs`: Contains the main `MunicipalMoneyClient` struct, manages the `reqwest` client, and handles generic request logic.
     *   `types.rs`: Defines structs representing the API's JSON response structure (e.g., generic `FactsApiResponse`, specific `AuditApiResponse`, `Cell`, `FinancialFact`, `AuditOpinionFact`) and the custom `ApiClientError` enum.
-    *   `financials.rs`: Contains functions specific to fetching financial data points (e.g., `get_total_revenue`, `get_total_debt`), including logic to handle specific API parameters (item codes, amount types).
+    *   `financials.rs`: Contains functions specific to fetching financial data points (e.g., `get_total_revenue`, `get_total_operational_expenditure`), including logic to handle specific API parameters (item codes, amount types).
     *   `audit.rs`: Contains functions specific to fetching audit outcome data (`get_audit_outcome`).
 *   **Status:** Core client logic implemented. Audit outcome fetching refactored for type safety and integration tests pass (as of 2025-04-15). Financial data fetchers verified.
 
@@ -114,7 +114,7 @@ seemycity-backend/
 │   │       ├── mod.rs      # Declares submodules
 │   │       ├── types.rs    # API-specific structs (FactsApiResponse, AuditApiResponse, FinancialFact, AuditOpinionFact, etc.), errors
 │   │       ├── client.rs   # MunicipalMoneyClient, base reqwest logic
-│   │       ├── financials.rs # get_total_revenue, get_total_debt, etc.
+│   │       ├── financials.rs # get_total_revenue, get_total_operational_expenditure, etc.
 │   │       └── audit.rs    # get_audit_outcome
 │   ├── config.rs       # Configuration loading
 │   ├── db/
@@ -151,6 +151,25 @@ See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgre
 
 ---
 
+#### Data Structures & API Payloads
+
+The canonical definitions for all backend data structures (Rust structs) and API payloads are maintained in [data-spec.md](./data-spec.md#1-core-data-structures). Please refer to that document for up-to-date field lists and type details.
+
+**Backend-specific notes:**
+- Database mapping and serialization logic live in `src/models.rs`.
+- Any deviations or extensions should be documented in data-spec.md and referenced here.
+
+---
+
+#### Financial Score Calculation
+
+The financial health score calculation (pillars, weights, normalization, and formulas) follows the canonical rubric defined in [prd.md](./prd.md#2-functional-requirements). Please refer to that document for the latest details and rationale.
+
+**Backend implementation note:**  
+The calculation logic is implemented in `src/scoring.rs` and invoked by API handlers when new financial data is fetched or updated.
+
+---
+
 #### Data Flow (`/api/municipalities/{id}` Handler)
 
 1.  **Extract ID:** The handler receives the municipality ID (`muni_id`) from the URL path.
@@ -162,7 +181,7 @@ See the dedicated [`docs/data-spec.md`](./data-spec.md#2-database-schema-postgre
     c.  If recent enough, converts the cached `FinancialRecord` to `FinancialYearData` and stores it in `financial_data_to_use`. Skips to Step 8.
 5.  **Fresh Data Fetch (if Cache Miss or Stale):** If `financial_data_to_use` is `None`:
     a.  Logs the fetch action.
-    b.  Initiates **concurrent** calls to the `MunicipalMoneyClient` for `muni_id` and `target_year` to get raw financial figures (revenue, expenditure, capex, debt, audit outcome).
+    b.  Initiates **concurrent** calls to the `MunicipalMoneyClient` for `muni_id` and `target_year` to get raw financial figures (revenue, operational_expenditure, capex, debt, audit outcome).
     c.  Awaits results using `tokio::join!`. Propagates errors.
 6.  **Score Calculation:**
     a.  Constructs a `ScoringInput` struct using the fetched financial data and the population from the base info (Step 2).
@@ -211,32 +230,14 @@ The backend retrieves the core financial metrics for scoring as follows. All que
         *   `1800`: Gains on disposal of PPE - *(Added based on CPT 2023 data)*
     *   *Note: This list is based on observed data for CPT/2023/AUDA and may differ for other municipalities/years. Codes like 0900, 1500, 1900-2700 from the previous list were not present or had zero amounts in the test data.*
 
-2.  **Total Debt ([`get_total_debt`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:96:0-145:1))**
-    *   **Cube**: `financial_position_v2`
-    *   **Method**: Sum the `amount.sum` for all items where `item.code` is in the range `0310`–`0500` (inclusive), filtering by `amount_type.code:AUDA`. This reflects the current approach for total liabilities (debt), parsing `item.code` as an integer for range checking.
-    *   *Note: Historical data structures or specific municipal reporting might differ. The backend implements the 0310-0500 range summation.* Returns `Option<Decimal>`.
-
-3.  **Total Expenditure ([`get_total_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:147:0-213:1))**
+2.  **Total Operational Expenditure ([`get_total_operational_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:60:0-94:1))**
     *   **Cube**: `incexp_v2`
-    *   **Method**: Use the `fetch_incexp_aggregate` function (as described for Revenue). Sum the `amount.sum` for the following `item.code`s observed in the response (example from CPT, 2023, AUDA):
-        *   `3000`: Employee related costs - *(Added based on CPT 2023 data)*
-        *   `3100`: Remuneration of councillors - *(Label updated based on CPT 2023 data)*
-        *   `3200`: Debt impairment - *(Label updated based on CPT 2023 data)*
-        *   `3300`: Depreciation and asset impairment - *(Label updated based on CPT 2023 data)*
-        *   `3400`: Finance charges - *(Label updated based on CPT 2023 data)*
-        *   `3500`: Bulk purchases - *(Label updated based on CPT 2023 data)*
-        *   `3600`: Contracted services - *(Label updated based on CPT 2023 data)*
-        *   `3700`: Transfers and grants - *(Label updated based on CPT 2023 data)*
-        *   `3900`: Other expenditure - *(Added based on CPT 2023 data)*
-        *   `4000`: Loss on disposal of PPE - *(Added based on CPT 2023 data)*
-    *   *Note: This list is based on observed data for CPT/2023/AUDA and may differ for other municipalities/years. Codes like 3800, 4100-4300, 4600, 4700, 4900, 5200 from the previous list were not present or had zero amounts in the test data.* Returns `Option<Decimal>`.
+    *   **Method**: Sum the `amount.sum` for `item.code` = `2000` (`Operational Expenditure`) filtering by `amount_type.code:AUDA`. This corresponds to the `Total Operating Expenditure` item. Returns `Option<Decimal>`. 
 
-4.  **Capital Expenditure ([`get_capital_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:215:0-246:1))**
+3.  **Capital Expenditure ([`get_capital_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:147:0-186:1))**
     *   **Cube**: `capital_v2`
-    *   **Method**: Sum the `amount.sum` for all items where `item.code` is in the range `4100`–`4109` (inclusive), filtering by `amount_type.code:AUDA`. This reflects the current approach for total capital expenditure, parsing `item.code` as an integer for range checking.
-    *   *Note: This uses the `capital_v2` cube and aggregates specific item codes.* Returns `Option<Decimal>`.
-
-5.  **Audit Outcome ([`get_audit_outcome`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/audit.rs:9:0-50:1))**
+    *   **Method**: Sum the `amount.sum` for `item.code` = `4100` (`Total Capital Expenditure`) filtering by `amount_type.code:AUDA`. Returns `Option<Decimal>`. 
+4.  **Audit Outcome ([`get_audit_outcome`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/audit.rs:9:0-50:1))**
     *   **Cube**: `audit_opinions_v2`
     *   **Method**: Uses the `fetch_audit_opinion` function, which queries the `/facts` endpoint with filters for `demarcation.code`, `financial_year.year`, and `latest_opinion.label`. It extracts the `latest_opinion.label` value from the first fact in the response.
     *   *Note: Assumes the API returns a single, relevant fact.* Returns `Option<String>`.
@@ -248,22 +249,10 @@ The backend retrieves the core financial metrics for scoring as follows. All que
 *   **`get_municipality_detail_handler`**: 
     *   Handles `GET /api/municipalities/{municipality_code}`.
     *   Fetches base static municipality details using `get_municipality_base_info_db`.
-    *   Fetches financial details (revenue, expenditure, debt, audit) for the specified year from the Municipal Money API via the `MunicipalMoneyClient`.
+    *   Fetches financial details (revenue, operational_expenditure, debt, audit) for the specified year from the Municipal Money API via the `MunicipalMoneyClient`.
     *   Combines the base info and fetched financial data into a `MunicipalityDetail` response.
     *   Uses `upsert_complete_financial_record` to save the fetched financial metrics to the database.
     *   Currently, caching logic using `crate::utils::cache::Cache` is commented out.
-
----
-
-#### Model Descriptions
-
-- `MapMunicipalityProperties`: Contains properties for each GeoJSON feature (`id`, `name`, `province`, `population`, `classification`, `score`). *(Updated to reflect current query)*
-- `MunicipalityDetail`: Represents the full data for the single municipality view endpoint.
-    - Includes fields from `MunicipalityDb`.
-    - Includes a `financials` field containing an array of `FinancialYearData` objects (holding `year`, `score`, `revenue`, etc. for each available year).
-    - Includes a `latest_score` field (likely derived from the most recent year in `financials`).
-    - Includes an optional `score_breakdown` struct (calculation TBD).
-- `FinancialYearData`: Represents financial data for a single year within the `MunicipalityDetail` struct (`year`, `score`, `revenue`, etc.). *(New struct)*
 
 ---
 

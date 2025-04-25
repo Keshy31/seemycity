@@ -98,6 +98,28 @@ seemycity-frontend/
 
 ---
 
+#### Score Calculation Reference
+
+The financial score calculation logic (pillars, weights, normalization, and formulas) is defined in the canonical rubric in [prd.md](../docs/prd.md#2-functional-requirements). Please refer to that document for the latest details and rationale.
+
+**Frontend implementation notes:**
+- The frontend receives all calculated scores (overall and pillar scores) from the backend via API payloads.
+- Scores are displayed in the map, single, and comparison views using color-coding, badges, and breakdown components as described in the UX documentation.
+- No score calculations are performed on the frontend; all logic is backend-driven.
+
+---
+
+#### Data Structures & API Payloads
+
+The canonical definitions for all frontend data structures (TypeScript interfaces) and API payloads are maintained in [data-spec.md](../docs/data-spec.md#1-core-data-structures). Please refer to that document for up-to-date field lists and type details.
+
+**Frontend-specific notes:**
+- Types should be kept in sync with backend payloads as defined in data-spec.md.
+- TypeScript interfaces are located in `src/lib/types.ts`.
+- Any deviations or extensions should be documented in data-spec.md and referenced here.
+
+---
+
 #### Performance
 - Utilize SvelteKit's static adapter (`adapter-static`) for pre-rendered HTML.
 - Lazy-load components or data where appropriate.
