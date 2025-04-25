@@ -106,7 +106,7 @@
 </div>
 
 <style lang="scss">
-    @import '../../../styles/variables'; // Corrected path (no extension/underscore)
+    @use '../../../styles/variables' as *; // Use @use
 
     .score-breakdown-card {
         background-color: var(--background-offset-light); // Use CSS var

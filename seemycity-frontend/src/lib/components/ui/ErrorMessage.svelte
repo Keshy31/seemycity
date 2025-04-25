@@ -16,7 +16,7 @@
 </div>
 
 <style lang="scss">
-    @import '../../../styles/variables'; // Consistent import
+    @use '../../../styles/variables' as *; // Use @use
 
     .error-container {
         display: flex;

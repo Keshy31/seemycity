@@ -1,17 +1,17 @@
 /* Add global styles here */
 
 // 1. Import Variables (Design Tokens)
-@import 'styles/variables'; // No underscore needed for import
+@use 'styles/variables' as *; // No underscore needed for import
 
 // 2. Import Base Styles (Reset, Body)
-@import 'styles/base';
+@use 'styles/base' as *;
 
 // 3. Import Typography Defaults
-@import 'styles/typography';
+@use 'styles/typography' as *;
 
 // --- Add other global styles or imports below ---
-// For example: @import 'styles/utilities';
-//              @import 'styles/components/buttons';
+// For example: @use 'styles/utilities';
+//              @use 'styles/components/buttons';
 
 body {
   // Example: Add a global transition to body background for potential theme switching

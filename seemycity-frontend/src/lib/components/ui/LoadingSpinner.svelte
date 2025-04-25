@@ -8,7 +8,7 @@
 </div>
 
 <style lang="scss">
-    @import '../../../styles/variables.scss'; // Corrected path
+    @use '../../../styles/variables' as *; // Use @use
 
     .spinner-container {
         display: flex;
