@@ -25,7 +25,7 @@
     $: opexRatio = calculateOpexRatio(financials?.operational_expenditure, financials?.revenue);
     $: debtRatio = calculateDebtRatio(financials?.debt, financials?.revenue);
     $: revenuePerCapita = calculateRevenuePerCapita(financials?.revenue, population);
-    $: totalExpenditure = financials?.capital_expenditure + financials?.operational_expenditure;
+    $: totalExpenditure = (financials?.capital_expenditure ?? 0) + (financials?.operational_expenditure ?? 0);
     $: operationalEfficiencyMetric = financials && financials.revenue && financials.revenue > 0
         ? formatPercentage(financials.operational_expenditure, financials.revenue)
         : 'N/A';
