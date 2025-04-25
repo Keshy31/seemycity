@@ -15,6 +15,7 @@
     import Icon from '@iconify/svelte';
     import { getAuditOutcomeText } from '$lib/utils/auditUtils';
     import ProgressBar from '$lib/components/ui/ProgressBar.svelte';
+    import { slide } from 'svelte/transition'; // Import slide transition
 
     export let financials: FinancialYearData | null | undefined;
     export let population: number | null | undefined;
@@ -25,72 +26,81 @@
     $: debtRatio = calculateDebtRatio(financials?.debt, financials?.revenue);
     $: revenuePerCapita = calculateRevenuePerCapita(financials?.revenue, population);
 
+    let isOpen = false; // State for expand/collapse
+
 </script>
 
 <div class="score-breakdown-card">
-    <h3>
-        <Icon icon="mdi:calculator-variant-outline" />
-        How the Score is Calculated ({financials?.year ?? 'N/A'})
-    </h3>
+    <!-- Use <details> for built-in expand/collapse -->
+    <details bind:open={isOpen}>
+        <summary on:click={() => isOpen = !isOpen}> 
+            <h3>
+                <Icon icon="mdi:calculator-variant-outline" />
+                How the Score is Calculated ({financials?.year ?? 'N/A'})
+                <span class="toggle-icon">{isOpen ? '▼' : '▶'}</span>
+            </h3>
+        </summary>
 
-    {#if financials}
-        <div class="pillars-grid">
-            <!-- Pillar 1: Financial Health -->
-            <div class="pillar-item">
-                <div class="pillar-header">
-                    <h4>Financial Health (30%)</h4>
-                    <span class="pillar-score" style="{getScoreColorStyle(financials.financial_health_score)}">{formatScore(financials.financial_health_score)} / 100</span>
+        {#if financials}
+            <!-- Apply slide transition to the content -->
+            <div class="pillars-grid" transition:slide={{ duration: 200 }}>
+                <!-- Pillar 1: Financial Health -->
+                <div class="pillar-item">
+                    <div class="pillar-header">
+                        <h4><Icon icon="mdi:finance" /> Financial Health (30%)</h4>
+                        <span class="pillar-score" style="{getScoreColorStyle(financials.financial_health_score)}">{formatScore(financials.financial_health_score)} / 100</span>
+                    </div>
+                    <div class="pillar-metrics">
+                        <span>Debt Ratio: {formatPercentage(debtRatio, 1)}</span>
+                        <span>Revenue per Capita: {formatCurrency(revenuePerCapita)}</span>
+                    </div>
+                    <ProgressBar value={financials.financial_health_score} />
+                    <!-- Optional: Add visual bar/indicator here -->
                 </div>
-                <div class="pillar-metrics">
-                    <span>Debt Ratio: {formatPercentage(debtRatio, 1)}</span>
-                    <span>Revenue per Capita: {formatCurrency(revenuePerCapita)}</span>
-                </div>
-                <ProgressBar value={financials.financial_health_score} />
-                <!-- Optional: Add visual bar/indicator here -->
-            </div>
 
-            <!-- Pillar 2: Infrastructure Investment -->
-            <div class="pillar-item">
-                <div class="pillar-header">
-                    <h4>Infrastructure Investment (25%)</h4>
-                    <span class="pillar-score" style="{getScoreColorStyle(financials.infrastructure_score)}">{formatScore(financials.infrastructure_score)} / 100</span>
+                <!-- Pillar 2: Infrastructure Investment -->
+                <div class="pillar-item">
+                    <div class="pillar-header">
+                        <h4><Icon icon="mdi:domain" /> Infrastructure Investment (25%)</h4>
+                        <span class="pillar-score" style="{getScoreColorStyle(financials.infrastructure_score)}">{formatScore(financials.infrastructure_score)} / 100</span>
+                    </div>
+                    <div class="pillar-metrics">
+                        <span>CapEx Ratio: {formatPercentage(capexRatio, 1)}</span>
+                    </div>
+                    <ProgressBar value={financials.infrastructure_score} />
+                    <!-- Optional: Add visual bar/indicator here -->
                 </div>
-                <div class="pillar-metrics">
-                    <span>CapEx Ratio: {formatPercentage(capexRatio, 1)}</span>
-                </div>
-                <ProgressBar value={financials.infrastructure_score} />
-                <!-- Optional: Add visual bar/indicator here -->
-            </div>
 
-            <!-- Pillar 3: Efficiency & Service Delivery -->
-            <div class="pillar-item">
-                <div class="pillar-header">
-                    <h4>Efficiency & Service Delivery (25%)</h4>
-                    <span class="pillar-score" style="{getScoreColorStyle(financials.efficiency_score)}">{formatScore(financials.efficiency_score)} / 100</span>
+                <!-- Pillar 3: Efficiency & Service Delivery -->
+                <div class="pillar-item">
+                    <div class="pillar-header">
+                        <h4><Icon icon="mdi:scale-balance" /> Efficiency & Service Delivery (25%)</h4>
+                        <span class="pillar-score" style="{getScoreColorStyle(financials.efficiency_score)}">{formatScore(financials.efficiency_score)} / 100</span>
+                    </div>
+                    <div class="pillar-metrics">
+                        <span>OpEx Ratio: {formatPercentage(opexRatio, 1)}</span>
+                    </div>
+                    <ProgressBar value={financials.efficiency_score} />
+                    <!-- Optional: Add visual bar/indicator here -->
                 </div>
-                <div class="pillar-metrics">
-                    <span>OpEx Ratio: {formatPercentage(opexRatio, 1)}</span>
-                </div>
-                <ProgressBar value={financials.efficiency_score} />
-                <!-- Optional: Add visual bar/indicator here -->
-            </div>
 
-            <!-- Pillar 4: Accountability -->
-            <div class="pillar-item">
-                <div class="pillar-header">
-                    <h4>Accountability (20%)</h4>
-                    <span class="pillar-score" style="{getScoreColorStyle(financials.accountability_score)}">{formatScore(financials.accountability_score)} / 100</span>
+                <!-- Pillar 4: Accountability -->
+                <div class="pillar-item">
+                    <div class="pillar-header">
+                        <h4><Icon icon="mdi:account-check-outline" /> Accountability (20%)</h4>
+                        <span class="pillar-score" style="{getScoreColorStyle(financials.accountability_score)}">{formatScore(financials.accountability_score)} / 100</span>
+                    </div>
+                    <div class="pillar-metrics">
+                        <span>Audit Outcome: {getAuditOutcomeText(financials.audit_outcome)}</span>
+                    </div>
+                    <ProgressBar value={financials.accountability_score} />
+                    <!-- Optional: Add visual bar/indicator here -->
                 </div>
-                <div class="pillar-metrics">
-                    <span>Audit Outcome: {getAuditOutcomeText(financials.audit_outcome)}</span>
-                </div>
-                <ProgressBar value={financials.accountability_score} />
-                <!-- Optional: Add visual bar/indicator here -->
             </div>
-        </div>
-    {:else}
-        <p class="unavailable">Score breakdown data is not available for this year.</p>
-    {/if}
+        {:else}
+            <p class="unavailable">Score breakdown data is not available for this year.</p>
+        {/if}
+    </details> 
 </div>
 
 <style lang="scss">
@@ -113,7 +123,36 @@
             margin-bottom: 1.5rem;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 0.75rem;
+
+            // Style the summary element for better cursor etc.
+            cursor: pointer;
+            display: flex;        // Make summary flex container
+            justify-content: space-between; // Push toggle icon to the right
+            align-items: center;
+
+            .toggle-icon {
+                font-size: 0.9em; // Smaller toggle icon
+                margin-left: 0.5rem;
+                transition: transform 0.2s ease-in-out;
+            }
         }
+    }
+
+    // Rotate toggle icon when open
+    details[open] summary .toggle-icon {
+        transform: rotate(90deg);
+    }
+
+    // Remove default marker from details/summary
+    summary {
+        list-style: none;
+        display: block; // Necessary for ::marker removal
+    }
+    summary::-webkit-details-marker { // Chrome/Safari
+        display: none;
+    }
+    summary::marker { // Firefox
+        display: none;
     }
 
     .pillars-grid {
@@ -182,5 +221,12 @@
             align-items: flex-start;
             gap: 0.25rem;
         }
+    }
+
+    // Add styles for pillar icons
+    .pillar-header h4 {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem; // Space between icon and text
     }
 </style>
