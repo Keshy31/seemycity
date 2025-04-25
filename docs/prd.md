@@ -14,7 +14,7 @@
 - **Investors**: Evaluating municipal stability for funding or development decisions.  
 - **Policymakers**: Monitoring and optimizing municipal performance.
 
-**Date**: April 08, 2025 (aligned with current context).
+**Date**: April 26, 2025
 
 ---
 
@@ -32,13 +32,13 @@
        - "Unqualified - No findings": **100**
        - "Unqualified - Emphasis of Matter items": **75**
        - "Qualified": **50**
-       - "Adverse" or "Disclaimer": **25**
+       - "Adverse", "Disclaimer": **25**
        - "Outstanding", NULL, or any other value: **0**
    - **Infrastructure Investment (25% weight)**:
-     - Metric: Capital Expenditure as a Percentage of Total Expenditure (`CapEx Ratio = capital_expenditure / (expenditure + capital_expenditure)`).
+     - Metric: Capital Expenditure as a Percentage of Total Expenditure (`CapEx Ratio = capital_expenditure / (operational_expenditure + capital_expenditure)`).
      - Scoring (0-100): Normalize based on CapEx Ratio. Higher ratio = higher score. Score 100 if Ratio >= 0.30, Score 50 if Ratio == 0.15, Score 0 if Ratio <= 0.05, with linear scaling between these points.
    - **Efficiency & Service Delivery (25% weight)**:
-     - Metric: Operational Expenditure Ratio (`OpEx Ratio = expenditure / revenue`).
+     - Metric: Operational Expenditure Ratio (`OpEx Ratio = operational_expenditure / revenue`).
      - Scoring (0-100): Normalize based on OpEx Ratio. Lower ratio = higher score, centered around breakeven (Ratio 1.0 = Score 50). Score 100 if Ratio <= 0.85, Score 0 if Ratio >= 1.15, with linear scaling between these points.
    - **Financial Health (30% weight)**:
      - Combines two sub-metrics (requires `population` from `municipalities` table):

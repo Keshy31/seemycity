@@ -69,6 +69,8 @@
 -----------------------------------------------------
 | [Reset Zoom 🔍]                                   |
 -----------------------------------------------------
+| [KeyMetricsGrid]                                  |
+-----------------------------------------------------
 ```
 - **Interactions**:  
   - Hover: Pulsing tooltip with friendly text.  
@@ -81,51 +83,57 @@
 **Layout**:  
 ```
 -----------------------------------------------------
-| Cape Town            | Score: 84/100    | 🟢       |
+| Cape Town            | Score: 84/100    | 🟢       | Website: [🔗]
 -----------------------------------------------------
-| [Small Map]  Province: WC    Pop: 4.7M            |
+| Province: WC    Pop: 4.7M                          |
 -----------------------------------------------------
-| [💰 R6,200/cap]   [🏡 CapEx: 18%]                  |
-| [⚖️ OpEx: 82%]      [🌟 Audit: Clean]             |
+| [💰 Rev/Cap: R6,200] [🏡 CapEx: 18%] [📊 Debt: R12bn]|
+| [⚖️ OpEx: 82%]        [🌟 Audit: Clean]           |
+-----------------------------------------------------
+| [ScoreBreakdown]                                  |
 -----------------------------------------------------
 | [What’s behind this score? ▼]                     |
-|  - **Financial Health (30%): 88 / 100**           |
-|    * Debt Ratio: 0.45 | Revenue/Capita: R6,200   |
-|  - **Infrastructure Investment (25%): 75 / 100**  |
-|    * CapEx Ratio: 18%                             |
-|  - **Efficiency & Service Delivery (25%): 70 / 100**|
-|    * OpEx Ratio: 82%                              |
-|  - **Accountability (20%): 100 / 100**            |
-|    * Audit Outcome: Unqualified - No findings   |
+|  - **Financial Health (30%):** [||||||||--] 88/100 |
+|    * Debt Ratio: 0.45 | Revenue/Capita: R6,200    |
+|  - **Infrastructure Investment (25%):** [|||||||---] 75/100 |
+|    * CapEx Ratio: 18%                              |
+|  - **Efficiency & Service Delivery (25%):** [||||||----] 70/100 |
+|    * OpEx Ratio: 82%                               |
+|  - **Accountability (20%):** [||||||||||] 100/100 |
+|    * Audit Outcome: Unqualified - No findings    |
 -----------------------------------------------------
 | [Compare ➕]              [Refresh 🔄]             |
 -----------------------------------------------------
 ```
 - **Interactions**:  
   - Score Badge: Pulses on load (200ms).  
-  - Expand Breakdown: Slides open with friendly notes.  
+  - Expand Breakdown: Slides open showing pillar scores with progress bars and contributing metrics.
   - Compare/Refresh: Teal buttons with hover bounce.  
 - **Vibe**: “Cape Town’s doing great—let’s see why!”
 
 ##### 3. Comparison View
-**Purpose**: Spark curiosity with a warm, side-by-side look.  
-**Layout**:  
+**Purpose**: Spark curiosity with a warm, side-by-side look using `ComparisonContainer` and `ComparisonCard`.  
+ **Layout**:  
 ```
 -----------------------------------------------------
-| Cape Town (84) 🟢    | Johannesburg (57) 🟡       |
+| [ComparisonCard: Cape Town] | [ComparisonCard: Joburg] |
+|-----------------------------|--------------------------|
+| **Cape Town** (GP)          | **Johannesburg** (WC)    |
+| Pop: 4.7M                   | Pop: 5.6M                |
+| Score: 84 🟢               | Score: 57 🟡            |
+|-----------------------------|--------------------------|
+| 💰 Rev/Cap: R6,200          | 💰 Rev/Cap: R3,100       |
+| 🏡 CapEx: 18%             | 🏡 CapEx: 12%          |
+| ⚖️ OpEx: 82%             | ⚖️ OpEx: 95%         |
+| 📊 Debt: R12bn            | 📊 Debt: R25bn         |
+| 🌟 Audit: Clean           | 🌟 Audit: Qualified    |
 -----------------------------------------------------
-| 💰 R6,200            | 💰 R3,100                  |
-| 🏡 18%               | 🏡 12%                     |
-| ⚖️ 82%              | ⚖️ 95%                    |
-| 🌟 Clean            | 🌟 Qualified              |
------------------------------------------------------
-| [Swap ↔️]            [Add Another ➕]            |
+|                      [Add Another ➕]            |
 -----------------------------------------------------
 ```
 - **Interactions**:  
-  - Swap: Gentle flip animation.  
-  - Add: Teal button returns to map.  
-  - Highlight: Winning metric gets a soft orange tint.  
+  - Add: Teal button returns to map/selection. 
+  - (Future) Highlight: Winning metric gets a soft tint.  
 - **Vibe**: “Let’s see how they compare—cool, right?”
 
 ---

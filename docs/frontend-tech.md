@@ -61,29 +61,38 @@ seemycity-frontend/
 │   ├── app.scss          # Global SCSS styles/variables
 │   ├── demo.spec.ts      # Example test
 │   ├── hooks.server.ts   # Server-side hooks (if needed)
-│   ├── lib/              # Reusable components, utilities, data types
+│   ├── lib/              # Reusable modules, utilities, data types
 │   │   ├── components/   # UI Components 
 │   │   │   ├── MapComponent.svelte
-│   │   │   ├── detail/         # Components specific to single/comparison views
-│   │   │   │   ├── PageHeader.svelte
+│   │   │   ├── compare/        # Components for comparison view
+│   │   │   │   ├── ComparisonCard.svelte
+│   │   │   │   └── ComparisonContainer.svelte
+│   │   │   ├── detail/         # Components specific to single view
 │   │   │   │   ├── KeyMetricsGrid.svelte
 │   │   │   │   ├── MetricCard.svelte
+│   │   │   │   ├── PageHeader.svelte
 │   │   │   │   └── ScoreBreakdown.svelte
 │   │   │   ├── ui/             # General reusable UI elements
 │   │   │   │   ├── ErrorMessage.svelte
 │   │   │   │   ├── LoadingSpinner.svelte
 │   │   │   │   └── ProgressBar.svelte
-│   │   │   └── dummyStore.ts # Exports dummyMunicipalitiesGeoJSON (for map) & dummyMunicipalityDetails (object mapping ID to details with financials array, latest_score, etc.). Contains helper functions.
+│   │   ├── data/           # Data-related modules 
+│   │   ├── types.ts        # TypeScript type definitions
+│   │   └── utils/          # Utility functions
+│   │       └── formatUtils.ts
 │   │   └── index.ts      # Barrel file for lib exports (optional)
 │   └── routes/           # Application pages and API routes
 │       ├── +layout.svelte  # Root layout component
 │       ├── +layout.ts      # Layout load function (if needed)
 │       ├── +page.svelte    # Main map view page component
-│       ├── +page.ts        # Main map view load function (fetches data)
-│       ├── [id]/           # Single municipality view route
-│       │   └── +page.svelte # Component for single view
-│       ├── compare/        # Comparison view route
-│       │   └── +page.svelte # Component for comparison view
+│       ├── +page.ts        # Main map view load function (fetches /api/municipalities)
+│       ├── [id]/           # Single municipality detail view route
+│       │   ├── +page.svelte # Component for single view
+│       │   └── +page.ts    # Fetches /api/municipalities/{id}
+│       ├── compare/
+│       │   └── [ids]/      # Comparison view route (takes multiple IDs)
+│       │       ├── +page.svelte # Component for comparison view
+│       │       └── +page.ts    # Fetches /api/municipalities/{id} for each ID
 │       └── page.svelte.test.ts # Test for main page
 ├── svelte.config.js      # SvelteKit configuration
 ├── tsconfig.json         # TypeScript configuration

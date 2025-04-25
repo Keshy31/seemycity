@@ -69,23 +69,6 @@ pub struct FinancialDataPoint {
     pub amount: Option<Decimal>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, FromRow)]
-pub struct FinancialYearData {
-    #[sqlx(rename = "year")] // Map 'year' column from DB query result
-    pub financial_year: i32, 
-    pub revenue: Option<Decimal>,
-    pub operational_expenditure: Option<Decimal>,
-    pub capital_expenditure: Option<Decimal>,
-    pub debt: Option<Decimal>,
-    pub audit_outcome: Option<String>,
-    // Scores
-    pub overall_score: Option<Decimal>,
-    pub financial_health_score: Option<Decimal>,
-    pub infrastructure_score: Option<Decimal>,
-    pub efficiency_score: Option<Decimal>,
-    pub accountability_score: Option<Decimal>,
-}
-
 #### API Response Models (src/models.rs)
 
 *(These structs define the shape of data returned by the API endpoints, e.g., `/api/municipality/{id}`)*

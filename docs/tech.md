@@ -10,7 +10,7 @@
 - Render an interactive, performant map UI with Svelte and MapLibre GL JS.
 - Ensure scalability and maintainability for future growth.
 
-**Date**: April 11, 2025.
+**Date**: April 12, 2025.
 
 ---
 

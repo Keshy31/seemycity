@@ -78,26 +78,19 @@
 - [x] **1. Setup & Cleanup:** Remove Tailwind CSS configuration, dependencies, and utility classes. (Status: Done)
 - [x] **2. Single View Refinement & Cleanup:** Corrected metric calculations (OpEx % in KeyMetricsGrid, OpEx Ratio in ScoreBreakdown), consolidated year display in PageHeader, updated docs, replaced Sass `@import` with `@use`, fixed TS null errors. (Status: Done)
 - [x] **2. Global SCSS Foundation:** Set up global SCSS files (`variables.scss`, `base.scss`, `typography.scss`), define variables, apply base styles. (Status: Done)
-- [ ] **3. Refactor Page Components:**
-  - Break down large page Svelte components (`[id]/+page.svelte`, `compare/[ids]/+page.svelte`) into smaller, reusable sub-components.
-  - **Single View Components:** Implement/refactor `PageHeader` (with overall score), `KeyMetricsGrid` (for high-level metrics), and `ScoreBreakdown` (to clearly show pillar scores, weights, and contributing metrics per PRD/UX docs).
-    - *Progress on ScoreBreakdown:* Added dynamic score coloring, progress bars, and fixed audit outcome display inconsistencies.
-  - **Comparison View Components:** (Define components needed, e.g., `ComparisonCard`).
+- [x] **3. Refactor Page Components:**
+   - Break down large page Svelte components (`[id]/+page.svelte`, `compare/[ids]/+page.svelte`) into smaller, reusable sub-components.
+   - [x] **Single View Components:** Implement/refactor `PageHeader` (with overall score), `KeyMetricsGrid` (for high-level metrics), and `ScoreBreakdown` (to clearly show pillar scores, weights, and contributing metrics per PRD/UX docs).
+     - *Progress on ScoreBreakdown:* Added dynamic score coloring, progress bars, and fixed audit outcome display inconsistencies.
 - [ ] **4. Component Styling:** Restyle core UI components (`Card`, `Button`, `MetricDisplay`, `ScoreBadge`, map tooltips etc.) using SCSS variables, semantic classes, and Iconify icons.
+  - **Scope:** Apply a full aesthetic redesign, similar to the `ComparisonCard` process, to **all** UI elements.
+  - **Approach:** Work top-down from page layouts (Map, Single, Compare) to container components, and finally to atomic elements (Cards, Buttons, Metric Displays, Badges, Tooltips, etc.).
+  - **Goal:** Ensure visual consistency, alignment with `ux.md`, and a high-quality aesthetic throughout the application using SCSS variables, semantic classes, and Iconify icons.
 - [ ] **5. View Layout Refinement:** Adjust Map, Single, and Comparison view layouts (CSS Grid/Flexbox) to match `ux.md` sketches.
 - [ ] **6. Map Styling:** Configure MapLibre choropleth color ramp (Red -> Orange -> Green) based on `overall_score`; style map interactions.
 - [ ] **7. Interactions & Animations:** Implement Svelte transitions (`fade`, `slide`), CSS hover effects, and score badge pulse animation (`ux.md`).
 - [ ] **8. Accessibility Check:** Perform basic review (contrast, keyboard navigation, semantic HTML/ARIA).
 - [ ] **9. Review & Commit:** Final visual review, responsiveness check, code cleanup, Git commit.
-- [ ] ~Remove all Tailwind remnants and use only SCSS/CSS~ 
-- [ ] ~Define a global theme SCSS file for colors, spacing, and typography~ 
-- [ ] ~Redesign components: cards, metric rows, badges, buttons, and layout~ 
-- [ ] ~Apply consistent Ubuntu font and heading hierarchy~ 
-- [ ] ~Integrate Iconify icons per metric and audit outcome~ 
-- [ ] ~Add Svelte transitions (fade, slide) and pulse/hover effects~ 
-- [ ] ~Style the map with a red-orange-green gradient and animated tooltips~ 
-- [ ] ~Ensure basic accessibility and semantic HTML~ 
-- [ ] ~(Optional) Add dark mode toggle~ 
 **Milestone:** Visually inviting, consistent, and playful UI across all major views
 
 ---
