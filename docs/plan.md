@@ -76,6 +76,7 @@
 **Status:** _In Progress_  
 **Tasks:**  
 - [x] **1. Setup & Cleanup:** Remove Tailwind CSS configuration, dependencies, and utility classes. (Status: Done)
+- [x] **2. Single View Refinement & Cleanup:** Corrected metric calculations (OpEx % in KeyMetricsGrid, OpEx Ratio in ScoreBreakdown), consolidated year display in PageHeader, updated docs, replaced Sass `@import` with `@use`, fixed TS null errors. (Status: Done)
 - [x] **2. Global SCSS Foundation:** Set up global SCSS files (`variables.scss`, `base.scss`, `typography.scss`), define variables, apply base styles. (Status: Done)
 - [ ] **3. Refactor Page Components:**
   - Break down large page Svelte components (`[id]/+page.svelte`, `compare/[ids]/+page.svelte`) into smaller, reusable sub-components.

@@ -108,4 +108,28 @@ export function getScoreBackgroundStyle(score: number | null | undefined): strin
   return 'background-color: var(--score-low-color, #CD5C5C);';
 }
 
+/**
+ * Formats a pre-calculated percentage value to one decimal place.
+ * @param value - The percentage value.
+ * @returns A formatted percentage string (e.g., "12.3%") or "N/A".
+ */
+export function formatSimplePercentage(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return 'N/A';
+  }
+  return value.toFixed(1) + '%';
+}
+
+/**
+ * Returns a status icon emoji based on score value.
+ * @param score - The score number.
+ * @returns A status icon string (e.g., "🟢") or "⚪".
+ */
+export function getScoreStatusIcon(score: number | null | undefined): string {
+  if (score == null) return '⚪'; // Neutral/Unknown
+  if (score >= 70) return '🟢'; // Green Circle
+  if (score >= 40) return '🟡'; // Yellow Circle
+  return '🔴'; // Red Circle
+}
+
 // Add other formatting functions here as needed (e.g., dates)
