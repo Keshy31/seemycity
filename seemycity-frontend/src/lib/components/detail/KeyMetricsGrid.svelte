@@ -27,9 +27,9 @@
     ? formatPercentage(financials.capital_expenditure, totalExpenditure)
     : 'N/A';
 
-  // Operational Spend Percentage
-  $: opexPercentage = financials && totalExpenditure > 0
-    ? formatPercentage(financials.operational_expenditure, totalExpenditure)
+  // Operational Spend Percentage (Corrected: based on Revenue)
+  $: opexPercentage = financials && financials.revenue && financials.revenue > 0
+    ? formatPercentage(financials.operational_expenditure, financials.revenue)
     : 'N/A';
 
 </script>

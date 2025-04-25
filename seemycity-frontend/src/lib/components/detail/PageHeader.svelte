@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { getScoreColorStyle } from '$lib/utils/colorUtils'; // Helper for score color
+  import { getScoreColorStyle, getScoreStatusIcon } from '$lib/utils/colorUtils'; 
+  import Icon from '@iconify/svelte'; 
 
   // Props received from the parent page
   export let municipalityName: string;
@@ -10,6 +11,8 @@
 
   // Determine score color style - we pass the score, not the function
   $: scoreStyle = overallScore !== undefined ? getScoreColorStyle(overallScore) : '';
+  // Determine the status icon based on the score
+  $: scoreIcon = overallScore !== undefined ? getScoreStatusIcon(overallScore) : 'mdi:help-circle-outline'; 
 </script>
 
 <div class="header-section">
@@ -25,9 +28,11 @@
 
   {#if overallScore !== undefined && financialYear}
     <div class="score-section">
-      <span class="score-label">Overall Score</span>
-      <span class="overall-score" style={scoreStyle}>{overallScore.toFixed(0)}</span>
-      <p class="financial-year">({financialYear})</p>
+      <span class="score-label">Overall Score ({financialYear})</span>
+      <div class="score-display"> 
+        <span class="overall-score" style={scoreStyle}>{overallScore.toFixed(0)}</span>
+        <Icon icon={scoreIcon} class="score-status-icon" style={scoreStyle} /> 
+      </div>
     </div>
   {/if}
 </div>
@@ -36,23 +41,23 @@
   /* Styles moved from [id]/+page.svelte */
   .header-section {
     display: flex;
-    flex-wrap: wrap; // Allow wrapping on small screens
+    flex-wrap: wrap; 
     justify-content: space-between;
-    align-items: flex-start; // Align items to the top
-    gap: var(--spacing-md); // Gap between items
+    align-items: flex-start; 
+    gap: var(--spacing-md); 
     padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl); // Larger bottom margin
-    background-color: var(--background-offset-color); // Use offset background
+    margin-bottom: var(--spacing-xl); 
+    background-color: var(--background-offset-color); 
     border-radius: var(--border-radius-md);
     box-shadow: var(--box-shadow-sm);
   }
 
   .header-info {
-    flex-grow: 1; // Allow text info to take available space
+    flex-grow: 1; 
   }
 
   .municipality-name {
-    margin-bottom: var(--spacing-xs); // Less margin below h1
+    margin-bottom: var(--spacing-xs); 
     // Base h1 styles already applied globally via _typography.scss
     // Re-apply any specific overrides if needed, but base should cover it.
     // Example: font-size: var(--font-size-h1);
@@ -66,28 +71,44 @@
   }
 
   .score-section {
-    text-align: right; // Align score to the right
-    min-width: 150px; // Ensure score section has some width
-    flex-shrink: 0; // Prevent shrinking too much on wrap
+    text-align: right; 
+    min-width: 150px; 
+    flex-shrink: 0; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-end; 
   }
 
   .score-label {
-    display: block; // Ensure label is on its own line
+    display: block; 
     font-size: var(--font-size-sm);
     color: var(--text-muted-color);
     margin-bottom: var(--spacing-xs);
   }
 
+  .score-display { 
+    display: flex;
+    align-items: center; 
+    gap: var(--spacing-sm); 
+  }
+
   .overall-score {
-    font-size: 2.8rem; // Larger score font size
+    font-size: 2.8rem; 
     font-weight: var(--font-weight-bold);
     line-height: 1.1;
     // Color is applied via inline style prop
   }
 
-  .financial-year {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted-color);
-    margin-top: var(--spacing-xs);
+  .score-status-icon { 
+    font-size: 2.2rem; 
+    // Color is applied via inline style prop to match score
+    // Add animation styles later
   }
+
+  // Keyframes for the pulse animation
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.8;
+     }
+   }
 </style>

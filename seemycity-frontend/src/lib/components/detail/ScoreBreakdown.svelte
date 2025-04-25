@@ -26,18 +26,16 @@
     $: debtRatio = calculateDebtRatio(financials?.debt, financials?.revenue);
     $: revenuePerCapita = calculateRevenuePerCapita(financials?.revenue, population);
 
-    let isOpen = false; // State for expand/collapse
-
 </script>
 
 <div class="score-breakdown-card">
     <!-- Use <details> for built-in expand/collapse -->
-    <details bind:open={isOpen}>
-        <summary on:click={() => isOpen = !isOpen}> 
+    <details>
+        <summary> 
             <h3>
                 <Icon icon="mdi:calculator-variant-outline" />
-                How the Score is Calculated ({financials?.year ?? 'N/A'})
-                <span class="toggle-icon">{isOpen ? '▼' : '▶'}</span>
+                How the Score is Calculated
+                <span class="toggle-icon">▶</span> <!-- Default state icon -->
             </h3>
         </summary>
 
@@ -126,20 +124,18 @@
 
             // Style the summary element for better cursor etc.
             cursor: pointer;
-            display: flex;        // Make summary flex container
-            justify-content: space-between; // Push toggle icon to the right
-            align-items: center;
-
+ 
             .toggle-icon {
                 font-size: 0.9em; // Smaller toggle icon
-                margin-left: 0.5rem;
                 transition: transform 0.2s ease-in-out;
+                float: right; // Use float to push to the right, or adjust layout
+                line-height: inherit; // Align vertically with h3 if needed
             }
         }
     }
 
-    // Rotate toggle icon when open
-    details[open] summary .toggle-icon {
+    // Rotate toggle icon when open - Use attribute selector
+    details[open] > summary .toggle-icon {
         transform: rotate(90deg);
     }
 

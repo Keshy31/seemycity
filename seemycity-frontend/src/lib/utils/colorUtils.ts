@@ -18,3 +18,18 @@ export function getScoreColorStyle(score: number): string {
 
   return `color: hsl(${hue.toFixed(0)}, ${saturation}, ${lightness});`;
 }
+
+/**
+ * Determines the appropriate Iconify icon name based on a score range.
+ * @param score - The score (0-100).
+ * @returns An Iconify icon name string (e.g., 'mdi:emoticon-happy-outline').
+ */
+export function getScoreStatusIcon(score: number): string {
+  if (score >= 75) {
+    return 'mdi:emoticon-happy-outline'; // Good
+  } else if (score >= 40) {
+    return 'mdi:emoticon-neutral-outline'; // Okay
+  } else {
+    return 'mdi:emoticon-sad-outline'; // Poor
+  }
+}
