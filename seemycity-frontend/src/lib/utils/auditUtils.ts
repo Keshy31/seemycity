@@ -72,3 +72,43 @@ export function getAuditOutcomeColorStyle(outcome: string | null | undefined): s
       return 'color: var(--text-muted-color);'; // Default muted color
   }
 }
+
+/**
+ * Maps an audit outcome string to a user-friendly text representation.
+ * Provides clearer labels for different outcomes.
+ * @param outcome - The audit outcome string.
+ * @returns A formatted string (e.g., 'Clean (Unqualified - No Findings)').
+ */
+export function getAuditOutcomeText(outcome: string | null | undefined): string {
+  if (!outcome) return 'N/A';
+
+  const lowerOutcome = outcome.toLowerCase().trim();
+
+  switch (lowerOutcome) {
+    case 'unqualified - no findings':
+    case 'unqualified opinion with no findings':
+      return 'Clean (Unqualified - No Findings)';
+    case 'unqualified - emphasis of matter items':
+    case 'unqualified opinion with findings': // Grouping similar concepts
+      return 'Unqualified (Emphasis of Matter)';
+    case 'financially unqualified opinion': // This seems less common, map to Emphasis for now?
+       return 'Unqualified (Emphasis of Matter)'; // Or map specifically if needed
+    case 'qualified':
+    case 'qualified opinion':
+      return 'Qualified Opinion';
+    case 'adverse':
+    case 'adverse opinion':
+      return 'Adverse Opinion';
+    case 'disclaimer':
+    case 'disclaimer of opinion':
+    case 'disclaimer with findings':
+      return 'Disclaimer of Opinion';
+    case 'outstanding':
+    case 'financial statements not submitted':
+      return 'Outstanding (Not Submitted)';
+    default:
+      console.warn('Unknown audit outcome in getAuditOutcomeText:', outcome);
+      // Return the original outcome if unknown, but cleaned up slightly
+      return outcome.length > 50 ? outcome.substring(0, 47) + '...' : outcome;
+  }
+}

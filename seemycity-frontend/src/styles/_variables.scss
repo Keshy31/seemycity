@@ -1,10 +1,17 @@
 /* src/styles/_variables.scss */
 
+// --- SCSS Variables (for SASS functions) ---
+$error-color: #CD5C5C;       // Mirror --error-color
+$accent-color: #F28C38;      // Mirror --accent-color
+$border-radius-md: 0.5rem; // Mirror --border-radius-md (needed in ErrorMessage)
+
 // --- Color Palette (Based on WindsurfRules & UX) ---
 :root {
   // Primary & Accent
   --primary-color: #008080; // Teal (From Rules)
   --accent-color: #F28C38;  // Example accent (Orange - can adjust)
+  --accent-color-hover: #d97c30;    // Darkened accent for hover
+  --accent-color-disabled: #f8c293; // Lightened accent for disabled
 
   // Text
   --text-color: #3C2F2F;         // Dark Brown/Black (From Rules)
@@ -14,6 +21,7 @@
   // Backgrounds
   --background-color: #FDF6E3;    // Solarized Light Cream (From Rules)
   --background-offset-color: #f7efd7; // Slightly darker/lighter for cards/sections
+  --background-offset-light: #fbf7e5; // Lightened offset for specific elements
   --background-inverse-color: var(--text-color);
 
   // Borders & Lines

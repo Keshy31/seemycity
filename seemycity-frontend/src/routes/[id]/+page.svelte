@@ -3,9 +3,12 @@
   import type { PageData } from './$types'; // Import PageData for typing
   import { invalidateAll } from '$app/navigation'; // For refresh
   import PageHeader from '$lib/components/detail/PageHeader.svelte';
-  import KeyMetricsGrid from '$lib/components/detail/KeyMetricsGrid.svelte'; // Import the grid component
+  import KeyMetricsGrid from '$lib/components/detail/KeyMetricsGrid.svelte';
+  import ScoreBreakdown from '$lib/components/detail/ScoreBreakdown.svelte';
+  import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
+  import ErrorMessage from '$lib/components/ui/ErrorMessage.svelte';
   // Import necessary formatters used directly in THIS template
-  import { formatCurrency, formatPopulation, formatWebsite } from '$lib/utils/formatUtils';
+  import { formatCurrency, formatPopulation, formatWebsite, formatScore, getScoreColorStyle, getScoreBackgroundStyle } from '$lib/utils/formatUtils';
 
   /** @type {import('./$types').PageData} */
   export let data: PageData; // Data is passed from +page.ts load function
@@ -19,29 +22,7 @@
   }
 
   // --- Formatting Helpers ---
-
-  function formatScore(score: number | null | undefined): string {
-    if (score == null) return 'N/A';
-    // Clamp score between 0 and 100 before formatting
-    const clampedScore = Math.max(0, Math.min(100, score));
-    return clampedScore.toFixed(1); // Use one decimal place
-  }
-
-  // Use inline styles for score colors based on UX guidelines
-  function getScoreColorStyle(score: number | null | undefined): string {
-    if (score == null) return 'color: var(--neutral-grey, #888);'; // Neutral
-    if (score >= 70) return 'color: var(--score-high-color, #2E8B57);'; // Green
-    if (score >= 40) return 'color: var(--score-medium-color, #F28C38);'; // Orange
-    return 'color: var(--score-low-color, #CD5C5C);'; // Red
-  }
-
-  // Background color variant for score indicators if needed
-  function getScoreBackgroundStyle(score: number | null | undefined): string {
-    if (score == null) return 'background-color: var(--neutral-grey, #888);'; // Neutral
-    if (score >= 70) return 'background-color: var(--score-high-color, #2E8B57);';
-    if (score >= 40) return 'background-color: var(--score-medium-color, #F28C38);';
-    return 'background-color: var(--score-low-color, #CD5C5C);';
-  }
+  // These are now imported from formatUtils.ts
 
   // Access the municipality data directly from the prop
   // $: muniDetails = data.municipality;
@@ -92,46 +73,29 @@
 {:then pageData}
   <!-- Access resolved data -->
   <div class="detail-container">
+    <!-- *** ADDED PageHeader COMPONENT HERE *** -->
+    <PageHeader 
+      municipalityName={pageData.municipality.name}
+      overallScore={pageData.latestFinancials?.overall_score} 
+      financialYear={pageData.latestFinancials?.year}
+      provinceName={pageData.municipality.province}
+      classification={pageData.municipality.classification}
+    />
+
     {#if pageData.latestFinancials}
-      <!-- Key Metrics Grid - Render the component -->
-      <KeyMetricsGrid financials={pageData.latestFinancials} population={pageData.municipality.population} />
+      <!-- Key Financial Metrics -->
+      <KeyMetricsGrid 
+        financials={pageData.latestFinancials} 
+        population={pageData.municipality.population}
+      />
 
       <!-- Score Breakdown Section -->
-      <div class="score-breakdown-section">
-        <h2 class="section-title">Score Breakdown</h2>
-        <!-- Financial Health -->
-        <div class="score-row">
-          <span class="score-pillar-label">Financial Health (30%)</span>
-          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.financial_health_score)}>
-            {formatScore(pageData.latestFinancials.financial_health_score)}
-          </span>
-          <span class="score-suffix">/ 100</span>
-        </div>
-        <!-- Infrastructure Investment -->
-        <div class="score-row">
-          <span class="score-pillar-label">Infrastructure Inv. (25%)</span>
-          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.infrastructure_score)}>
-            {formatScore(pageData.latestFinancials.infrastructure_score)}
-          </span>
-           <span class="score-suffix">/ 100</span>
-        </div>
-        <!-- Efficiency & Service Delivery -->
-        <div class="score-row">
-          <span class="score-pillar-label">Efficiency & Service Delivery (25%)</span>
-          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.efficiency_score)}>
-            {formatScore(pageData.latestFinancials.efficiency_score)}
-          </span>
-           <span class="score-suffix">/ 100</span>
-        </div>
-        <!-- Accountability -->
-        <div class="score-row">
-          <span class="score-pillar-label">Accountability (20%)</span>
-          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.accountability_score)}>
-            {formatScore(pageData.latestFinancials.accountability_score)}
-          </span>
-           <span class="score-suffix">/ 100</span>
-        </div>
-      </div>
+      <ScoreBreakdown 
+        financials={pageData.latestFinancials}
+        population={pageData.municipality.population}
+      />
+
+      <!-- Placeholder for potential future sections like Charts, News, etc. -->
 
     {:else}
       <!-- Message if no financial data is available -->
@@ -188,161 +152,112 @@
 
 <style lang="scss">
   .detail-container {
-    padding: var(--spacing-lg); // Use spacing variable
-    max-width: var(--container-max-width); // Limit width
-    margin: 0 auto; // Center container
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 2rem auto;
+    background-color: var(--background-color);
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--box-shadow-sm);
   }
 
-  .score-breakdown-section {
-    margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-md);
-    background-color: var(--card-background-color, #fff);
-    border: 1px solid var(--border-color, #eee);
-  }
-
-  .section-title {
-    font-size: 1.25rem;
-    margin-bottom: var(--spacing-md);
-  }
-
-  .score-row {
+  .loading-state,
+  .error-state {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 0.5rem 0;
-    border-bottom: 1px dashed #eee; // Example separator
-
-    &:last-child {
-        border-bottom: none;
-    }
-  }
-  .score-pillar-label {
-    flex-grow: 1; // Example
-    margin-right: 1rem;
-  }
-  .score-value {
-    font-weight: bold;
-  }
-   .score-suffix {
-      font-size: 0.8em;
-      margin-left: 0.25em;
-      color: #777; // Example
-   }
-
-  .no-data-message {
-    padding: var(--spacing-lg);
-    text-align: center;
-    color: #777; // Example
-    border: 1px dashed #ddd; // Example
-    border-radius: 0.5rem;
-    margin-bottom: var(--spacing-lg);
-  }
-
-  .about-section {
-    margin-top: var(--spacing-lg);
-    padding: var(--spacing-md);
-    border: 1px solid #eee; // Example
-    border-radius: 0.5rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px; /* Ensure it takes up space */
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    gap: 1rem;
   }
 
   .about-grid {
     display: grid;
-    gap: 0.75rem 1.5rem; // row-gap column-gap
-     @media (min-width: 768px) { // Example breakpoint
-      grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem 2rem; /* Row and column gap */
+    background-color: var(--background-offset-light);
+    padding: 1.5rem;
+    border-radius: var(--border-radius-medium);
+    margin-top: 1.5rem;
+
+    dt {
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 0.25rem;
+    }
+
+    dd {
+      margin-left: 0;
+      color: var(--text-primary);
     }
   }
 
-   .about-grid dt {
-      font-weight: 600; // Example
-      color: #444; // Example
-   }
-   .about-grid dd {
-      margin-left: 0; // Reset default dl margin
-   }
+  .website-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    transition: color 0.2s ease;
 
-   .website-link {
-      color: var(--accent-teal, #008080); // Use variable
-      text-decoration: none;
-      &:hover {
-         text-decoration: underline;
-      }
-   }
-   .external-link-icon {
-      margin-left: 0.25rem;
-      vertical-align: middle; // Align icon nicely
-      font-size: 0.9em;
-   }
+    &:hover {
+      color: var(--accent-color-hover);
+      text-decoration: underline;
+    }
+  }
 
+  .external-link-icon {
+    font-size: 0.9em; /* Make icon slightly smaller */
+    opacity: 0.8;
+  }
 
   .action-buttons {
-    margin-top: var(--spacing-lg);
     display: flex;
-    justify-content: flex-end; // Align buttons right
-    gap: 0.5rem;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
   }
 
   .button {
-    padding: 0.5rem 1rem;
-    border: 1px solid transparent;
-    border-radius: 0.375rem;
+    /* Basic button styles - consider moving to global? */
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: var(--border-radius-small);
+    background-color: var(--accent-color);
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 500;
     cursor: pointer;
+    transition: background-color 0.2s ease;
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem; // Space between icon and text
-    transition: background-color 0.2s;
+    gap: 0.5rem;
+
+    &:hover {
+      background-color: var(--accent-color-hover);
+    }
 
     &:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
+      background-color: var(--accent-color-disabled);
+      cursor: not-allowed;
     }
   }
 
-  .refresh-button {
-    background-color: var(--accent-teal, #008080); // Use variable
-    color: white;
-    &:hover:not(:disabled) {
-       background-color: darken(#008080, 10%); // Example hover
+  @media (max-width: 768px) {
+    .detail-container {
+      padding: 1rem;
+      margin: 1rem;
     }
-  }
 
+    .about-grid {
+      grid-template-columns: 1fr; /* Stack on smaller screens */
+    }
 
-  // --- Loading and Error States ---
-  .loading-state, .error-state {
-     display: flex;
-     flex-direction: column;
-     align-items: center;
-     justify-content: center;
-     padding-top: 5rem; // Example vertical centering space
-     color: #666; // Example
-  }
-
-  .loading-icon, .error-icon {
-      font-size: 2.5rem; // Example
-      margin-bottom: 0.5rem;
-  }
-
-   .error-state h2 {
-      font-size: 1.25rem;
-      margin-bottom: 0.5rem;
-      color: #CC0000; // Example error color
-   }
-
-   .error-state p {
-      margin-bottom: 1rem;
-   }
-
-   .retry-button {
-      background-color: #666;
-      color: white;
-       &:hover:not(:disabled) {
-         background-color: darken(#666, 10%); // Example hover
-      }
-   }
-
-  .page-container {
-    max-width: 960px; /* Or your preferred max width */
-    margin: var(--spacing-xl) auto;
-    padding: 0 var(--spacing-md);
+    .action-buttons {
+      justify-content: center;
+    }
   }
 </style>

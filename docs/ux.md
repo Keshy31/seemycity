@@ -85,14 +85,18 @@
 -----------------------------------------------------
 | [Small Map]  Province: WC    Pop: 4.7M            |
 -----------------------------------------------------
-| [💰 R6,200/cap]   [🏡 18% CapEx]                  |
-| [⚖️ 82% Exp]      [🌟 Clean Audit]               |
+| [💰 R6,200/cap]   [🏡 CapEx: 18%]                  |
+| [⚖️ OpEx: 82%]      [🌟 Audit: Clean]             |
 -----------------------------------------------------
 | [What’s behind this score? ▼]                     |
-|  - Fin. Health: 88 (30%) - Nice revenue!         |
-|  - Infra: 75 (25%) - Solid investment           |
-|  - Efficiency: 70 (25%) - Room to grow          |
-|  - Accountability: 100 (20%) - Top marks!       |
+|  - **Financial Health (30%): 88 / 100**           |
+|    * Debt Ratio: 0.45 | Revenue/Capita: R6,200   |
+|  - **Infrastructure Investment (25%): 75 / 100**  |
+|    * CapEx Ratio: 18%                             |
+|  - **Efficiency & Service Delivery (25%): 70 / 100**|
+|    * OpEx Ratio: 82%                              |
+|  - **Accountability (20%): 100 / 100**            |
+|    * Audit Outcome: Unqualified - No findings   |
 -----------------------------------------------------
 | [Compare ➕]              [Refresh 🔄]             |
 -----------------------------------------------------

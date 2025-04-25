@@ -53,7 +53,7 @@ export function formatPercentage(
 export function formatWebsite(url: string | null | undefined): string {
     if (!url) return 'N/A';
     // Remove http(s):// and www. for cleaner display
-    return url.replace(/^(https?://)?(www\.)?/, '').replace(/\/$/, ''); // Also remove trailing slash
+    return url.replace(/^(https?:\/\/)?(www\.)?/,'').replace(/\/$/, ''); // Also remove trailing slash
   }
   
 /**
@@ -68,5 +68,44 @@ return new Intl.NumberFormat('en-ZA', {
     maximumFractionDigits: 0
 }).format(pop);
 }
-  
-  // Add other formatting functions here as needed (e.g., dates)
+
+/**
+ * Formats a score (0-100) to one decimal place.
+ * Clamps the score between 0 and 100.
+ * @param score - The score number.
+ * @returns A formatted score string (e.g., "75.3") or "N/A".
+ */
+export function formatScore(score: number | null | undefined): string {
+  if (score == null) return 'N/A';
+  // Clamp score between 0 and 100 before formatting
+  const clampedScore = Math.max(0, Math.min(100, score));
+  return clampedScore.toFixed(1); // Use one decimal place
+}
+
+/**
+ * Returns an inline CSS style string for score color based on value.
+ * Uses CSS variables defined in _variables.scss.
+ * @param score - The score number.
+ * @returns A CSS style string (e.g., "color: var(--score-high-color);").
+ */
+export function getScoreColorStyle(score: number | null | undefined): string {
+  if (score == null) return 'color: var(--neutral-grey, #888);'; // Neutral
+  if (score >= 70) return 'color: var(--score-high-color, #2E8B57);'; // Green
+  if (score >= 40) return 'color: var(--score-medium-color, #F28C38);'; // Orange
+  return 'color: var(--score-low-color, #CD5C5C);'; // Red
+}
+
+/**
+ * Returns an inline CSS style string for score background color based on value.
+ * Uses CSS variables defined in _variables.scss.
+ * @param score - The score number.
+ * @returns A CSS style string (e.g., "background-color: var(--score-high-color);").
+ */
+export function getScoreBackgroundStyle(score: number | null | undefined): string {
+  if (score == null) return 'background-color: var(--neutral-grey, #888);'; // Neutral
+  if (score >= 70) return 'background-color: var(--score-high-color, #2E8B57);';
+  if (score >= 40) return 'background-color: var(--score-medium-color, #F28C38);';
+  return 'background-color: var(--score-low-color, #CD5C5C);';
+}
+
+// Add other formatting functions here as needed (e.g., dates)

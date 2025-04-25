@@ -77,7 +77,10 @@
 **Tasks:**  
 - [x] **1. Setup & Cleanup:** Remove Tailwind CSS configuration, dependencies, and utility classes. (Status: Done)
 - [x] **2. Global SCSS Foundation:** Set up global SCSS files (`variables.scss`, `base.scss`, `typography.scss`), define variables, apply base styles. (Status: Done)
-- [ ] **3. Refactor Page Components:** Break down large page components (`[id]/+page.svelte`, `compare/[ids]/+page.svelte`) into smaller, reusable sub-components (e.g., `PageHeader`, `MetricCard`, `ScoreBreakdown`).
+- [ ] **3. Refactor Page Components:**
+  - Break down large page Svelte components (`[id]/+page.svelte`, `compare/[ids]/+page.svelte`) into smaller, reusable sub-components.
+  - **Single View Components:** Implement/refactor `PageHeader` (with overall score), `KeyMetricsGrid` (for high-level metrics), and `ScoreBreakdown` (to clearly show pillar scores, weights, and contributing metrics per PRD/UX docs).
+  - **Comparison View Components:** (Define components needed, e.g., `ComparisonCard`).
 - [ ] **4. Component Styling:** Restyle core UI components (`Card`, `Button`, `MetricDisplay`, `ScoreBadge`, map tooltips etc.) using SCSS variables, semantic classes, and Iconify icons.
 - [ ] **5. View Layout Refinement:** Adjust Map, Single, and Comparison view layouts (CSS Grid/Flexbox) to match `ux.md` sketches.
 - [ ] **6. Map Styling:** Configure MapLibre choropleth color ramp (Red -> Orange -> Green) based on `overall_score`; style map interactions.
