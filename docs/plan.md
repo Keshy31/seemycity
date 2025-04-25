@@ -73,16 +73,17 @@
 
 **Phase 6: UI/UX Overhaul – Visual & Interaction Upgrade**  
 **Goal:** Transform the dashboard to match the warm, SA-inspired, playful, and approachable vision in the UX doc, while preserving all data and backend functionality.  
-**Status:** _Planned_  
+**Status:** _In Progress_  
 **Tasks:**  
-- [ ] **1. Setup & Cleanup:** Remove Tailwind CSS configuration, dependencies, and utility classes.
-- [ ] **2. Global SCSS Foundation:** Set up global SCSS files (`variables.scss`, `global.scss`), define variables (colors, typography from `ux.md`), apply base styles.
-- [ ] **3. Component Styling:** Restyle core UI components (`Card`, `Button`, `MetricDisplay`, `ScoreBadge`, map tooltips etc.) using SCSS variables, semantic classes, and Iconify icons.
-- [ ] **4. View Layout Refinement:** Adjust Map, Single, and Comparison view layouts (CSS Grid/Flexbox) to match `ux.md` sketches.
-- [ ] **5. Map Styling:** Configure MapLibre choropleth color ramp (Red -> Orange -> Green) based on `overall_score`; style map interactions.
-- [ ] **6. Interactions & Animations:** Implement Svelte transitions (`fade`, `slide`), CSS hover effects, and score badge pulse animation (`ux.md`).
-- [ ] **7. Accessibility Check:** Perform basic review (contrast, keyboard navigation, semantic HTML/ARIA).
-- [ ] **8. Review & Commit:** Final visual review, responsiveness check, code cleanup, Git commit.
+- [x] **1. Setup & Cleanup:** Remove Tailwind CSS configuration, dependencies, and utility classes. (Status: Done)
+- [x] **2. Global SCSS Foundation:** Set up global SCSS files (`variables.scss`, `base.scss`, `typography.scss`), define variables, apply base styles. (Status: Done)
+- [ ] **3. Refactor Page Components:** Break down large page components (`[id]/+page.svelte`, `compare/[ids]/+page.svelte`) into smaller, reusable sub-components (e.g., `PageHeader`, `MetricCard`, `ScoreBreakdown`).
+- [ ] **4. Component Styling:** Restyle core UI components (`Card`, `Button`, `MetricDisplay`, `ScoreBadge`, map tooltips etc.) using SCSS variables, semantic classes, and Iconify icons.
+- [ ] **5. View Layout Refinement:** Adjust Map, Single, and Comparison view layouts (CSS Grid/Flexbox) to match `ux.md` sketches.
+- [ ] **6. Map Styling:** Configure MapLibre choropleth color ramp (Red -> Orange -> Green) based on `overall_score`; style map interactions.
+- [ ] **7. Interactions & Animations:** Implement Svelte transitions (`fade`, `slide`), CSS hover effects, and score badge pulse animation (`ux.md`).
+- [ ] **8. Accessibility Check:** Perform basic review (contrast, keyboard navigation, semantic HTML/ARIA).
+- [ ] **9. Review & Commit:** Final visual review, responsiveness check, code cleanup, Git commit.
 - [ ] ~Remove all Tailwind remnants and use only SCSS/CSS~ 
 - [ ] ~Define a global theme SCSS file for colors, spacing, and typography~ 
 - [ ] ~Redesign components: cards, metric rows, badges, buttons, and layout~ 

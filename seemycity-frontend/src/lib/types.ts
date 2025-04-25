@@ -10,7 +10,6 @@ export interface FinancialYearData {
     efficiency_score: number | null;
     accountability_score: number | null;
     revenue: number | null;
-    // Rename field to match backend
     operational_expenditure: number | null;
     capital_expenditure: number | null;
     debt: number | null;
