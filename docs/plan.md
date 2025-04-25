@@ -80,6 +80,7 @@
 - [ ] **3. Refactor Page Components:**
   - Break down large page Svelte components (`[id]/+page.svelte`, `compare/[ids]/+page.svelte`) into smaller, reusable sub-components.
   - **Single View Components:** Implement/refactor `PageHeader` (with overall score), `KeyMetricsGrid` (for high-level metrics), and `ScoreBreakdown` (to clearly show pillar scores, weights, and contributing metrics per PRD/UX docs).
+    - *Progress on ScoreBreakdown:* Added dynamic score coloring, progress bars, and fixed audit outcome display inconsistencies.
   - **Comparison View Components:** (Define components needed, e.g., `ComparisonCard`).
 - [ ] **4. Component Styling:** Restyle core UI components (`Card`, `Button`, `MetricDisplay`, `ScoreBadge`, map tooltips etc.) using SCSS variables, semantic classes, and Iconify icons.
 - [ ] **5. View Layout Refinement:** Adjust Map, Single, and Comparison view layouts (CSS Grid/Flexbox) to match `ux.md` sketches.

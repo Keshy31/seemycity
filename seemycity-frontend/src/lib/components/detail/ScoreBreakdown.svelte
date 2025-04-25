@@ -1,9 +1,20 @@
 <script lang="ts">
     import type { FinancialYearData } from '$lib/types';
-    import { formatCurrency, formatPercentage, formatScore } from '$lib/utils/formatUtils';
-    import { calculateCapexRatio, calculateOpexRatio, calculateDebtRatio, calculateRevenuePerCapita } from '$lib/utils/calculations'; // Assume these exist/will be created
+    import {
+        formatCurrency,
+        formatPercentage,
+        formatScore,
+        getScoreColorStyle
+    } from '$lib/utils/formatUtils';
+    import {
+        calculateCapexRatio,
+        calculateOpexRatio,
+        calculateDebtRatio,
+        calculateRevenuePerCapita
+    } from '$lib/utils/calculations'; // Assume these exist/will be created
     import Icon from '@iconify/svelte';
     import { getAuditOutcomeText } from '$lib/utils/auditUtils';
+    import ProgressBar from '$lib/components/ui/ProgressBar.svelte';
 
     export let financials: FinancialYearData | null | undefined;
     export let population: number | null | undefined;
@@ -28,12 +39,13 @@
             <div class="pillar-item">
                 <div class="pillar-header">
                     <h4>Financial Health (30%)</h4>
-                    <span class="pillar-score">{formatScore(financials.financial_health_score)} / 100</span>
+                    <span class="pillar-score" style="{getScoreColorStyle(financials.financial_health_score)}">{formatScore(financials.financial_health_score)} / 100</span>
                 </div>
                 <div class="pillar-metrics">
                     <span>Debt Ratio: {formatPercentage(debtRatio, 1)}</span>
-                    <span>Revenue/Capita: {formatCurrency(revenuePerCapita)}</span>
+                    <span>Revenue per Capita: {formatCurrency(revenuePerCapita)}</span>
                 </div>
+                <ProgressBar value={financials.financial_health_score} />
                 <!-- Optional: Add visual bar/indicator here -->
             </div>
 
@@ -41,11 +53,12 @@
             <div class="pillar-item">
                 <div class="pillar-header">
                     <h4>Infrastructure Investment (25%)</h4>
-                    <span class="pillar-score">{formatScore(financials.infrastructure_score)} / 100</span>
+                    <span class="pillar-score" style="{getScoreColorStyle(financials.infrastructure_score)}">{formatScore(financials.infrastructure_score)} / 100</span>
                 </div>
                 <div class="pillar-metrics">
                     <span>CapEx Ratio: {formatPercentage(capexRatio, 1)}</span>
                 </div>
+                <ProgressBar value={financials.infrastructure_score} />
                 <!-- Optional: Add visual bar/indicator here -->
             </div>
 
@@ -53,11 +66,12 @@
             <div class="pillar-item">
                 <div class="pillar-header">
                     <h4>Efficiency & Service Delivery (25%)</h4>
-                    <span class="pillar-score">{formatScore(financials.efficiency_score)} / 100</span>
+                    <span class="pillar-score" style="{getScoreColorStyle(financials.efficiency_score)}">{formatScore(financials.efficiency_score)} / 100</span>
                 </div>
                 <div class="pillar-metrics">
                     <span>OpEx Ratio: {formatPercentage(opexRatio, 1)}</span>
                 </div>
+                <ProgressBar value={financials.efficiency_score} />
                 <!-- Optional: Add visual bar/indicator here -->
             </div>
 
@@ -65,11 +79,12 @@
             <div class="pillar-item">
                 <div class="pillar-header">
                     <h4>Accountability (20%)</h4>
-                    <span class="pillar-score">{formatScore(financials.accountability_score)} / 100</span>
+                    <span class="pillar-score" style="{getScoreColorStyle(financials.accountability_score)}">{formatScore(financials.accountability_score)} / 100</span>
                 </div>
                 <div class="pillar-metrics">
                     <span>Audit Outcome: {getAuditOutcomeText(financials.audit_outcome)}</span>
                 </div>
+                <ProgressBar value={financials.accountability_score} />
                 <!-- Optional: Add visual bar/indicator here -->
             </div>
         </div>
@@ -130,7 +145,6 @@
         .pillar-score {
             font-weight: bold;
             font-size: 1rem;
-            color: var(--accent-color); // Use accent for score
             white-space: nowrap;
         }
     }
@@ -145,6 +159,10 @@
         span {
             display: block; // Ensure they stack nicely
         }
+    }
+
+    :global(.pillar-item .progress-bar-container) {
+        margin-top: 0.75rem; // Add some space above the progress bar
     }
 
     .unavailable {
