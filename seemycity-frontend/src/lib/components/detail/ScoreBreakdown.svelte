@@ -25,6 +25,10 @@
     $: opexRatio = calculateOpexRatio(financials?.operational_expenditure, financials?.revenue);
     $: debtRatio = calculateDebtRatio(financials?.debt, financials?.revenue);
     $: revenuePerCapita = calculateRevenuePerCapita(financials?.revenue, population);
+    $: totalExpenditure = financials?.capital_expenditure + financials?.operational_expenditure;
+    $: operationalEfficiencyMetric = financials && financials.revenue && financials.revenue > 0
+        ? formatPercentage(financials.operational_expenditure, financials.revenue)
+        : 'N/A';
 
 </script>
 
@@ -76,7 +80,7 @@
                         <span class="pillar-score" style="{getScoreColorStyle(financials.efficiency_score)}">{formatScore(financials.efficiency_score)} / 100</span>
                     </div>
                     <div class="pillar-metrics">
-                        <span>OpEx Ratio: {formatPercentage(opexRatio, 1)}</span>
+                        <span>OpEx Ratio: {operationalEfficiencyMetric}</span>
                     </div>
                     <ProgressBar value={financials.efficiency_score} />
                     <!-- Optional: Add visual bar/indicator here -->
