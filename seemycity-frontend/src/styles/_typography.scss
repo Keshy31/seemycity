@@ -1,0 +1,95 @@
+/* src/styles/_typography.scss */
+
+// --- Headings ---
+h1, .h1 {
+  font-size: 2.5rem; // ~40px
+  font-weight: var(--font-weight-bold);
+}
+
+h2, .h2 {
+  font-size: 2rem; // ~32px
+  font-weight: var(--font-weight-bold);
+}
+
+h3, .h3 {
+  font-size: 1.75rem; // ~28px
+  font-weight: var(--font-weight-medium); // Slightly lighter for h3
+}
+
+h4, .h4 {
+  font-size: 1.5rem; // ~24px
+  font-weight: var(--font-weight-medium);
+}
+
+h5, .h5 {
+  font-size: 1.25rem; // ~20px
+  font-weight: var(--font-weight-medium);
+}
+
+h6, .h6 {
+  font-size: 1rem; // ~16px (base size)
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase; // Common style for h6
+  letter-spacing: 0.05em;
+}
+
+// --- Paragraphs & Text ---
+p {
+  max-width: 75ch; // Limit line length for readability
+}
+
+strong, b {
+  font-weight: var(--font-weight-bold);
+}
+
+em, i {
+  font-style: italic;
+}
+
+small {
+  font-size: var(--font-size-sm);
+}
+
+// --- Links (Already styled in _base.scss, add specific typography if needed) ---
+// Example: Specific link style
+// a.special-link { ... }
+
+
+// --- Lists ---
+ul, ol {
+  margin-bottom: var(--spacing-md);
+  padding-left: var(--spacing-lg); // Indentation
+}
+
+li {
+  margin-bottom: var(--spacing-sm);
+}
+
+// --- Blockquotes ---
+blockquote {
+  margin: var(--spacing-lg) 0;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-left: 4px solid var(--border-color);
+  background-color: var(--background-offset-color);
+  font-style: italic;
+  color: var(--text-muted-color);
+
+  p {
+    margin-bottom: 0; // Remove bottom margin for paragraphs inside blockquote
+  }
+}
+
+// --- Code ---
+code, pre {
+  font-family: monospace; // Use a monospace font
+  font-size: var(--font-size-sm);
+  background-color: var(--background-offset-color);
+  padding: 0.1em 0.3em;
+  border-radius: var(--border-radius-sm);
+}
+
+pre {
+  padding: var(--spacing-md);
+  overflow-x: auto; // Allow horizontal scrolling for long code blocks
+  display: block;
+}

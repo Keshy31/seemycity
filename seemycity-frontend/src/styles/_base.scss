@@ -1,0 +1,68 @@
+/* src/styles/_base.scss */
+
+// --- Basic Reset & Box Sizing ---
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+// --- HTML & Body Defaults ---
+html {
+  font-size: var(--font-size-base); // Set root font size
+  scroll-behavior: smooth; // Optional: Smooth scrolling
+}
+
+body {
+  font-family: var(--font-family-base);
+  line-height: var(--line-height-base);
+  color: var(--text-color);
+  background-color: var(--background-color);
+  -webkit-font-smoothing: antialiased; // Improve font rendering
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh; // Ensure body takes full viewport height
+  display: flex; // Use flexbox for layout
+  flex-direction: column; // Stack content vertically
+}
+
+// --- Basic Element Styles ---
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-heading);
+  line-height: var(--line-height-heading);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-md); // Default bottom margin
+}
+
+p {
+  margin-bottom: var(--spacing-md);
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none; // Remove default underline
+  transition: color var(--transition-duration) var(--transition-timing-function);
+
+  &:hover,
+  &:focus {
+    text-decoration: underline;
+    color: color-mix(in srgb, var(--primary-color) 80%, var(--text-color) 20%); // Slightly darken on hover
+  }
+}
+
+// Add more base styles for elements like ul, ol, blockquote, code, etc. as needed
+
+// Ensure main content area can grow
+main {
+  flex: 1; // Allow main content to fill available space
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block; // Remove extra space below images
+  max-width: 100%; // Prevent overflow
+}

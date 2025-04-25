@@ -38,112 +38,170 @@
 </svelte:head>
 
 {#await data}
-    <div class="container mx-auto p-4 pt-20 text-center">
+    <div class="loading-container">
         <p>Loading comparison data...</p>
-        <Icon icon="line-md:loading-twotone-loop" class="text-3xl text-teal-600 mx-auto my-4" />
+        <Icon icon="line-md:loading-twotone-loop" class="loading-icon" />
     </div>
 {:then resolvedData}
     {#if resolvedData.error}
-        <div class="container mx-auto p-4 pt-20 text-center text-red-600">
-            <Icon icon="material-symbols:error-outline" class="text-4xl mx-auto mb-2" />
+        <div class="error-container">
+            <Icon icon="material-symbols:error-outline" class="error-icon" />
             <p>Error loading comparison data:</p>
-            <p>{resolvedData.error}</p>
+            <p class="error-message">{resolvedData.error}</p>
         </div>
     {:else if resolvedData.municipalities && resolvedData.municipalities.length > 0}
-        <div class="container mx-auto p-4 pt-20">
-            <h1 class="text-3xl font-bold mb-6 font-heading">Municipality Comparison</h1>
+        <div class="comparison-container">
+            <h1 class="page-title">Municipality Comparison</h1>
 
-            <div class="comparison-grid bg-white p-4 rounded-lg shadow-md">
-                <div class="font-semibold text-right pr-4">
-                    <p class="py-2">Municipality</p>
-                    <p class="py-2">Province</p>
-                    <p class="py-2">Population</p>
-                    <p class="py-2">Year</p>
-                    <p class="py-2">Revenue</p>
-                    <p class="py-2">Expenditure</p>
-                    <p class="py-2">Debt</p>
-                    <p class="py-2">Audit Outcome</p>
+            <div class="comparison-grid" style="grid-template-columns: auto repeat({resolvedData.municipalities.length}, 1fr);"> 
+                <div class="header-column"> 
+                    <p>Municipality</p>
+                    <p>Province</p>
+                    <p>Population</p>
+                    <p>Year</p>
+                    <p>Revenue</p>
+                    <p>Expenditure</p>
+                    <p>Debt</p>
+                    <p>Audit Outcome</p>
                 </div>
 
                 {#each resolvedData.municipalities as muni}
-                    <div class="border-l border-r px-4">
-                        <h2 class="text-xl font-semibold mb-2 py-2">{muni.name}</h2>
-                        <p class="py-2">{muni.province}</p>
-                        <p class="py-2">{formatPopulation(muni.population)}</p>
-                        <p class="py-2">{muni.financials?.[0]?.year ?? 'N/A'}</p>
-                        <p class="py-2">{formatCurrency(muni.financials?.[0]?.revenue)}</p>
-                        <p class="py-2">{formatCurrency(muni.financials?.[0]?.operational_expenditure)}</p>
-                        <p class="py-2">{formatCurrency(muni.financials?.[0]?.debt)}</p>
-                        <p class="py-2">{muni.financials?.[0]?.audit_outcome ?? 'N/A'}</p>
+                    <div class="data-column"> 
+                        <h2 class="municipality-name">{muni.name}</h2>
+                        <p>{muni.province}</p>
+                        <p>{formatPopulation(muni.population)}</p>
+                        <p>{muni.financials?.[0]?.year ?? 'N/A'}</p>
+                        <p>{formatCurrency(muni.financials?.[0]?.revenue)}</p>
+                        <p>{formatCurrency(muni.financials?.[0]?.operational_expenditure)}</p>
+                        <p>{formatCurrency(muni.financials?.[0]?.debt)}</p>
+                        <p>{muni.financials?.[0]?.audit_outcome ?? 'N/A'}</p>
                     </div>
                 {/each}
             </div>
         </div>
     {:else}
-        <div class="container mx-auto p-4 pt-20 text-center text-gray-600">
-            <Icon icon="mdi:information-outline" class="text-4xl mx-auto mb-2" />
+        <div class="no-data-container">
+            <Icon icon="mdi:information-outline" class="info-icon" />
             <p>No data found for the requested municipalities.</p>
             {#if resolvedData.requestedIds && resolvedData.requestedIds.length > 0}
-                <p class="text-sm mt-2">Requested IDs: {resolvedData.requestedIds.join(', ')}</p>
+                <p class="requested-ids">Requested IDs: {resolvedData.requestedIds.join(', ')}</p>
             {/if}
         </div>
     {/if}
 {:catch error}
-    <div class="container mx-auto p-4 pt-20 text-center text-red-600">
-        <Icon icon="material-symbols:error-outline" class="text-4xl mx-auto mb-2" />
+    <div class="error-container">
+        <Icon icon="material-symbols:error-outline" class="error-icon" />
         <p>An unexpected error occurred while loading comparison data:</p>
-        <p class="text-sm mt-1">{error.message}</p>
+        <p class="error-message">{error.message}</p>
     </div>
 {/await}
 
 <style lang="scss">
+    // --- Containers ---
+    .loading-container, .error-container, .no-data-container, .comparison-container {
+        padding: 1rem;
+        margin-top: 4rem; 
+        text-align: center; 
+    }
+
+    .comparison-container {
+        text-align: left; 
+    }
+
+    // --- Icons ---
+    .loading-icon, .error-icon, .info-icon {
+        display: block; 
+        margin: 1rem auto 0.5rem auto; 
+        font-size: 2.5rem; 
+    }
+     .error-icon {
+        color: var(--score-low-color, #CD5C5C); 
+     }
+     .info-icon {
+        color: var(--neutral-grey, #888); 
+     }
+
+
+    // --- Text ---
+    .page-title {
+        font-size: 1.875rem; 
+        font-weight: 700; 
+        margin-bottom: 1.5rem; 
+        font-family: 'Ubuntu', sans-serif; 
+    }
+
+    .error-message, .requested-ids {
+        font-size: 0.875rem; 
+        margin-top: 0.25rem; 
+    }
+
+    .error-container {
+        color: var(--score-low-color, #CD5C5C); 
+    }
+
+    .no-data-container {
+         color: var(--neutral-grey, #888); 
+    }
+
+    // --- Comparison Grid (Keep existing structure, potentially adjust selectors/styles if needed) ---
     .comparison-grid {
         display: grid;
-        grid-template-columns: auto 1fr 1fr;
-        gap: 1rem;
+        gap: 0; 
         margin-top: 1.5rem;
-        background-color: #fff;
+        background-color: var(--background-offset, #fff); 
         padding: 1rem;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        overflow-x: auto; 
     }
 
-    .comparison-grid > div {
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-    }
-
-    .comparison-grid > div:first-child {
+    // Header Column (Labels)
+    .header-column {
         font-weight: 600;
         text-align: right;
         padding-right: 1rem;
-        color: #4b5563;
-        border-right: 1px solid #e5e7eb;
+        color: var(--text-muted, #555); 
+
+        p {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            min-height: 2.5rem; 
+             white-space: nowrap; 
+        }
+         p:first-child { 
+             min-height: 3rem; 
+         }
     }
 
-    .comparison-grid > div:not(:first-child) {
+    // Data Column (Per Municipality)
+    .data-column {
         padding-left: 1rem;
         padding-right: 1rem;
-        border-right: 1px solid #e5e7eb;
-    }
+        border-right: 1px solid var(--border-color, #e5e7eb); 
 
-    .comparison-grid > div:last-child {
-        border-right: none;
-    }
+        &:last-child {
+            border-right: none;
+        }
 
-    .comparison-grid > div:not(:first-child) h2 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #e5e7eb;
-        height: 3rem;
-        margin-bottom: 0.5rem;
-    }
+        h2.municipality-name { 
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            padding-top: 0.5rem; 
+            padding-bottom: 0.5rem; 
+            border-bottom: 1px solid var(--border-color, #e5e7eb);
+            height: 3rem; 
+            margin-bottom: 0.5rem; 
+            overflow: hidden; 
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
 
-    .comparison-grid > div:not(:first-child) p {
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-        min-height: 2.5rem;
+        p {
+            padding-top: 0.5rem; 
+            padding-bottom: 0.5rem; 
+            min-height: 2.5rem; 
+            display: flex; 
+            align-items: center;
+        }
     }
 </style>

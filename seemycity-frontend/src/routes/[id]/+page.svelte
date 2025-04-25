@@ -163,34 +163,34 @@
 
 {#await data}
   <!-- Loading State -->
-  <div class="loading-state flex flex-col items-center justify-center pt-32 text-gray-600">
-    <Icon icon="eos-icons:loading" class="text-4xl mb-2" />
+  <div class="loading-state">
+    <Icon icon="eos-icons:loading" class="loading-icon" />
     <p>Loading municipality data...</p>
   </div>
 {:then pageData}
   <!-- Access resolved data -->
-  <div class="container mx-auto p-4 pt-20">
+  <div class="detail-container">
     <!-- Header: Name, Province, Score -->
-    <div class="flex justify-between items-center mb-6 p-4 rounded-lg shadow-md" style="background-color: var(--background, #FDF6E3); color: var(--text, #3C2F2F);">
+    <div class="header-section" style="background-color: var(--background, #FDF6E3); color: var(--text, #3C2F2F);">
       <div>
-        <h1 class="text-3xl font-bold font-heading">{pageData.municipality.name}</h1>
-        <p class="text-lg text-gray-600">{pageData.municipality.province}</p>
-        <p class="text-sm text-gray-500">Category: {pageData.municipality.classification ?? 'N/A'}</p>
+        <h1 class="municipality-name">{pageData.municipality.name}</h1>
+        <p class="province-name">{pageData.municipality.province}</p>
+        <p class="classification">Category: {pageData.municipality.classification ?? 'N/A'}</p>
       </div>
-      <div class="text-right">
-        <p class="text-sm font-medium uppercase tracking-wider">Overall Score</p>
+      <div class="score-section">
+        <p class="score-label">Overall Score</p>
         <!-- Apply dynamic color STYLE -->
-        <p class="text-5xl font-bold" style={getScoreColorStyle(pageData.latestFinancials?.overall_score)}>
+        <p class="overall-score" style={getScoreColorStyle(pageData.latestFinancials?.overall_score)}>
           {formatScore(pageData.latestFinancials?.overall_score)}
         </p>
-        <p class="text-xs text-gray-500">Financial Year: {pageData.latestFinancials?.year ?? 'N/A'}</p>
+        <p class="financial-year">Financial Year: {pageData.latestFinancials?.year ?? 'N/A'}</p>
       </div>
     </div>
 
     <!-- Display only if latestFinancials exist -->
     {#if pageData.latestFinancials}
       <!-- Key Metrics Row -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="key-metrics-grid">
         <!-- Revenue Per Capita (Calculation needs population) -->
         <div class="metric-card">
           <Icon icon="mdi:cash-multiple" class="metric-icon" />
@@ -203,193 +203,347 @@
             )}
           </p>
         </div>
-        <!-- Capex % -->
+
+        <!-- CapEx % -->
         <div class="metric-card">
-          <Icon icon="mdi:home-group" class="metric-icon" />
-          <p class="metric-label">Capital Spend %</p>
-          <p class="metric-value">
-            {capexPercentageFormatted}
-          </p>
+          <Icon icon="mdi:domain" class="metric-icon" />
+          <p class="metric-label">CapEx % of Total Exp.</p>
+          <p class="metric-value">{capexPercentageFormatted}</p>
         </div>
-        <!-- Efficiency Score -->
+
+        <!-- Debt (Raw value) -->
         <div class="metric-card">
-          <Icon icon="mdi:scale-balance" class="metric-icon" />
-          <p class="metric-label">Efficiency Score</p>
-          <p class="metric-value" style={getScoreColorStyle(pageData.latestFinancials.efficiency_score)}>
-            {formatScore(pageData.latestFinancials.efficiency_score)}
-          </p>
+          <Icon icon="mdi:bank-minus" class="metric-icon" />
+          <p class="metric-label">Total Debt</p>
+          <p class="metric-value">{formatCurrency(pageData.latestFinancials.debt)}</p>
         </div>
+
         <!-- Audit Outcome -->
         <div class="metric-card">
-          <Icon icon={getAuditIcon(pageData.latestFinancials.audit_outcome)} class="metric-icon" style={getAuditColorStyle(pageData.latestFinancials.audit_outcome)} />
+          <Icon
+            icon={getAuditIcon(pageData.latestFinancials.audit_outcome)}
+            class="metric-icon"
+            style={getAuditColorStyle(pageData.latestFinancials.audit_outcome)}
+          />
           <p class="metric-label">Audit Outcome</p>
           <p class="metric-value">{pageData.latestFinancials.audit_outcome ?? 'N/A'}</p>
         </div>
       </div>
 
       <!-- Score Breakdown Section -->
-      <div class="mb-6 p-4 rounded-lg shadow-md bg-white">
-        <h2 class="text-xl font-semibold mb-3 font-heading">Score Breakdown ({pageData.latestFinancials.year})</h2>
-        <div class="space-y-3">
-          <!-- Financial Health -->
-          <div class="breakdown-item">
-            <span class="font-medium">Financial Health (30%)</span>
-            <span class="text-right" style={getScoreColorStyle(pageData.latestFinancials.financial_health_score)}>
-              {formatScore(pageData.latestFinancials.financial_health_score)} / 100
-            </span>
-          </div>
-          <!-- Infrastructure Investment -->
-          <div class="breakdown-item">
-            <span class="font-medium">Infrastructure Investment (25%)</span>
-            <span class="text-right" style={getScoreColorStyle(pageData.latestFinancials.infrastructure_score)}>
-              {formatScore(pageData.latestFinancials.infrastructure_score)} / 100
-            </span>
-          </div>
-          <!-- Efficiency -->
-          <div class="breakdown-item">
-            <span class="font-medium">Efficiency (25%)</span>
-            <span class="text-right" style={getScoreColorStyle(pageData.latestFinancials.efficiency_score)}>
-              {formatScore(pageData.latestFinancials.efficiency_score)} / 100
-            </span>
-          </div>
-          <!-- Accountability -->
-          <div class="breakdown-item">
-            <span class="font-medium">Accountability (20%)</span>
-            <span class="text-right" style={getScoreColorStyle(pageData.latestFinancials.accountability_score)}>
-              {formatScore(pageData.latestFinancials.accountability_score)} / 100
-            </span>
-          </div>
+      <div class="score-breakdown-section">
+        <h2 class="section-title">Score Breakdown</h2>
+        <!-- Financial Health -->
+        <div class="score-row">
+          <span class="score-pillar-label">Financial Health (30%)</span>
+          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.financial_health_score)}>
+            {formatScore(pageData.latestFinancials.financial_health_score)}
+          </span>
+          <span class="score-suffix">/ 100</span>
+        </div>
+        <!-- Infrastructure Investment -->
+        <div class="score-row">
+          <span class="score-pillar-label">Infrastructure Inv. (25%)</span>
+          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.infrastructure_score)}>
+            {formatScore(pageData.latestFinancials.infrastructure_score)}
+          </span>
+           <span class="score-suffix">/ 100</span>
+        </div>
+        <!-- Efficiency & Service Delivery -->
+        <div class="score-row">
+          <span class="score-pillar-label">Efficiency & Service Delivery (25%)</span>
+          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.efficiency_score)}>
+            {formatScore(pageData.latestFinancials.efficiency_score)}
+          </span>
+           <span class="score-suffix">/ 100</span>
+        </div>
+        <!-- Accountability -->
+        <div class="score-row">
+          <span class="score-pillar-label">Accountability (20%)</span>
+          <span class="score-value" style={getScoreColorStyle(pageData.latestFinancials.accountability_score)}>
+            {formatScore(pageData.latestFinancials.accountability_score)}
+          </span>
+           <span class="score-suffix">/ 100</span>
         </div>
       </div>
-
-      <!-- Financial Details Section -->
-      <div class="p-4 rounded-lg shadow-md bg-white">
-        <h2 class="text-xl font-semibold mb-3 font-heading">Financial Details ({pageData.latestFinancials.year})</h2>
-        <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-          <div>
-            <p>
-              <span class="font-medium">Total Revenue:</span> {formatCurrency(pageData.latestFinancials.revenue)}
-            </p>
-            <p>
-              <span class="font-medium">Total Expenditure:</span> {formatCurrency(pageData.latestFinancials.operational_expenditure)}
-            </p>
-          </div>
-          <div>
-            <p>
-              <span class="font-medium">Capital Expenditure:</span> {formatCurrency(pageData.latestFinancials.capital_expenditure)}
-            </p>
-            <p>
-              <span class="font-medium">Total Debt:</span> {formatCurrency(pageData.latestFinancials.debt)}
-            </p>
-          </div>
-        </dl>
-      </div>
-
     {:else}
-      <!-- Message if latest financials are not available for this muni -->
-      <div class="p-4 rounded-lg shadow-md bg-yellow-100 text-yellow-800">
-        <p>Latest financial data is not available for {pageData.municipality.name}.</p>
+      <!-- Message if no financial data is available -->
+      <div class="no-data-message">
+        <p>No financial data available for the latest year.</p>
       </div>
     {/if}
 
-    <!-- Municipality Details Section -->
-    <div class="mt-6 p-4 rounded-lg shadow-md bg-white">
-      <h2 class="text-xl font-semibold mb-3 font-heading">About {pageData.municipality.name}</h2>
-      <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-        <div><dt class="font-medium">Province:</dt><dd>{pageData.municipality.province}</dd></div>
-        <div><dt class="font-medium">Classification:</dt><dd>{pageData.municipality.classification ?? 'N/A'}</dd></div>
-        <div><dt class="font-medium">Population (Est.):</dt><dd>{formatPopulation(pageData.municipality.population)}</dd></div>
-        <div><dt class="font-medium">Website:</dt><dd><a href={pageData.municipality.website} target="_blank" rel="noopener noreferrer" class="text-teal-600 hover:underline">{formatWebsite(pageData.municipality.website)}</a></dd></div>
+    <!-- About Section -->
+    <div class="about-section">
+      <h2 class="section-title">About {pageData.municipality.name}</h2>
+      <dl class="about-grid">
+        <div><dt>Province:</dt><dd>{pageData.municipality.province}</dd></div>
+        <div><dt>Classification:</dt><dd>{pageData.municipality.classification ?? 'N/A'}</dd></div>
+        <div><dt>Population:</dt><dd>{formatPopulation(pageData.municipality.population)}</dd></div>
+        <div>
+          <dt>Website:</dt>
+          {#if pageData.municipality.website}
+            <a href={pageData.municipality.website} target="_blank" rel="noopener noreferrer" class="website-link">
+              {formatWebsite(pageData.municipality.website)}
+              <Icon icon="mdi:external-link" class="external-link-icon" />
+            </a>
+          {:else}
+            N/A
+          {/if}
+        </div>
       </dl>
     </div>
 
-    <!-- Refresh Button -->
-    <div class="mt-6 text-center">
-      <button
-        on:click={handleRefresh}
-        disabled={isRefreshing}
-        class="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
-      >
-        {#if isRefreshing}
-          <Icon icon="eos-icons:loading" class="mr-2" />
-          Refreshing...
-        {:else}
-          <Icon icon="mdi:refresh" class="mr-2" />
-          Refresh Data
-        {/if}
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <!-- TODO: Add Compare Functionality -->
+      <!-- <button class="button compare-button">
+        <Icon icon="mdi:compare-horizontal" /> Add to Compare
+      </button> -->
+
+      <button class="button refresh-button" on:click={handleRefresh} disabled={isRefreshing}>
+        <Icon icon={isRefreshing ? 'eos-icons:loading' : 'mdi:refresh'} />
+        {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
       </button>
     </div>
-
-    <!-- Removed the #if block wrapper -->
   </div>
 {:catch error}
-  <!-- Error State (will be added later) -->
-  <p>Error loading data: {error.message}</p>
+  <!-- Error State -->
+  <div class="error-state">
+    <Icon icon="mdi:alert-octagon-outline" class="error-icon" />
+    <h2>Error Loading Data</h2>
+    <p>{error.message}</p>
+    <button class="button retry-button" on:click={handleRefresh}>
+      <Icon icon="mdi:refresh" /> Try Again
+    </button>
+  </div>
 {/await}
 
-<!-- Basic Styling (Add to a global CSS/SCSS or refine here) -->
 <style lang="scss">
-  // Key Metric Card Styling
-  .metric-card {
-    background-color: #fff;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.1);
-    color: var(--text, #3C2F2F);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+  // Placeholder for SCSS styles - we will add these in Step 2/3
+  .detail-container {
+    padding: 1rem; // Example basic padding
+  }
 
-    .metric-label {
-      font-size: 1.125rem;
-      font-weight: 500;
-      margin-bottom: 0.25rem;
-    }
-    .metric-value {
-      font-size: 0.875rem;
-      color: var(--primary-color, #008080);
-      font-weight: bold;
+  .header-section {
+    // Will add flex/grid styles here later
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0.5rem; // Example
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); // Example
+  }
+
+  .municipality-name {
+    // Heading styles here
+  }
+  .province-name {
+    // Style here
+  }
+  .classification {
+     // Style here
+  }
+
+  .score-section {
+     // Style here
+  }
+  .score-label {
+     // Style here
+  }
+  .overall-score {
+     // Style here
+  }
+  .financial-year {
+     // Style here
+  }
+
+  .key-metrics-grid {
+    // Grid styles here
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+     // Example responsive grid
+    grid-template-columns: repeat(2, 1fr);
+    @media (min-width: 768px) { // Example breakpoint
+      grid-template-columns: repeat(4, 1fr);
     }
   }
 
-  // Score Breakdown Item Styling
-  .breakdown-item {
+  .metric-card {
+    // Card styles here
+    padding: 1rem;
+    border: 1px solid #eee; // Example
+    border-radius: 0.5rem;
+    text-align: center; // Example
+  }
+  .metric-icon {
+    font-size: 2rem; // Example
+    margin-bottom: 0.5rem;
+  }
+  .metric-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+    color: #555; // Example
+  }
+  .metric-value {
+    font-size: 1.125rem;
+    font-weight: 600; // Example
+  }
+
+  .score-breakdown-section {
+    // Section styles
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid #eee; // Example
+    border-radius: 0.5rem;
+  }
+
+  .section-title {
+    // Title styles
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .score-row {
+    // Row styles (e.g., flex)
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.5rem;
+    align-items: baseline;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed #eee; // Example separator
+
     &:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-      margin-bottom: 0;
+        border-bottom: none;
+    }
+  }
+  .score-pillar-label {
+    // Label styles
+    flex-grow: 1; // Example
+    margin-right: 1rem;
+  }
+  .score-value {
+    // Score value styles
+    font-weight: bold;
+  }
+   .score-suffix {
+      font-size: 0.8em;
+      margin-left: 0.25em;
+      color: #777; // Example
+   }
+
+  .no-data-message {
+    // Styles for message when no financials
+    padding: 1.5rem;
+    text-align: center;
+    color: #777; // Example
+    border: 1px dashed #ddd; // Example
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .about-section {
+    // Section styles
+     margin-top: 1.5rem;
+     padding: 1rem;
+     border: 1px solid #eee; // Example
+     border-radius: 0.5rem;
+  }
+
+  .about-grid {
+    // Grid styles
+    display: grid;
+    gap: 0.75rem 1.5rem; // row-gap column-gap
+     @media (min-width: 768px) { // Example breakpoint
+      grid-template-columns: repeat(2, 1fr);
     }
   }
 
-  // Use Ubuntu font if available (ensure it's imported globally)
-  .font-heading {
-    font-family: 'Ubuntu', sans-serif;
+   .about-grid dt {
+      font-weight: 600; // Example
+      color: #444; // Example
+   }
+   .about-grid dd {
+      margin-left: 0; // Reset default dl margin
+   }
+
+   .website-link {
+      color: var(--accent-teal, #008080); // Use variable
+      text-decoration: none;
+      &:hover {
+         text-decoration: underline;
+      }
+   }
+   .external-link-icon {
+      margin-left: 0.25rem;
+      vertical-align: middle; // Align icon nicely
+      font-size: 0.9em;
+   }
+
+
+  .action-buttons {
+    // Container styles (e.g., flex)
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end; // Align buttons right
+    gap: 0.5rem;
   }
 
-  // Add more theme-specific styles as needed based on ux.md & MEMORY rules
-  .container {
-    background-color: var(--background, #FDF6E3); // Apply background from rules/ux
+  .button {
+    // Basic button styles
+    padding: 0.5rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem; // Space between icon and text
+    transition: background-color 0.2s;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
   }
 
-  dl { 
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr)); /* Equivalent to grid-cols-2 */
-    gap: 1rem; /* Equivalent to gap-4 */
-    font-size: 0.875rem; /* Equivalent to text-sm */
+  .refresh-button {
+    background-color: var(--accent-teal, #008080); // Use variable
+    color: white;
+    &:hover:not(:disabled) {
+       background-color: darken(#008080, 10%); // Example hover
+    }
   }
 
-  dt {
-    font-weight: 500;
+
+  // --- Loading and Error States ---
+  .loading-state, .error-state {
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     justify-content: center;
+     padding-top: 5rem; // Example vertical centering space
+     color: #666; // Example
   }
 
-  dd { 
-    text-align: right;
+  .loading-icon, .error-icon {
+      font-size: 2.5rem; // Example
+      margin-bottom: 0.5rem;
   }
+
+   .error-state h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+      color: #CC0000; // Example error color
+   }
+
+   .error-state p {
+      margin-bottom: 1rem;
+   }
+
+   .retry-button {
+      background-color: #666;
+      color: white;
+       &:hover:not(:disabled) {
+         background-color: darken(#666, 10%); // Example hover
+      }
+   }
+
 </style>

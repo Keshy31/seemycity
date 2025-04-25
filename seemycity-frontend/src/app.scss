@@ -1,1 +1,22 @@
 /* Add global styles here */
+
+// 1. Import Variables (Design Tokens)
+@import 'styles/variables'; // No underscore needed for import
+
+// 2. Import Base Styles (Reset, Body)
+@import 'styles/base';
+
+// 3. Import Typography Defaults
+@import 'styles/typography';
+
+// --- Add other global styles or imports below ---
+// For example: @import 'styles/utilities';
+//              @import 'styles/components/buttons';
+
+body {
+  // Example: Add a global transition to body background for potential theme switching
+  transition: background-color var(--transition-duration) var(--transition-timing-function);
+}
+
+// Add any other truly global styles here, but keep it minimal.
+// Most styles should live in components or specific partials.
