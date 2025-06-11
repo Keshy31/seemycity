@@ -29,7 +29,9 @@
         <div class="score-display">
           <span class="score-value" style={scoreStyle}>{overallScore.toFixed(0)}</span>
           <span class="score-label">/ 100</span>
-          <Icon icon={scoreIcon} class="score-status-icon" style={scoreStyle} />
+          <span class="score-status-icon">
+            <Icon icon={scoreIcon} style={scoreStyle} />
+          </span>
         </div>
       {/if}
       {#if websiteUrl}
@@ -112,6 +114,8 @@
     font-size: 2rem;
     line-height: 1;
     margin-left: var(--spacing-sm);
+    display: inline-flex;
+    align-items: center;
   }
 
   .website-link {

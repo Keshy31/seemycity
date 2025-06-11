@@ -1,25 +1,32 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import MapComponent from '$lib/components/MapComponent.svelte';
-  import PageHeader from '$lib/components/detail/PageHeader.svelte';
+  import PageHeader from '$lib/components/ui/PageHeader.svelte';
   import SearchBar from '$lib/components/ui/SearchBar.svelte';
   import ErrorMessage from '$lib/components/ui/ErrorMessage.svelte';
   import Icon from '@iconify/svelte';
   import MunicipalityDetailCard from '$lib/components/detail/MunicipalityDetailCard.svelte';
+
+  import type { MunicipalitySearchResult } from '$lib/types';
 
   export let data: PageData;
 
   let searchQuery = '';
   let selectedMuniId: string | null = null; // To store the ID of the clicked municipality
 
-  $: filteredMunicipalities = data.municipalities
-    ? data.municipalities.filter(
-        (muni) =>
-          searchQuery &&
-          (muni.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            muni.id.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : [];
+	// The list of municipalities for the search is now derived from the GeoJSON features.
+	$: municipalities =
+		data.municipalityGeoJSON?.features.map(
+			(feature) => feature.properties as MunicipalitySearchResult
+		) ?? [];
+
+	$: filteredMunicipalities = municipalities
+		? municipalities.filter((muni: MunicipalitySearchResult) =>
+				searchQuery &&
+				(muni.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					muni.id.toLowerCase().includes(searchQuery.toLowerCase()))
+		  )
+		: [];
 
   function handleSearch(event: CustomEvent<string>) {
     searchQuery = event.detail;
@@ -92,7 +99,9 @@
   </aside>
 
   <main class="map-container">
-    <MapComponent on:municipalityClick={handleMunicipalityClick} />
+          {#if data.municipalityGeoJSON}
+        <MapComponent geojson={data.municipalityGeoJSON} on:municipalityClick={handleMunicipalityClick} />
+      {/if}
   </main>
 </div>
 

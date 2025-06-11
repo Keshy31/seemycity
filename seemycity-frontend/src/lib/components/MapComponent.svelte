@@ -1,87 +1,125 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
-  import maplibregl, { Map, NavigationControl } from 'maplibre-gl';
+	import { onMount, createEventDispatcher, afterUpdate } from 'svelte';
+	import maplibregl from 'maplibre-gl';
+	import type { Map, GeoJSONSource } from 'maplibre-gl';
+	import type { FeatureCollection } from 'geojson';
 
-  const dispatch = createEventDispatcher();
+	export let geojson: FeatureCollection | null = null;
 
-  let mapContainer: HTMLElement;
-  let map: Map;
+	const dispatch = createEventDispatcher();
 
-  onMount(() => {
-    const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
-    const styleUrl = `https://api.maptiler.com/maps/dataviz/style.json?key=${apiKey}`;
+	let mapContainer: HTMLElement;
+	let map: Map;
+	let isMapLoaded = false;
 
-    map = new Map({
-      container: mapContainer,
-      style: styleUrl,
-      center: [24.5, -28.8],
-      zoom: 4.5
-    });
+	function addDataLayers(mapInstance: Map) {
+		if (!mapInstance) return;
 
-    map.addControl(new NavigationControl({}), 'top-right');
+		mapInstance.addSource('municipalities', {
+			type: 'geojson',
+			data: geojson || { type: 'FeatureCollection', features: [] }
+		});
 
-    map.on('load', () => {
-      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
-      map.addSource('municipalities', {
-        type: 'geojson',
-        data: `${apiUrl}/api/boundaries` // Assumes this endpoint returns GeoJSON
-      });
+		// Add a layer for the municipality fills with data-driven styling for color.
+		mapInstance.addLayer({
+			id: 'municipalities-fill',
+			type: 'fill',
+			source: 'municipalities',
+			paint: {
+				'fill-color': [
+					'case',
+					['==', ['get', 'overallScore'], null],
+					'#cccccc', // Grey for null scores
+					[
+						'interpolate',
+						['linear'],
+						['get', 'overallScore'],
+						0, '#e74c3c',    // Red
+						30, '#e67e22',   // Orange
+						50, '#f1c40f',   // Yellow
+						70, '#2ecc71',   // Green
+						100, '#16a085'  // Darker Green
+					],
+					'#cccccc' // Default fallback
+				],
+				'fill-opacity': 0.7,
+				'fill-outline-color': 'rgba(0, 0, 0, 0.2)'
+			}
+		});
 
-      // Add a layer for the municipality fills
-      map.addLayer({
-        id: 'municipalities-fill',
-        type: 'fill',
-        source: 'municipalities',
-        paint: {
-          'fill-color': 'rgba(0, 128, 128, 0.2)', // Teal with some transparency
-          'fill-outline-color': 'rgba(0, 128, 128, 1)'
-        }
-      });
+		// Add a layer for the outlines
+		mapInstance.addLayer({
+			id: 'municipalities-outline',
+			type: 'line',
+			source: 'municipalities',
+			paint: {
+				'line-color': '#ffffff',
+				'line-width': 1,
+				'line-opacity': 0.5
+			}
+		});
 
-      // Add a layer for the outlines
-      map.addLayer({
-        id: 'municipalities-outline',
-        type: 'line',
-        source: 'municipalities',
-        paint: {
-          'line-color': 'rgba(0, 128, 128, 0.8)',
-          'line-width': 1
-        }
-      });
+		// Handle clicks on the municipalities layer
+		mapInstance.on('click', 'municipalities-fill', (e) => {
+			if (e.features && e.features.length > 0) {
+				const feature = e.features[0];
+				const muniId = feature.properties.id;
+				if (muniId) {
+					dispatch('municipalityClick', { id: muniId });
+				}
+			}
+		});
 
-      // Handle clicks on the municipalities layer
-      map.on('click', 'municipalities-fill', (e) => {
-        if (e.features && e.features.length > 0) {
-          const feature = e.features[0];
-          const muniId = feature.properties.id; // Assuming the GeoJSON has an 'id' property
-          if (muniId) {
-            console.log(`Clicked municipality ID: ${muniId}`);
-            dispatch('municipalityClick', { id: muniId });
-          }
-        }
-      });
+		// Change the cursor to a pointer when hovering over the municipalities
+		mapInstance.on('mouseenter', 'municipalities-fill', () => {
+			mapInstance.getCanvas().style.cursor = 'pointer';
+		});
 
-      // Change the cursor to a pointer when hovering over the municipalities
-      map.on('mouseenter', 'municipalities-fill', () => {
-        map.getCanvas().style.cursor = 'pointer';
-      });
+		mapInstance.on('mouseleave', 'municipalities-fill', () => {
+			mapInstance.getCanvas().style.cursor = '';
+		});
+	}
 
-      map.on('mouseleave', 'municipalities-fill', () => {
-        map.getCanvas().style.cursor = '';
-      });
-    });
+	onMount(() => {
+		const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
+		const styleUrl = `https://api.maptiler.com/maps/dataviz/style.json?key=${apiKey}`;
 
-    return () => {
-      map.remove();
-    };
-  });
+		map = new maplibregl.Map({
+			container: mapContainer,
+			style: styleUrl,
+			center: [24.5, -28.8],
+			zoom: 4.5
+		});
+
+		map.addControl(new maplibregl.NavigationControl({}), 'top-right');
+
+		map.on('load', () => {
+			isMapLoaded = true;
+			addDataLayers(map);
+		});
+
+		return () => {
+			if (map) map.remove();
+		};
+	});
+
+	// This ensures that if the geojson data arrives after the map has loaded,
+	// the map source is updated correctly.
+	afterUpdate(() => {
+		if (isMapLoaded && map) {
+			const source = map.getSource('municipalities') as GeoJSONSource;
+			if (source) {
+				source.setData(geojson || { type: 'FeatureCollection', features: [] });
+			}
+		}
+	});
 </script>
 
 <svelte:head>
   <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" />
 </svelte:head>
 
-<div class="map-container-full" bind:this={mapContainer} />
+<div class="map-container-full" bind:this={mapContainer}></div>
 
 <style lang="scss">
   .map-container-full {
