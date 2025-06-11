@@ -2,36 +2,45 @@
     import Icon from '@iconify/svelte';
 </script>
 
-<div class="spinner-container">
+<div class="spinner-container" role="status" aria-live="polite">
     <Icon icon="mdi:loading" class="spinner-icon" />
-    <span>Loading...</span>
+    <span class="spinner-text">Loading...</span>
 </div>
 
 <style lang="scss">
-    @use '../../../styles/variables' as *; // Use @use
+    @use '../../../styles/variables' as *;
 
     .spinner-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 2rem;
-        color: var(--text-muted-color); // Corrected variable
-        gap: 0.5rem;
+        padding: var(--spacing-xl);
+        gap: var(--spacing-md);
+    }
+
+    .spinner-text {
+        color: var(--text-muted-color);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        letter-spacing: 0.05em;
     }
 
     .spinner-icon {
         font-size: 2.5rem;
-        color: var(--accent-color); // Use CSS variable
-        animation: spin 1.5s linear infinite;
+        color: var(--primary-color);
+        animation: pulse-and-spin 1.5s ease-in-out infinite;
     }
 
-    @keyframes spin {
-        from {
-            transform: rotate(0deg);
+    @keyframes pulse-and-spin {
+        0% {
+            transform: rotate(0deg) scale(1);
         }
-        to {
-            transform: rotate(360deg);
+        50% {
+            transform: rotate(180deg) scale(0.9);
+        }
+        100% {
+            transform: rotate(360deg) scale(1);
         }
     }
 </style>

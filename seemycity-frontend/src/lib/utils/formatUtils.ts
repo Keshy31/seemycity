@@ -83,16 +83,27 @@ export function formatScore(score: number | null | undefined): string {
 }
 
 /**
+ * Returns the CSS variable name for score color based on value.
+ * This is the preferred utility for components that need just the variable.
+ * @param score - The score number.
+ * @returns A CSS variable name (e.g., "--score-color-high").
+ */
+export function getScoreColorVarName(score: number | null | undefined): string {
+  if (score == null) return '--text-color-muted';
+  if (score >= 70) return '--score-color-high';
+  if (score >= 40) return '--score-color-medium';
+  return '--score-color-low';
+}
+
+/**
  * Returns an inline CSS style string for score color based on value.
  * Uses CSS variables defined in _variables.scss.
  * @param score - The score number.
  * @returns A CSS style string (e.g., "color: var(--score-high-color);").
  */
 export function getScoreColorStyle(score: number | null | undefined): string {
-  if (score == null) return 'color: var(--neutral-grey, #888);'; // Neutral
-  if (score >= 70) return 'color: var(--score-high-color, #2E8B57);'; // Green
-  if (score >= 40) return 'color: var(--score-medium-color, #F28C38);'; // Orange
-  return 'color: var(--score-low-color, #CD5C5C);'; // Red
+  // Now uses the centralized logic from getScoreColorVarName
+  return `color: var(${getScoreColorVarName(score)});`;
 }
 
 /**

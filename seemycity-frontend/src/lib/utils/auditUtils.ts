@@ -37,40 +37,48 @@ export function getAuditIcon(outcome: string | null | undefined): string {
 }
 
 /**
- * Maps an audit outcome string to a CSS color style variable.
- * Uses predefined CSS variables for consistency.
+ * Returns the CSS variable name for the audit outcome color.
  * @param outcome - The audit outcome string.
- * @returns A CSS style string (e.g., 'color: var(--audit-clean-color);').
+ * @returns A CSS variable name (e.g., '--audit-clean-color').
  */
-export function getAuditOutcomeColorStyle(outcome: string | null | undefined): string {
-  if (!outcome) return 'color: var(--text-muted-color);'; // Use muted color for null/undefined
+export function getAuditOutcomeColorVarName(outcome: string | null | undefined): string {
+  if (!outcome) return '--text-muted-color';
 
   const lowerOutcome = outcome.toLowerCase().trim();
 
   switch (lowerOutcome) {
     case 'unqualified - no findings':
     case 'unqualified opinion with no findings':
-      return 'color: var(--audit-clean-color);'; // Defined in _variables.scss
+      return '--audit-clean-color';
     case 'unqualified - emphasis of matter items':
     case 'financially unqualified opinion':
     case 'unqualified opinion with findings':
-      return 'color: var(--audit-emphasis-color);'; // Defined in _variables.scss
+      return '--audit-emphasis-color';
     case 'qualified':
     case 'qualified opinion':
-      return 'color: var(--audit-qualified-color);'; // Defined in _variables.scss
+      return '--audit-qualified-color';
     case 'adverse':
     case 'adverse opinion':
     case 'disclaimer':
     case 'disclaimer of opinion':
     case 'disclaimer with findings':
-      return 'color: var(--audit-adverse-disclaimer-color);'; // Defined in _variables.scss
+      return '--audit-adverse-disclaimer-color';
     case 'outstanding':
     case 'financial statements not submitted':
-      return 'color: var(--audit-outstanding-color);'; // Defined in _variables.scss
+      return '--audit-outstanding-color';
     default:
-      console.warn('Unknown audit outcome in getAuditOutcomeColorStyle:', outcome);
-      return 'color: var(--text-muted-color);'; // Default muted color
+      return '--text-muted-color';
   }
+}
+
+/**
+ * Maps an audit outcome string to a CSS color style variable.
+ * Uses predefined CSS variables for consistency.
+ * @param outcome - The audit outcome string.
+ * @returns A CSS style string (e.g., 'color: var(--audit-clean-color);').
+ */
+export function getAuditOutcomeColorStyle(outcome: string | null | undefined): string {
+  return `color: var(${getAuditOutcomeColorVarName(outcome)});`;
 }
 
 /**

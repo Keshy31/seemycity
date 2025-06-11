@@ -1,7 +1,9 @@
 <script lang="ts">
 	// Revert to default import + destructuring as suggested by the Vite error for CJS compatibility
 	import { browser } from '$app/environment';
-	import MapComponent from '$lib/components/MapComponent.svelte'; // Import the new component
+	import MapComponent from '$lib/components/map/MapComponent.svelte'; // Import the new component
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import SearchBar from '$lib/components/ui/SearchBar.svelte';
 	import { onMount, onDestroy } from 'svelte'; // Add onDestroy
 
 	let mapWrapperElement: HTMLElement | undefined = undefined;
@@ -44,38 +46,71 @@
 </script>
 
 <svelte:head>
-	<title>SeeMyCity - Map</title>
-	<meta name="description" content="Map view of Municipal Financial Health" />
+	<title>SeeMyCity | South African Municipal Finance</title>
+	<meta
+		name="description"
+		content="Explore the financial health of South African municipalities with an interactive map."
+	/>
 </svelte:head>
 
-<div class="page-content">
-	<h1>Municipal Financial Health Map</h1>
-	
-	<!-- Map wrapper with fixed height -->
-	<div class="map-wrapper"> 
-		<MapComponent /> <!-- Render directly -->
-	</div>
+<div class="map-view-layout">
+	<!-- Sidebar for controls, search, and information -->
+	<aside class="sidebar">
+		<PageHeader
+			title="Explore the Map"
+			subtitle="Find a municipality to see its financial health score"
+		/>
 
-	<!-- Other page content can go here -->
+		<div class="sidebar-content">
+			<SearchBar />
+			<!-- Other components like legends or filters will go here -->
+			<div class="placeholder">
+				<p>Search for a municipality or click one on the map to see details here.</p>
+			</div>
+		</div>
+	</aside>
 
+	<!-- Main content area for the map -->
+	<main class="map-container">
+		<!-- Map wrapper with fixed height -->
+		<div class="map-wrapper" bind:this={mapWrapperElement}> 
+			<MapComponent /> <!-- Render directly -->
+		</div>
+	</main>
 </div>
 
-<!-- Styles -->
 <style lang="scss">
-	/* Styles for the main content area of this specific page */
-	.page-content {
-		padding: 1rem; /* Restore padding here */
-		display: flex;
-		flex-direction: column;
-		flex-grow: 1; /* Make this container grow to fill main */
-		min-height: 0; /* Help flex calculations */
+	@use '../styles/variables' as *;
+
+	.map-view-layout {
+		display: grid;
+		grid-template-columns: 380px 1fr; // Fixed sidebar, flexible map
+		height: 100%; // Occupy full viewport height
+		width: 100%;
+		overflow: hidden; // Prevent page scroll
 	}
 
-	h1 {
-		margin-bottom: 0.5rem;
-		flex-shrink: 0; /* Prevent h1 from shrinking if content grows */
+	.sidebar {
+		background-color: var(--background-color);
+		display: flex;
+		flex-direction: column;
+		padding: var(--spacing-lg);
+		border-right: 1px solid var(--border-color);
+		overflow-y: auto; // Allow sidebar to scroll if content overflows
 	}
-	
+
+	.sidebar-content {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xl);
+		margin-top: var(--spacing-lg);
+	}
+
+	.map-container {
+		position: relative; // Needed for map controls
+		background-color: var(--background-offset-color); // A light background for the map area
+	}
+
 	.map-wrapper {
 		margin-top: 1rem; /* Keep the margin for spacing above map */
 		border: 1px solid #ccc; 
@@ -86,6 +121,13 @@
 		/* background-color: #eee; /* Remove or keep temp background */
 	}
 
-	/* Styles specific to the map container itself are in MapComponent.svelte */
-
+	.placeholder {
+		padding: var(--spacing-xl);
+		text-align: center;
+		background-color: var(--background-offset-color);
+		border-radius: var(--border-radius-lg);
+		border: 1px solid var(--border-color-light);
+		color: var(--text-muted-color);
+		font-size: var(--font-size-sm);
+	}
 </style>

@@ -3,7 +3,7 @@
   import type { FinancialYearData } from '$lib/types'; // Use the correct type
 
   // Import necessary utils
-  import { getAuditIcon, getAuditOutcomeColorStyle } from '$lib/utils/auditUtils';
+  import { getAuditIcon, getAuditOutcomeColorVarName } from '$lib/utils/auditUtils';
   import { formatCurrency, formatPercentage } from '$lib/utils/formatUtils';
 
   // Props: Financial data and population (needed for Revenue/Capita)
@@ -32,6 +32,9 @@
     ? formatPercentage(financials.operational_expenditure, totalExpenditure)
     : 'N/A';
 
+  // Total Debt
+  $: totalDebt = formatCurrency(financials?.debt);
+
 </script>
 
 <div class="key-metrics-grid">
@@ -57,28 +60,48 @@
       value={opexPercentage}
     /> <!-- Potential icon for Opex -->
 
+    <!-- 🏦 Total Debt -->
+    <MetricCard
+      icon="mdi:bank-minus"
+      label="Total Debt"
+      value={totalDebt}
+    />
+
     <!-- 🌟 Audit Outcome -->
     <MetricCard
       icon={getAuditIcon(financials.audit_outcome)}
       label="Audit Outcome"
       value={financials.audit_outcome ?? 'N/A'}
-      valueColorStyle={getAuditOutcomeColorStyle(financials.audit_outcome)}
+      valueColorStyle={`color: var(${getAuditOutcomeColorVarName(financials.audit_outcome)});`}
     />
   {:else}
-    <!-- Optional: Show placeholders or a loading state if financials is null -->
-    <p>Loading metrics...</p> <!-- Or render placeholder MetricCards -->
+    <!-- Skeleton Loader: Show placeholder cards -->
+    {#each Array(5) as _}
+      <MetricCard icon="" label="Loading..." value="" />
+    {/each}
   {/if}
 </div>
 
 <style lang="scss">
+  @use '../../../styles/variables' as *;
+
   .key-metrics-grid {
     display: grid;
     gap: var(--spacing-lg);
     margin-bottom: var(--spacing-xl);
-    // Responsive columns: 2 on small screens, 4 on larger screens
-    grid-template-columns: repeat(2, 1fr);
-     @media (min-width: 768px) { // Adjust breakpoint as needed
-      grid-template-columns: repeat(4, 1fr);
+    /* Responsive Grid: 1 col on mobile, 2 on tablet, up to 5 on desktop */
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+
+    @media (min-width: 600px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (min-width: 900px) {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    @media (min-width: 1200px) {
+      grid-template-columns: repeat(5, 1fr);
     }
   }
 </style>
