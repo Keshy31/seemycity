@@ -1,133 +1,214 @@
 <script lang="ts">
-	// Revert to default import + destructuring as suggested by the Vite error for CJS compatibility
-	import { browser } from '$app/environment';
-	import MapComponent from '$lib/components/map/MapComponent.svelte'; // Import the new component
-	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import SearchBar from '$lib/components/ui/SearchBar.svelte';
-	import { onMount, onDestroy } from 'svelte'; // Add onDestroy
+  import type { PageData } from './$types';
+  import MapComponent from '$lib/components/MapComponent.svelte';
+  import PageHeader from '$lib/components/detail/PageHeader.svelte';
+  import SearchBar from '$lib/components/ui/SearchBar.svelte';
+  import ErrorMessage from '$lib/components/ui/ErrorMessage.svelte';
+  import Icon from '@iconify/svelte';
+  import MunicipalityDetailCard from '$lib/components/detail/MunicipalityDetailCard.svelte';
 
-	let mapWrapperElement: HTMLElement | undefined = undefined;
-	let isWrapperReady = false; // Flag to control MapComponent rendering
-	let resizeObserver: ResizeObserver | null = null;
+  export let data: PageData;
 
-	// Note: onMount runs *after* the initial render where bind:this happens
-	console.log('Page mounted.');
+  let searchQuery = '';
+  let selectedMuniId: string | null = null; // To store the ID of the clicked municipality
 
-	// Use a reactive statement to set up the observer once mapWrapperElement is bound
-	$: if (browser && mapWrapperElement && !resizeObserver) {
-		console.log('Page.svelte: mapWrapperElement bound, setting up ResizeObserver.');
-		resizeObserver = new ResizeObserver(entries => {
-			if (!entries || entries.length === 0) return;
-			const { width, height } = entries[0].contentRect;
-			// console.log(`Page.svelte ResizeObserver: Wrapper dimensions ${width.toFixed(0)}x${height.toFixed(0)}`); // Verbose log
+  $: filteredMunicipalities = data.municipalities
+    ? data.municipalities.filter(
+        (muni) =>
+          searchQuery &&
+          (muni.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            muni.id.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : [];
 
-			if (width > 0 && height > 0 && !isWrapperReady) { // Only update if not already ready
-				console.log('Page.svelte ResizeObserver: Valid dimensions detected. Setting isWrapperReady=true.');
-				isWrapperReady = true;
-				// Optional: Stop observing once ready
-				// resizeObserver?.unobserve(mapWrapperElement);
-				// resizeObserver?.disconnect();
-				// resizeObserver = null;
-			} else if ((width <= 0 || height <= 0) && isWrapperReady) {
-				// Optional: Handle if it becomes zero AFTER being ready
-				console.warn('Page.svelte ResizeObserver: Wrapper dimensions became invalid.');
-				// isWrapperReady = false; // Reset if needed
-			}
-		});
-		resizeObserver.observe(mapWrapperElement);
-	}
+  function handleSearch(event: CustomEvent<string>) {
+    searchQuery = event.detail;
+    selectedMuniId = null; // Clear selection when starting a new search
+  }
 
-	// Cleanup function when the component is destroyed
-	onDestroy(() => {
-		resizeObserver?.disconnect();
-		resizeObserver = null; // Clear the observer instance
-	});
+  function handleMunicipalityClick(event: CustomEvent<{ id: string }>) {
+    selectedMuniId = event.detail.id;
+    searchQuery = ''; // Clear search when a muni is clicked on the map
+  }
 
+  function clearSelection() {
+    selectedMuniId = null;
+  }
 </script>
 
 <svelte:head>
-	<title>SeeMyCity | South African Municipal Finance</title>
-	<meta
-		name="description"
-		content="Explore the financial health of South African municipalities with an interactive map."
-	/>
+  <title>SeeMyCity | South African Municipal Finance</title>
+  <meta
+    name="description"
+    content="Explore the financial health of South African municipalities with an interactive map."
+  />
 </svelte:head>
 
 <div class="map-view-layout">
-	<!-- Sidebar for controls, search, and information -->
-	<aside class="sidebar">
-		<PageHeader
-			title="Explore the Map"
-			subtitle="Find a municipality to see its financial health score"
-		/>
+  <aside class="sidebar">
+    <PageHeader
+      title="Explore the Map"
+      subtitle="Find a municipality to see its financial health score"
+    />
 
-		<div class="sidebar-content">
-			<SearchBar />
-			<!-- Other components like legends or filters will go here -->
-			<div class="placeholder">
-				<p>Search for a municipality or click one on the map to see details here.</p>
-			</div>
-		</div>
-	</aside>
+    <div class="sidebar-content">
+      <SearchBar bind:value={searchQuery} on:search={handleSearch} />
 
-	<!-- Main content area for the map -->
-	<main class="map-container">
-		<!-- Map wrapper with fixed height -->
-		<div class="map-wrapper" bind:this={mapWrapperElement}> 
-			<MapComponent /> <!-- Render directly -->
-		</div>
-	</main>
+      {#if data.error}
+        <ErrorMessage message={data.error} />
+      {:else if selectedMuniId}
+        <div class="detail-view">
+          <button on:click={clearSelection} class="back-button">
+            <Icon icon="mdi:arrow-left" />
+            <span>Back to Search</span>
+          </button>
+          <MunicipalityDetailCard id={selectedMuniId} />
+        </div>
+      {:else if searchQuery}
+        <div class="search-results">
+          {#if filteredMunicipalities.length > 0}
+            <ul>
+              {#each filteredMunicipalities as muni (muni.id)}
+                <li>
+                  <button class="result-item-button" on:click={() => (selectedMuniId = muni.id)}>
+                    <span class="result-name">{muni.name}</span>
+                    <span class="result-id">{muni.id}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <div class="no-results">
+              <p>No results found for "{searchQuery}".</p>
+            </div>
+          {/if}
+        </div>
+      {:else}
+        <div class="placeholder">
+          <p>Search for a municipality or click one on the map to see details here.</p>
+        </div>
+      {/if}
+    </div>
+  </aside>
+
+  <main class="map-container">
+    <MapComponent on:municipalityClick={handleMunicipalityClick} />
+  </main>
 </div>
 
 <style lang="scss">
-	@use '../styles/variables' as *;
+  @use '../styles/variables' as *;
 
-	.map-view-layout {
-		display: grid;
-		grid-template-columns: 380px 1fr; // Fixed sidebar, flexible map
-		height: 100%; // Occupy full viewport height
-		width: 100%;
-		overflow: hidden; // Prevent page scroll
-	}
+  .map-view-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr; // Fixed sidebar, flexible map
+    height: 100%; // Occupy full viewport height
+    width: 100%;
+    overflow: hidden; // Prevent page scroll
+  }
 
-	.sidebar {
-		background-color: var(--background-color);
-		display: flex;
-		flex-direction: column;
-		padding: var(--spacing-lg);
-		border-right: 1px solid var(--border-color);
-		overflow-y: auto; // Allow sidebar to scroll if content overflows
-	}
+  .sidebar {
+    background-color: var(--background-color);
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-lg);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto; // Allow sidebar to scroll if content overflows
+    gap: var(--spacing-xl);
+  }
 
-	.sidebar-content {
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-xl);
-		margin-top: var(--spacing-lg);
-	}
+  .sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
 
-	.map-container {
-		position: relative; // Needed for map controls
-		background-color: var(--background-offset-color); // A light background for the map area
-	}
+  .map-container {
+    position: relative; // Needed for map controls
+    background-color: var(--background-offset-color); // A light background for the map area
+  }
 
-	.map-wrapper {
-		margin-top: 1rem; /* Keep the margin for spacing above map */
-		border: 1px solid #ccc; 
-		border-radius: 4px; 
-		// overflow: hidden; /* Keep commented out or remove */
-		position: relative; /* Keep for potential absolute positioning inside */
-		height: 600px; /* << SET FIXED HEIGHT HERE (e.g., 600px) */
-		/* background-color: #eee; /* Remove or keep temp background */
-	}
+  .placeholder,
+  .no-results {
+    padding: var(--spacing-xl);
+    text-align: center;
+    background-color: var(--background-offset-color);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--border-color-light);
+    color: var(--text-muted-color);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+  }
 
-	.placeholder {
-		padding: var(--spacing-xl);
-		text-align: center;
-		background-color: var(--background-offset-color);
-		border-radius: var(--border-radius-lg);
-		border: 1px solid var(--border-color-light);
-		color: var(--text-muted-color);
-		font-size: var(--font-size-sm);
-	}
+  .search-results {
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .result-item-button {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--border-radius-md);
+      text-decoration: none;
+      color: var(--text-color);
+      transition: background-color 0.2s ease;
+      width: 100%;
+      background: none;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+
+      &:hover {
+        background-color: var(--background-offset-color);
+        color: var(--primary-color);
+      }
+    }
+
+    .result-name {
+      font-weight: 500;
+    }
+
+    .result-id {
+      font-family: var(--font-family-mono);
+      font-size: var(--font-size-xs);
+      color: var(--text-muted-color);
+      background-color: var(--background-offset-color);
+      padding: 2px 6px;
+      border-radius: var(--border-radius-sm);
+      border: 1px solid var(--border-color-light);
+    }
+  }
+
+  .detail-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      align-self: flex-start;
+      background-color: transparent;
+      color: var(--text-muted-color);
+      border: none;
+      padding: var(--spacing-xs) 0;
+      border-radius: var(--border-radius-md);
+      cursor: pointer;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: var(--primary-color);
+      }
+    }
+  }
 </style>

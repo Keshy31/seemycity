@@ -51,3 +51,57 @@ export interface MunicipalityBaseInfo {
     // Include geometry if it comes with this API endpoint
     geometry?: any;
 }
+
+/**
+ * A lightweight type for representing a municipality in search results.
+ */
+export interface MunicipalitySearchResult {
+  id: string; // e.g., 'CPT'
+  name: string; // e.g., 'City of Cape Town'
+}
+
+// --- Detailed Municipality Data Structures ---
+
+export interface CapexVsOpex {
+  capital: number;
+  operational: number;
+}
+
+export interface Indicator {
+  name: string;
+  value: number | string; // Can be a score, ratio, or descriptive text
+}
+
+export interface Pillar {
+  name: string;
+  score: number;
+  indicators: Indicator[];
+}
+
+export type AuditOutcome =
+  | 'unqualified'
+  | 'unqualified_emph'
+  | 'qualified'
+  | 'adverse'
+  | 'disclaimer'
+  | 'outstanding';
+
+export interface FinancialHealth {
+  overall_score: number;
+  revenue_per_capita: number;
+  capex_vs_opex: CapexVsOpex;
+  total_debt: number;
+  pillars: Pillar[];
+}
+
+/**
+ * The comprehensive data structure for a single municipality.
+ */
+export interface MunicipalityDetailExtended {
+  id: string;
+  name: string;
+  financial_health: FinancialHealth;
+  audit_outcome: AuditOutcome;
+  population: number;
+  area_sq_km: number;
+}
