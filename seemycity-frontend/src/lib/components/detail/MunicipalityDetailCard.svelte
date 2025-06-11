@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { MunicipalityDetail } from '$lib/types';
   import ErrorMessage from '$lib/components/ui/ErrorMessage.svelte';
-  import Spinner from '$lib/components/ui/Spinner.svelte';
+  import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 
   export let id: string;
 
@@ -39,7 +39,7 @@
 
 <div class="detail-card-wrapper">
   {#if isLoading}
-    <Spinner />
+    <LoadingSpinner />
   {:else if error}
     <ErrorMessage message={error} />
   {:else if details}
@@ -51,11 +51,11 @@
       <div class="stats">
         <div class="stat-item">
           <span class="label">Population</span>
-          <span class="value">{details.population.toLocaleString() || 'N/A'}</span>
+          <span class="value">{details.population ? details.population.toLocaleString() : 'N/A'}</span>
         </div>
         <div class="stat-item">
           <span class="label">Area</span>
-          <span class="value">{details.area_sq_km.toLocaleString() || 'N/A'} km²</span>
+          <span class="value">{details.area_sq_km ? details.area_sq_km.toLocaleString() : 'N/A'} km²</span>
         </div>
       </div>
       <a href={`/muni/${details.id}`} class="view-more-link">View Full Details &rarr;</a>

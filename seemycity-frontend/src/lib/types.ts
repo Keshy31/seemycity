@@ -22,6 +22,7 @@ export interface MunicipalityDetail {
     name: string; // e.g., "Buffalo City Metropolitan Municipality"
     province: string; // e.g., "Eastern Cape"
     population: number | null; // e.g., 834997
+    area_sq_km: number | null; // e.g., 2536
     classification: string | null; // e.g., "Metro"
     website: string | null; // URL
     financials: FinancialYearData[]; // Array of financial data
