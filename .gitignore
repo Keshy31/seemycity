@@ -35,4 +35,4 @@ postgres.txt
 database/*
 
 # local dev server logs
-server.log
+*.log
