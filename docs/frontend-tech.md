@@ -2,6 +2,15 @@
 
 This document details the technical specifications for the SvelteKit frontend of the Municipal Financial Dashboard.
 
+> **July 2026 state notes** (authoritative where they contradict older sections below):
+> - The app is a **static SPA**: `ssr = false` in the root `+layout.ts`, adapter-static with `fallback: 'index.html'`, served by nginx with `try_files` (see `nginx.conf`). Deep links like `/CPT` work via the fallback.
+> - Design system: **2026 refresh** — Inter typography, stone-neutral/teal token sheet in `src/styles/_variables.scss` (with a legacy-alias block; prefer canonical names). See the rewritten `ux.md`.
+> - The MapLibre choropleth ramp **reads the `--score-*` tokens off `:root` at runtime** (`MapComponent.svelte`) — map and UI share one palette by construction. NULL scores render `--score-none-color` grey.
+> - Views headline the **latest scored year** (`financials.find(f => f.overall_score != null) ?? financials[0]`) because the newest year can predate its audit opinion.
+> - Env: `VITE_API_BASE_URL`, `VITE_MAPTILER_API_KEY` (optional — keyless MapLibre demo basemap fallback). Vite inlines these at build time; the Dockerfile takes them as build args.
+> - Pipelines all pass: prettier, eslint, svelte-check (0/0), vitest (jsdom shims for matchMedia + createObjectURL live in `vitest-setup-client.ts`).
+> - **Planned (Phase 8-C, see plan.md):** 5-band quantized map + legend, lens switcher (score/audit/pillars), hover tooltips with plain-English verdicts, diagnosis-style detail page, national dashboard, compare entry point, confidence badges.
+
 ---
 
 #### Technology Stack

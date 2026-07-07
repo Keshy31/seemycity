@@ -23,10 +23,12 @@
 - **Deployment**: Fly.io hosts the full stack (Rust + Postgres + Svelte).
 
 ##### Data Flow
-1. **External API**: Rust backend fetches data from Municipal Money API.
-2. **Processing & Caching**: Rust normalizes data (incl. current debt aggregation logic: sum of items 0310-0500), calculates scores, and caches in Postgres.
-3. **Internal API**: Rust serves processed data to Svelte frontend via REST endpoints (`/api/municipalities` for GeoJSON map summary, `/api/municipalities/{id}` for detailed data).
-4. **UI**: Svelte frontend renders map, single, and comparison views.
+1. **External API**: Rust backend fetches audited actuals from the Municipal Money API (4 concurrent cube calls per municipality-year), with a 5-minute circuit breaker for upstream outages.
+2. **Processing & Caching**: scores computed per the prd.md rubric (missing data → NULL, never 0), cached in Postgres with a 7-day TTL, negative caching, and lazy re-derivation when the formula changes. A background warmer keeps all municipalities scored (startup + daily).
+3. **Internal API**: `/api/municipalities` (simplified GeoJSON summary, in-memory-cached 60s, gzipped) and `/api/municipalities/{id}` (detail with per-year financials).
+4. **UI**: static SvelteKit SPA renders map, single, and comparison views; map colors read the design tokens at runtime.
+
+_Current roadmap: `plan.md` Phase 8 (trust layer → scoring v2 → insight UI)._
 
 ---
 

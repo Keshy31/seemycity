@@ -2,6 +2,15 @@
 
 This document defines the core data structures, database schema, and API payloads used throughout the SeeMyCity application. It serves as the single source of truth for data definitions.
 
+> **July 2026 state notes** (authoritative where they contradict older sections below):
+> - The canonical score field is **`overall_score`** in *both* API payloads (map feature properties and detail financials). NULL means "no data" — it is never 0.
+> - Score columns are **`numeric(5,2)`**; the backend rounds to 2 dp (half-away-from-zero) before persisting, and in-memory scores match stored ones byte-for-byte.
+> - `GET /api/municipalities/{id}` returns `geometry: null` by design (the detail view renders no map; simplified geometry ships only in the map payload). The `financials[]` array contains **all cached years with data**, newest first; all-NULL negative-cache rows are filtered out.
+> - Map geometry is simplified server-side (`ST_SimplifyPreserveTopology(geom, 0.002)`, 5-dp coords).
+> - An all-NULL `financial_data` row is a **negative-cache marker** ("upstream had no data for this year when checked"), governed by a 7-day TTL.
+> - The authoritative schema lives in `seemycity-backend/migrations/`; structs live in `src/models.rs`. Removed since 2025: `MunicipalityGeometryDb`, `FinancialDataPoint`, `LegacyMunicipality`.
+> - **Planned (Phase 8, see plan.md):** `score_version` column on `financial_data`; a per-row data-confidence grade; own-revenue (transfers item 2200), UIFW, and repairs & maintenance fields.
+
 ## 1. Core Data Structures
 
 ### 1.1. Backend (Rust)

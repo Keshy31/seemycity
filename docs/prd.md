@@ -16,6 +16,16 @@
 
 **Date**: April 26, 2025
 
+> **Vision addendum (July 2026):** the product should read like a management
+> consultant's diagnosis without the jargon — tight data, effective scoring,
+> striking and insightful visuals — bringing transparency to local government
+> and, through it, pressure for change. **Primary audience for the current
+> phase: journalists and civil society** (league tables, shareable dashboards,
+> plain-English verdicts). The evidence base and headline findings live in
+> `docs/data-insights-2026-07.md`; the committed roadmap and locked design
+> decisions (hybrid scoring, own-revenue/UIFW/R&M metrics, 5-band map) live in
+> `docs/plan.md` **Phase 8**.
+
 ---
 
 #### Key Requirements
