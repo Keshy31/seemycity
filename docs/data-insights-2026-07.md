@@ -2,9 +2,10 @@
 
 ### An analysis of 204 scored municipalities from the SeeMyCity dataset
 
-**Date:** 7 July 2026
+**Date:** 7 July 2026 *(addendum same day — see §12)*
 **Data:** National Treasury "Municipal Money" open data (audited actuals), scored by the SeeMyCity composite rubric
 **Coverage:** 204 of 213 local and metropolitan municipalities; 197 scored on FY2024, 7 on FY2023
+*(After the same-day data repair in §12: **208 of 213**, and eThekwini's findings changed materially.)*
 
 ---
 
@@ -231,6 +232,22 @@ Every one of the bottom ten has a failed audit relationship (Outstanding/Disclai
 - Garbage-in risk is real at the bottom of the table — which is why the audit outcome must always be shown beside any number.
 
 **Bottom line:** the data supports a defensible, differentiated public product whose strongest insight — *governance, not money, separates working towns from failing ones* — is legible to any citizen, and checkable by anyone against the official sources.
+
+---
+
+## 12. Same-day addendum: Durban found — and it changes the metro story
+
+Hours after this report was compiled, the "eThekwini is missing" finding (§1.5, §8, §9.6) was resolved: the gap was a **data-pipeline artifact**, not an absence in the Treasury's records. During an upstream degradation, the Treasury API returned *empty-but-successful* responses that were cached as "no data." Re-querying against the healthy API filled Durban and three others immediately.
+
+**The correction is material:**
+
+- **eThekwini (Durban) scores 82.5 on FY2024 — the highest-scoring metro in South Africa**, ahead of Cape Town's 75.7, and inside the national top 10. Its financial-health pillar (95.8) is the strongest of any metro: low debt relative to revenue, high revenue per capita. Its audit is "unqualified with findings" — so §6's clean-audit story stands (Cape Town remains the only *clean-audit* metro), but §7's claim that "Cape Town is the only metro in the top 30" is withdrawn.
+- Also filled: Ubuntu (NC, 70.1), Greater Kokstad (KZN, 69.3), Matzikama (WC, 57.3).
+- **Corrected headline figures:** 208 of 213 scored; mean 56.2; bands 58 healthy / 105 middling / 45 distressed; **population-weighted mean 61.3** (up from 59.7 — Durban's 4.2M residents at 82.5 lift it).
+- **Five municipalities remain genuinely unscored** — Ramotshere Moiloa (NW), Nala (FS), !Kai! Garib (NC), Mafube (FS), Kareeberg (NC). The Treasury holds no scorable audited data for them across FY2023–2025. Four of the five sit in the distress-belt provinces, reinforcing §9.7: missing books and failing towns are the same phenomenon.
+- **Method lesson (now §10 recommendation #2, expanded):** an upstream API that fails by returning *empty success* is more dangerous than one that errors. The planned data-confidence layer must treat "large municipality, suddenly zero facts" as suspect rather than as truth.
+
+Tables in §3–§8 retain their as-compiled values (204 municipalities) except where noted; the deltas above are the authoritative corrections.
 
 ---
 
