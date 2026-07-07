@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, createEventDispatcher, afterUpdate } from 'svelte';
 	import maplibregl from 'maplibre-gl';
+	import 'maplibre-gl/dist/maplibre-gl.css';
 	import type { Map, GeoJSONSource } from 'maplibre-gl';
 	import type { FeatureCollection } from 'geojson';
 
@@ -28,19 +29,21 @@
 			paint: {
 				'fill-color': [
 					'case',
-					['==', ['get', 'overallScore'], null],
-					'#cccccc', // Grey for null scores
+					// A null score means "no data" — render grey, distinct from a low score.
+					// Scores are always 0-100, so coalescing missing/null to -1 lets a
+					// simple >= 0 test separate "has data" from "no data".
+					['>=', ['coalesce', ['get', 'overall_score'], -1], 0],
 					[
 						'interpolate',
 						['linear'],
-						['get', 'overallScore'],
+						['coalesce', ['get', 'overall_score'], 0],
 						0, '#e74c3c',    // Red
 						30, '#e67e22',   // Orange
 						50, '#f1c40f',   // Yellow
 						70, '#2ecc71',   // Green
 						100, '#16a085'  // Darker Green
 					],
-					'#cccccc' // Default fallback
+					'#cccccc' // Grey for null/missing scores
 				],
 				'fill-opacity': 0.7,
 				'fill-outline-color': 'rgba(0, 0, 0, 0.2)'
@@ -82,7 +85,16 @@
 
 	onMount(() => {
 		const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
-		const styleUrl = `https://api.maptiler.com/maps/dataviz/style.json?key=${apiKey}`;
+		if (!apiKey) {
+			console.warn(
+				'VITE_MAPTILER_API_KEY is not set — falling back to the keyless MapLibre demo basemap.'
+			);
+		}
+		// Without a valid style the map never fires `load` and the choropleth layers
+		// are never added, so an explicit keyless fallback keeps the app functional.
+		const styleUrl = apiKey
+			? `https://api.maptiler.com/maps/dataviz/style.json?key=${apiKey}`
+			: 'https://demotiles.maplibre.org/style.json';
 
 		map = new maplibregl.Map({
 			container: mapContainer,
@@ -92,6 +104,11 @@
 		});
 
 		map.addControl(new maplibregl.NavigationControl({}), 'top-right');
+
+		if (import.meta.env.DEV) {
+			// Dev-only handle for debugging map state from the console.
+			(window as unknown as Record<string, unknown>).__seemycityMap = map;
+		}
 
 		map.on('load', () => {
 			isMapLoaded = true;
@@ -114,10 +131,6 @@
 		}
 	});
 </script>
-
-<svelte:head>
-  <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" />
-</svelte:head>
 
 <div class="map-container-full" bind:this={mapContainer}></div>
 

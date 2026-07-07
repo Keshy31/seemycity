@@ -33,3 +33,6 @@ postgres.txt
 
 # database
 database/*
+
+# local dev server logs
+server.log

@@ -28,9 +28,10 @@
 		  )
 		: [];
 
-  function handleSearch(event: CustomEvent<string>) {
-    searchQuery = event.detail;
-    selectedMuniId = null; // Clear selection when starting a new search
+  // Typing a new search dismisses the open detail card so the results are visible.
+  // (bind:value already keeps searchQuery in sync; this only clears the selection.)
+  $: if (searchQuery && selectedMuniId) {
+    selectedMuniId = null;
   }
 
   function handleMunicipalityClick(event: CustomEvent<{ id: string }>) {
@@ -59,7 +60,7 @@
     />
 
     <div class="sidebar-content">
-      <SearchBar bind:value={searchQuery} on:search={handleSearch} />
+      <SearchBar bind:value={searchQuery} />
 
       {#if data.error}
         <ErrorMessage message={data.error} />
@@ -77,7 +78,13 @@
             <ul>
               {#each filteredMunicipalities as muni (muni.id)}
                 <li>
-                  <button class="result-item-button" on:click={() => (selectedMuniId = muni.id)}>
+                  <button
+                    class="result-item-button"
+                    on:click={() => {
+                      selectedMuniId = muni.id;
+                      searchQuery = ''; // same tick, so the clear-selection reactive doesn't fire
+                    }}
+                  >
                     <span class="result-name">{muni.name}</span>
                     <span class="result-id">{muni.id}</span>
                   </button>
@@ -111,7 +118,10 @@
   .map-view-layout {
     display: grid;
     grid-template-columns: 380px 1fr; // Fixed sidebar, flexible map
-    height: 100%; // Occupy full viewport height
+    // Percentage heights have no definite parent here (body only sets
+    // min-height), so size the app shell against the viewport directly.
+    height: 100vh;
+    height: 100dvh;
     width: 100%;
     overflow: hidden; // Prevent page scroll
   }

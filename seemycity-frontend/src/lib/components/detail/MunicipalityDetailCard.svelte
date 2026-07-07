@@ -9,9 +9,12 @@
   let details: MunicipalityDetail | null = null;
   let isLoading = true;
   let error: string | null = null;
+  // Guards against out-of-order responses when the user clicks rapidly on the map.
+  let requestSeq = 0;
 
   async function fetchDetails(muniId: string) {
     if (!muniId) return;
+    const seq = ++requestSeq;
     isLoading = true;
     error = null;
     details = null;
@@ -19,15 +22,19 @@
     try {
       const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
       const response = await fetch(`${apiUrl}/api/municipalities/${muniId}`);
+      if (seq !== requestSeq) return; // a newer request superseded this one
 
       if (!response.ok) {
         throw new Error(`Failed to fetch data for ${muniId}`);
       }
       details = await response.json();
-    } catch (e: any) {
-      error = e.message;
+    } catch (e: unknown) {
+      if (seq !== requestSeq) return;
+      error = e instanceof Error ? e.message : String(e);
     } finally {
-      isLoading = false;
+      if (seq === requestSeq) {
+        isLoading = false;
+      }
     }
   }
 
@@ -54,11 +61,11 @@
           <span class="value">{details.population ? details.population.toLocaleString() : 'N/A'}</span>
         </div>
         <div class="stat-item">
-          <span class="label">Area</span>
-          <span class="value">{details.area_sq_km ? details.area_sq_km.toLocaleString() : 'N/A'} km²</span>
+          <span class="label">Province</span>
+          <span class="value">{details.province ?? 'N/A'}</span>
         </div>
       </div>
-      <a href={`/muni/${details.id}`} class="view-more-link">View Full Details &rarr;</a>
+      <a href={`/${details.id}`} class="view-more-link">View Full Details &rarr;</a>
     </div>
   {/if}
 </div>

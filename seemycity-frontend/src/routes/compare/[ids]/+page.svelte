@@ -1,11 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
   import ErrorMessage from '$lib/components/ui/ErrorMessage.svelte';
   import ComparisonContainer from '$lib/components/compare/ComparisonContainer.svelte';
   import Icon from '@iconify/svelte';
 
-  export let data: PageData;
+  export let data: PageData; // Resolved by the load function before render
 </script>
 
 <svelte:head>
@@ -13,29 +12,23 @@
   <meta name="description" content="Compare financial health details for selected municipalities." />
 </svelte:head>
 
-{#await data}
-  <LoadingSpinner text="Loading comparison data..." />
-{:then resolvedData}
-  {#if resolvedData.municipalities && resolvedData.municipalities.length > 0}
-    <ComparisonContainer municipalities={resolvedData.municipalities} />
-  {:else if resolvedData.error}
-    <ErrorMessage message={`Error loading comparison data: ${resolvedData.error}`} />
-  {:else}
-    <div class="no-data-container">
-      <Icon icon="mdi:alert-circle-outline" />
-      <h2>No Comparison Data Found</h2>
-      <p>We couldn't find any data for the requested municipalities.</p>
-      {#if resolvedData.requestedIds && resolvedData.requestedIds.length > 0}
-        <p class="requested-ids">
-          You requested: <strong>{resolvedData.requestedIds.join(', ')}</strong>
-        </p>
-      {/if}
-      <a href="/" class="button-link">Back to Map</a>
-    </div>
-  {/if}
-{:catch error}
-  <ErrorMessage message={`An unexpected error occurred: ${error.message}`} />
-{/await}
+{#if data.municipalities && data.municipalities.length > 0}
+  <ComparisonContainer municipalities={data.municipalities} />
+{:else if data.error}
+  <ErrorMessage message={`Error loading comparison data: ${data.error}`} />
+{:else}
+  <div class="no-data-container">
+    <Icon icon="mdi:alert-circle-outline" />
+    <h2>No Comparison Data Found</h2>
+    <p>We couldn't find any data for the requested municipalities.</p>
+    {#if data.requestedIds && data.requestedIds.length > 0}
+      <p class="requested-ids">
+        You requested: <strong>{data.requestedIds.join(', ')}</strong>
+      </p>
+    {/if}
+    <a href="/" class="button-link">Back to Map</a>
+  </div>
+{/if}
 
 <style lang="scss">
   @use '../../../styles/variables' as *;

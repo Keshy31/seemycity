@@ -43,14 +43,14 @@ export interface SinglePageData {
     error?: string; // Optional error message from load function
 }
 
-// Type for the basic municipality info used in the map/list
+// Properties carried by each GeoJSON feature from GET /api/municipalities
 export interface MunicipalityBaseInfo {
     id: string;
     name: string;
     province: string;
-    latest_overall_score?: string | number | null; // Optional latest score for map styling
-    // Include geometry if it comes with this API endpoint
-    geometry?: any;
+    population?: number | null;
+    classification?: string | null;
+    overall_score?: number | null; // Latest score; null means "no data" (grey on map)
 }
 
 /**

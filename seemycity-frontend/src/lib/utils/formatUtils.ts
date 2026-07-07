@@ -132,15 +132,16 @@ export function formatSimplePercentage(value: number | null | undefined): string
 }
 
 /**
- * Returns a status icon emoji based on score value.
+ * Returns an Iconify icon name reflecting the score band. Color the icon at the
+ * call site (e.g. via getScoreColorStyle) — the icon itself is monochrome.
  * @param score - The score number.
- * @returns A status icon string (e.g., "🟢") or "⚪".
+ * @returns An Iconify icon name (e.g., "mdi:emoticon-happy-outline").
  */
 export function getScoreStatusIcon(score: number | null | undefined): string {
-  if (score == null) return '⚪'; // Neutral/Unknown
-  if (score >= 70) return '🟢'; // Green Circle
-  if (score >= 40) return '🟡'; // Yellow Circle
-  return '🔴'; // Red Circle
+  if (score == null) return 'mdi:help-circle-outline'; // No data
+  if (score >= 70) return 'mdi:emoticon-happy-outline';
+  if (score >= 40) return 'mdi:emoticon-neutral-outline';
+  return 'mdi:emoticon-sad-outline';
 }
 
 // Add other formatting functions here as needed (e.g., dates)

@@ -7,33 +7,34 @@
   } from '$lib/utils/formatUtils';
   import Icon from '@iconify/svelte';
 
-  // Props received from the parent page, updated to match ux.md
+  // Props received from the parent page, updated to match ux.md.
+  // Score and population can be null from the API (missing data ≠ zero).
   export let municipalityName: string;
-  export let provinceName: string | undefined;
-  export let population: number | undefined;
-  export let websiteUrl: string | undefined;
-  export let overallScore: number | undefined;
-  export let financialYear: string | undefined;
+  export let provinceName: string | null | undefined = undefined;
+  export let population: number | null | undefined = undefined;
+  export let websiteUrl: string | null | undefined = undefined;
+  export let overallScore: number | null | undefined = undefined;
+  export let financialYear: string | number | null | undefined = undefined;
 
-  // Determine score color style
-  $: scoreStyle = overallScore !== undefined ? getScoreColorStyle(overallScore) : '';
-  // Determine the status icon based on the score
-  $: scoreIcon = overallScore !== undefined ? getScoreStatusIcon(overallScore) : 'mdi:help-circle-outline';
+  $: scoreStyle = getScoreColorStyle(overallScore);
+  $: scoreIcon = getScoreStatusIcon(overallScore);
 </script>
 
 <header class="page-header">
   <div class="header-main-row">
     <h1 class="municipality-name">{municipalityName}</h1>
     <div class="header-actions">
-      {#if overallScore !== undefined}
-        <div class="score-display">
+      <div class="score-display">
+        {#if overallScore != null}
           <span class="score-value" style={scoreStyle}>{overallScore.toFixed(0)}</span>
           <span class="score-label">/ 100</span>
-          <span class="score-status-icon">
-            <Icon icon={scoreIcon} style={scoreStyle} />
-          </span>
-        </div>
-      {/if}
+        {:else}
+          <span class="score-label">Insufficient data</span>
+        {/if}
+        <span class="score-status-icon">
+          <Icon icon={scoreIcon} style={scoreStyle} />
+        </span>
+      </div>
       {#if websiteUrl}
         <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="website-link">
           <span>Website</span>
