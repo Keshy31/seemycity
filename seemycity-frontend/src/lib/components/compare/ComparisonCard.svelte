@@ -12,8 +12,10 @@
 
 	export let municipality: MunicipalityDetail;
 
-	// Helper to get the latest financial record
-	$: latestFinancials = municipality?.financials?.[0];
+	// Latest *scored* year (the newest year can predate its audit opinion and
+	// carry no overall score); falls back to the newest year.
+	$: latestFinancials =
+		municipality?.financials?.find((f) => f.overall_score != null) ?? municipality?.financials?.[0];
 
 	// --- Dynamic styles ---
 	$: scoreColorVar = getScoreColorVarName(latestFinancials?.overall_score);

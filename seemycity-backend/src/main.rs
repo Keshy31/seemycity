@@ -6,6 +6,7 @@ use seemycity_backend::api::muni_money::client::MunicipalMoneyClient; // Import 
 use seemycity_backend::handlers::municipalities::{ // Import handlers
     get_municipality_detail_handler,
     get_municipalities_list_handler, // Import the new handler
+    warm_all_municipalities,
     MapResponseCache,
     UpstreamHealth,
 };
@@ -61,6 +62,25 @@ async fn main() -> std::io::Result<()> {
     let map_cache = web::Data::new(MapResponseCache::default());
     // Circuit breaker for the Treasury API, shared across workers
     let upstream_health = web::Data::new(UpstreamHealth::default());
+
+    // Background cache warmer: keeps every municipality scored so the map is
+    // fully colored without depending on detail-page traffic. Fresh rows are
+    // skipped, so each daily pass is cheap.
+    if config_arc.cache_warmer_enabled {
+        let warm_pool = pool.clone();
+        let warm_client = api_client.clone();
+        let warm_health = upstream_health.clone();
+        tokio::spawn(async move {
+            // Short delay so startup traffic settles first.
+            tokio::time::sleep(std::time::Duration::from_secs(15)).await;
+            loop {
+                warm_all_municipalities(&warm_pool, &warm_client, &warm_health).await;
+                tokio::time::sleep(std::time::Duration::from_secs(24 * 60 * 60)).await;
+            }
+        });
+    } else {
+        log::info!("Cache warmer disabled via CACHE_WARMER=false");
+    }
 
     // Start Actix Web server
     let cors_origins = config_arc.cors_allowed_origins.clone();

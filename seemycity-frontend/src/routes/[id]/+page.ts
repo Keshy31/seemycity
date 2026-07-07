@@ -49,9 +49,13 @@ export const load: PageLoad = async ({ params, fetch }) => {
 			municipalityData.financials = []; // Ensure it's an empty array if null/undefined
 		}
 
-		// Extract the latest financial data (first element after sorting)
+		// Headline the latest *scored* year: the newest year often publishes raw
+		// figures months before its audit opinion, so it can exist without an
+		// overall score. Fall back to the newest year if none are scored.
 		const latestFinancials: FinancialYearData | null =
-			municipalityData.financials.length > 0 ? municipalityData.financials[0] : null;
+			municipalityData.financials.find((f) => f.overall_score != null) ??
+			municipalityData.financials[0] ??
+			null;
 
 		// Return both the full data and the latest financials separately
 		return {

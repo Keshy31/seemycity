@@ -7,6 +7,16 @@ use rust_decimal::Decimal;
 
 // --- Municipality Query Functions ---
 
+// Lightweight (id, population) list for the cache warmer.
+pub async fn get_all_municipality_populations(
+    pool: &PgPool,
+) -> Result<Vec<(String, Option<f32>)>, AppError> {
+    let rows = sqlx::query!("SELECT id, population FROM municipalities ORDER BY id")
+        .fetch_all(pool)
+        .await?;
+    Ok(rows.into_iter().map(|r| (r.id, r.population)).collect())
+}
+
 // Function to get just the base MunicipalityDb info for a single municipality
 // Used by the detail handler before checking cache/API
 pub async fn get_municipality_base_info_db(pool: &PgPool, muni_id: &str) -> Result<Option<MunicipalityDb>, AppError> {

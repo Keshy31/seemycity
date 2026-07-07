@@ -18,6 +18,9 @@ pub struct Config {
     /// Origins allowed by CORS, from the comma-separated CORS_ALLOWED_ORIGINS
     /// variable. Defaults to the Vite dev server.
     pub cors_allowed_origins: Vec<String>,
+    /// Background cache warmer (startup + daily). On by default; disable with
+    /// CACHE_WARMER=false, e.g. during local development against the shared DB.
+    pub cache_warmer_enabled: bool,
 }
 
 // Define a custom error type for configuration loading issues
@@ -66,6 +69,9 @@ pub fn load_config() -> Result<Config, ConfigError> {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
+    let cache_warmer_enabled = env::var("CACHE_WARMER")
+        .map(|v| v.to_lowercase() != "false")
+        .unwrap_or(true);
 
     Ok(Config {
         db_host,
@@ -76,5 +82,6 @@ pub fn load_config() -> Result<Config, ConfigError> {
         server_host,
         server_port,
         cors_allowed_origins,
+        cache_warmer_enabled,
     })
 }

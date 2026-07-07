@@ -7,7 +7,10 @@ use crate::api::muni_money::financials::{
     get_capital_expenditure, get_revenue_and_expenditure, get_total_debt,
 };
 use crate::db::financials::{get_all_financial_years_db, upsert_complete_financial_record};
-use crate::db::municipalities::{get_municipality_base_info_db, get_municipalities_summary_for_map};
+use crate::db::municipalities::{
+    get_all_municipality_populations, get_municipality_base_info_db,
+    get_municipalities_summary_for_map,
+};
 use crate::errors::AppError;
 use crate::models::{FinancialDataDb, FinancialYearData, MunicipalityDetail, MapFeatureCollection};
 use crate::scoring::{calculate_financial_score, ScoreBreakdown, ScoringInput};
@@ -98,25 +101,69 @@ pub async fn get_municipality_detail_handler(
     let muni_code = base_info_unwrapped.id.clone();
     let population_opt = base_info_unwrapped.population;
 
-    let mut rows = get_all_financial_years_db(&pool, &muni_id_str).await?;
+    let mut rows =
+        ensure_financials_fresh(&pool, &api_client, &upstream_health, &muni_code, population_opt)
+            .await?;
+
+    // All-NULL rows are cache internals, not user data; newest year first.
+    rows.sort_by(|a, b| b.year.cmp(&a.year));
+    let financials: Vec<FinancialYearData> = rows
+        .iter()
+        .filter(|r| r.has_any_data())
+        .map(FinancialYearData::from)
+        .collect();
+
+    // Geometry is intentionally omitted here: the detail view renders no map, and
+    // boundary polygons average ~90 KB each. The map endpoint serves geometry.
+    let response = MunicipalityDetail {
+        id: base_info_unwrapped.id,
+        name: base_info_unwrapped.name,
+        province: base_info_unwrapped.province,
+        population: base_info_unwrapped.population,
+        classification: base_info_unwrapped.classification,
+        website: base_info_unwrapped.website,
+        financials,
+        geometry: None,
+    };
+
+    log::info!("END: Handling request for /api/municipalities/{}", muni_id_str);
+    Ok(HttpResponse::Ok().json(response))
+}
+
+/// Brings a municipality's financial-year rows up to date and returns them:
+/// walks candidate years newest-first (audited actuals lag the calendar by
+/// roughly a year) until one yields usable data, refreshing missing/expired
+/// rows from the Treasury API; then re-derives scores for every cached row so
+/// formula changes propagate without upstream calls.
+///
+/// Fresh cached rows are trusted as-is — including all-NULL negative-cache
+/// rows. When the upstream circuit breaker is open, cached (even stale) data
+/// is returned immediately. Used by both the detail handler and the
+/// background cache warmer.
+pub async fn ensure_financials_fresh(
+    pool: &DbPool,
+    api_client: &MunicipalMoneyClient,
+    upstream_health: &UpstreamHealth,
+    muni_code: &str,
+    population_opt: Option<f32>,
+) -> Result<Vec<FinancialDataDb>, AppError> {
+    let mut rows = get_all_financial_years_db(pool, muni_code).await?;
     let now = Utc::now();
 
-    // Walk candidate years newest-first until one yields usable data. Audited
-    // actuals lag roughly a year behind the calendar, so start at year - 1.
-    // A fresh cached row is trusted as-is — even an all-NULL row, which serves
-    // as a negative cache so absent upstream data doesn't trigger an API round
-    // on every request. Missing or expired rows get a full refresh (all five
-    // metrics), so previously incomplete years heal automatically.
+    // Walk until a year yields a *scorable* row (all four pillars), not merely
+    // any data: the newest financial year often publishes figures months before
+    // its audit opinion, and stopping there would leave the municipality
+    // unscored while a complete prior year sits one step further back.
     let newest_candidate_year = now.year() - 1;
     for year in ((newest_candidate_year - YEAR_FALLBACK_DEPTH + 1)..=newest_candidate_year).rev() {
-        let cached_fresh_has_data = rows
+        let cached_fresh_has_score = rows
             .iter()
             .find(|r| r.year == year)
             .filter(|r| now - r.updated_at < Duration::days(CACHE_TTL_DAYS))
-            .map(|r| r.has_any_data());
+            .map(|r| r.overall_score.is_some());
 
-        let has_data = match cached_fresh_has_data {
-            Some(has_data) => has_data,
+        let has_score = match cached_fresh_has_score {
+            Some(has_score) => has_score,
             None if !upstream_health.is_up() => {
                 // Circuit open: serve whatever is cached (stale included) rather
                 // than stalling the request on a known-degraded upstream.
@@ -124,12 +171,12 @@ pub async fn get_municipality_detail_handler(
                 break;
             }
             None => {
-                match refresh_financial_year(&pool, &api_client, &muni_code, year, population_opt).await {
+                match refresh_financial_year(pool, api_client, muni_code, year, population_opt).await {
                     Some(refreshed) => {
-                        let has_data = refreshed.has_any_data();
+                        let has_score = refreshed.overall_score.is_some();
                         rows.retain(|r| r.year != year);
                         rows.push(refreshed);
-                        has_data
+                        has_score
                     }
                     None => {
                         // Every upstream call failed at the transport level. Not
@@ -142,7 +189,7 @@ pub async fn get_municipality_detail_handler(
             }
         };
 
-        if has_data {
+        if has_score {
             break;
         }
     }
@@ -181,8 +228,8 @@ pub async fn get_municipality_detail_handler(
         row.efficiency_score = breakdown.efficiency_score;
         row.accountability_score = breakdown.accountability_score;
         if let Err(e) = upsert_complete_financial_record(
-            &pool,
-            &muni_code,
+            pool,
+            muni_code,
             row.year,
             row.revenue,
             row.operational_expenditure,
@@ -201,29 +248,43 @@ pub async fn get_municipality_detail_handler(
         }
     }
 
-    // All-NULL rows are cache internals, not user data; newest year first.
-    rows.sort_by(|a, b| b.year.cmp(&a.year));
-    let financials: Vec<FinancialYearData> = rows
-        .iter()
-        .filter(|r| r.has_any_data())
-        .map(FinancialYearData::from)
-        .collect();
+    Ok(rows)
+}
 
-    // Geometry is intentionally omitted here: the detail view renders no map, and
-    // boundary polygons average ~90 KB each. The map endpoint serves geometry.
-    let response = MunicipalityDetail {
-        id: base_info_unwrapped.id,
-        name: base_info_unwrapped.name,
-        province: base_info_unwrapped.province,
-        population: base_info_unwrapped.population,
-        classification: base_info_unwrapped.classification,
-        website: base_info_unwrapped.website,
-        financials,
-        geometry: None,
+/// Warms the score cache for every municipality so the map is fully colored
+/// without depending on detail-page traffic. Fresh rows are skipped by the
+/// cache logic, so repeat runs are cheap; the run aborts early if the Treasury
+/// API circuit breaker opens.
+pub async fn warm_all_municipalities(
+    pool: &DbPool,
+    api_client: &MunicipalMoneyClient,
+    upstream_health: &UpstreamHealth,
+) {
+    let munis = match get_all_municipality_populations(pool).await {
+        Ok(m) => m,
+        Err(e) => {
+            log::error!("Cache warmer: failed to list municipalities: {e}");
+            return;
+        }
     };
 
-    log::info!("END: Handling request for /api/municipalities/{}", muni_id_str);
-    Ok(HttpResponse::Ok().json(response))
+    log::info!("Cache warmer: checking {} municipalities", munis.len());
+    let (mut scored, mut no_data) = (0u32, 0u32);
+    for (id, population) in &munis {
+        if !upstream_health.is_up() {
+            log::warn!("Cache warmer: upstream circuit open, aborting run early");
+            break;
+        }
+        match ensure_financials_fresh(pool, api_client, upstream_health, id, *population).await {
+            Ok(rows) if rows.iter().any(|r| r.overall_score.is_some()) => scored += 1,
+            Ok(_) => no_data += 1,
+            Err(e) => log::error!("Cache warmer: {id} failed: {e}"),
+        }
+    }
+    log::info!(
+        "Cache warmer: done — {scored} municipalities scored, {no_data} without data (of {})",
+        munis.len()
+    );
 }
 
 /// Fetches all five metrics for one municipality-year from the Treasury API
