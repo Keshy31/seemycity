@@ -53,8 +53,9 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let server_port: u16 = 4000;
-    log::info!("Starting HTTP server at http://127.0.0.1:{}", server_port);
+    let server_host = config_arc.server_host.clone();
+    let server_port = config_arc.server_port;
+    log::info!("Starting HTTP server at http://{}:{}", server_host, server_port);
 
     // Shared across workers so the map payload is built once per TTL, not per worker
     let map_cache = web::Data::new(MapResponseCache::default());
@@ -62,16 +63,16 @@ async fn main() -> std::io::Result<()> {
     let upstream_health = web::Data::new(UpstreamHealth::default());
 
     // Start Actix Web server
+    let cors_origins = config_arc.cors_allowed_origins.clone();
     HttpServer::new(move || {
-        // Define CORS settings
-        let cors = Cors::default()
-              .allowed_origin("http://localhost:5173") // Allow frontend dev origin
-              // In production, you might want to restrict this further or use allowed_origin_fn
-              // .allowed_origin("YOUR_PRODUCTION_FRONTEND_URL") 
+        // Origins come from CORS_ALLOWED_ORIGINS (comma-separated)
+        let mut cors = Cors::default()
               .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
               .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT, http::header::CONTENT_TYPE])
-              .supports_credentials()
               .max_age(3600);
+        for origin in &cors_origins {
+            cors = cors.allowed_origin(origin);
+        }
 
         App::new()
             .wrap(Logger::default()) // Add logger middleware
@@ -86,7 +87,7 @@ async fn main() -> std::io::Result<()> {
              // Keep using .service() for the list handler as its path is defined by its macro
             .service(get_municipalities_list_handler)
     })
-    .bind(("127.0.0.1", server_port))? 
+    .bind((server_host.as_str(), server_port))?
     .run()
     .await
 }
