@@ -62,6 +62,37 @@ pub struct FinancialDataDb {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl FinancialDataDb {
+    /// True when the row carries at least one real metric or score. Rows that are
+    /// all-NULL exist only as negative-cache markers and are not user-facing data.
+    pub fn has_any_data(&self) -> bool {
+        self.revenue.is_some()
+            || self.operational_expenditure.is_some()
+            || self.capital_expenditure.is_some()
+            || self.debt.is_some()
+            || self.audit_outcome.is_some()
+            || self.overall_score.is_some()
+    }
+}
+
+impl From<&FinancialDataDb> for FinancialYearData {
+    fn from(row: &FinancialDataDb) -> Self {
+        FinancialYearData {
+            year: row.year,
+            revenue: row.revenue,
+            operational_expenditure: row.operational_expenditure,
+            capital_expenditure: row.capital_expenditure,
+            debt: row.debt,
+            audit_outcome: row.audit_outcome.clone(),
+            overall_score: row.overall_score,
+            financial_health_score: row.financial_health_score,
+            infrastructure_score: row.infrastructure_score,
+            efficiency_score: row.efficiency_score,
+            accountability_score: row.accountability_score,
+        }
+    }
+}
+
 
 // --- API Response / Query Result Models ---
 
@@ -84,9 +115,11 @@ pub struct MapMunicipalityProperties {
     #[serde(serialize_with = "crate::utils::serialize_option_f32_as_f64")]
     pub population: Option<f32>,
     pub classification: Option<String>,
-    #[serde(rename = "financial_score")]
+    // Canonical name across the API: matches the financial_data column and the
+    // detail endpoint's field, and is what the map's data-driven styling reads.
+    #[serde(rename = "overall_score")]
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
-    pub latest_score: Option<Decimal>, // Changed from Option<f64> to Option<Decimal>
+    pub latest_score: Option<Decimal>,
 }
 
 // Data structure for individual financial year data within MunicipalityDetail

@@ -1,6 +1,6 @@
 // src/db/financials.rs
 use sqlx::PgPool;
-use crate::models::{FinancialDataDb, FinancialYearData}; // Add necessary models
+use crate::models::FinancialDataDb;
 use crate::errors::AppError;
 use rust_decimal::Decimal; // For upsert function
 use chrono::Utc; // For upsert and timestamp checks
@@ -114,15 +114,18 @@ pub async fn upsert_complete_financial_record(
     Ok(())
 }
 
-// Helper function used by get_municipality_detail_db_only
-// Fetches all financial years data directly from the DB for a municipality.
-pub async fn get_all_financial_years_db(pool: &PgPool, muni_id: &str) -> Result<Vec<FinancialYearData>, AppError> {
+// Fetches all financial-year rows (including cache timestamps) for a municipality.
+// Rows with every metric NULL act as negative-cache entries and are filtered out
+// of API responses by the handler.
+pub async fn get_all_financial_years_db(pool: &PgPool, muni_id: &str) -> Result<Vec<FinancialDataDb>, AppError> {
     log::debug!("Fetching all financial years from DB for muni_id: {}", muni_id);
     let financials = sqlx::query_as!(
-        FinancialYearData,
+        FinancialDataDb,
         r#"
         SELECT
-            year, 
+            id,
+            municipality_id,
+            year,
             revenue,
             operational_expenditure,
             capital_expenditure,
@@ -132,7 +135,9 @@ pub async fn get_all_financial_years_db(pool: &PgPool, muni_id: &str) -> Result<
             financial_health_score,
             infrastructure_score,
             efficiency_score,
-            accountability_score
+            accountability_score,
+            created_at,
+            updated_at
         FROM financial_data
         WHERE municipality_id = $1
         ORDER BY year DESC

@@ -1,4 +1,4 @@
-use actix_web::{App, HttpServer, web, middleware::Logger, http};
+use actix_web::{App, HttpServer, web, middleware::{Compress, Logger}, http};
 use dotenvy::dotenv; // To load .env file
 use seemycity_backend::db; // Import db module (which contains create_pool and queries)
 use seemycity_backend::config; // Import config module
@@ -6,6 +6,7 @@ use seemycity_backend::api::muni_money::client::MunicipalMoneyClient; // Import 
 use seemycity_backend::handlers::municipalities::{ // Import handlers
     get_municipality_detail_handler,
     get_municipalities_list_handler, // Import the new handler
+    MapResponseCache,
 };
 use std::sync::Arc; // Import Arc if needed for Cache later, good practice
 use actix_cors::Cors; // Import CORS
@@ -51,8 +52,11 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let server_port: u16 = 4000; 
-    log::info!("Starting HTTP server at http://127.0.0.1:{}", server_port); 
+    let server_port: u16 = 4000;
+    log::info!("Starting HTTP server at http://127.0.0.1:{}", server_port);
+
+    // Shared across workers so the map payload is built once per TTL, not per worker
+    let map_cache = web::Data::new(MapResponseCache::default());
 
     // Start Actix Web server
     HttpServer::new(move || {
@@ -68,9 +72,11 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(Logger::default()) // Add logger middleware
+            .wrap(Compress::default()) // gzip/brotli — GeoJSON compresses ~5-10x
             .wrap(cors) // Add CORS middleware
             .app_data(web::Data::new(pool.clone())) // Share the pool
             .app_data(web::Data::new(api_client.clone())) // Share the API client
+            .app_data(map_cache.clone()) // Shared map response cache
             // Explicitly register the detail route
             .route("/api/municipalities/{id}", web::get().to(get_municipality_detail_handler))
              // Keep using .service() for the list handler as its path is defined by its macro
