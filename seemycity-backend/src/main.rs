@@ -7,6 +7,7 @@ use seemycity_backend::handlers::municipalities::{ // Import handlers
     get_municipality_detail_handler,
     get_municipalities_list_handler, // Import the new handler
     MapResponseCache,
+    UpstreamHealth,
 };
 use std::sync::Arc; // Import Arc if needed for Cache later, good practice
 use actix_cors::Cors; // Import CORS
@@ -57,6 +58,8 @@ async fn main() -> std::io::Result<()> {
 
     // Shared across workers so the map payload is built once per TTL, not per worker
     let map_cache = web::Data::new(MapResponseCache::default());
+    // Circuit breaker for the Treasury API, shared across workers
+    let upstream_health = web::Data::new(UpstreamHealth::default());
 
     // Start Actix Web server
     HttpServer::new(move || {
@@ -77,6 +80,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone())) // Share the pool
             .app_data(web::Data::new(api_client.clone())) // Share the API client
             .app_data(map_cache.clone()) // Shared map response cache
+            .app_data(upstream_health.clone()) // Treasury API circuit breaker
             // Explicitly register the detail route
             .route("/api/municipalities/{id}", web::get().to(get_municipality_detail_handler))
              // Keep using .service() for the list handler as its path is defined by its macro

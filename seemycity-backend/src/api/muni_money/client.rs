@@ -6,7 +6,9 @@ use std::time::Duration;
 
 const MUNI_MONEY_API_BASE_URL_ENV_VAR: &str = "MUNI_MONEY_API_BASE_URL";
 const DEFAULT_MUNI_MONEY_API_BASE_URL: &str = "https://municipaldata.treasury.gov.za/api";
-const DEFAULT_TIMEOUT_SECONDS: u64 = 30; // Timeout for API requests
+// The Treasury API normally answers in 1-3s; when it is degraded it hangs, so a
+// tight timeout keeps a cold cache miss from blocking the request for long.
+const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 
 /// Client for interacting with the Municipal Money API.
 #[derive(Debug, Clone)]

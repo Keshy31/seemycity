@@ -4,7 +4,7 @@ use serde::Deserialize;
 use crate::api::muni_money::audit::get_audit_outcome;
 use crate::api::muni_money::client::MunicipalMoneyClient;
 use crate::api::muni_money::financials::{
-    get_capital_expenditure, get_total_debt, get_total_expenditure, get_total_revenue,
+    get_capital_expenditure, get_revenue_and_expenditure, get_total_debt,
 };
 use crate::db::financials::{get_all_financial_years_db, upsert_complete_financial_record};
 use crate::db::municipalities::{get_municipality_base_info_db, get_municipalities_summary_for_map};
@@ -27,6 +27,36 @@ const YEAR_FALLBACK_DEPTH: i32 = 3;
 /// and simplify per request. Serve a cached copy for this long; scores changing
 /// through the detail endpoint appear on the map within this window.
 const MAP_CACHE_TTL_SECS: u64 = 60;
+
+/// After a refresh round where every upstream call failed at the transport level,
+/// skip the Treasury API for this long and serve cached data only. Prevents a
+/// degraded upstream from stalling every cold request on timeouts.
+const UPSTREAM_COOLDOWN_SECS: u64 = 300;
+
+/// Circuit breaker for the Treasury API. Shared across workers.
+#[derive(Default)]
+pub struct UpstreamHealth {
+    down_until: std::sync::RwLock<Option<std::time::Instant>>,
+}
+
+impl UpstreamHealth {
+    fn is_up(&self) -> bool {
+        match self.down_until.read() {
+            Ok(guard) => guard.map_or(true, |t| std::time::Instant::now() >= t),
+            Err(_) => true,
+        }
+    }
+
+    fn mark_down(&self) {
+        if let Ok(mut guard) = self.down_until.write() {
+            *guard = Some(std::time::Instant::now() + std::time::Duration::from_secs(UPSTREAM_COOLDOWN_SECS));
+        }
+        log::warn!(
+            "Treasury API unreachable — skipping upstream fetches for {}s, serving cached data only",
+            UPSTREAM_COOLDOWN_SECS
+        );
+    }
+}
 
 /// In-memory cache for the full (no-limit) map FeatureCollection response body.
 #[derive(Default)]
@@ -54,6 +84,7 @@ pub async fn get_municipality_detail_handler(
     path: web::Path<String>,
     pool: web::Data<DbPool>,
     api_client: web::Data<MunicipalMoneyClient>,
+    upstream_health: web::Data<UpstreamHealth>,
 ) -> Result<HttpResponse, AppError> {
     let muni_id_str = path.into_inner();
     log::info!("START: Handling request for /api/municipalities/{}", muni_id_str);
@@ -86,13 +117,28 @@ pub async fn get_municipality_detail_handler(
 
         let has_data = match cached_fresh_has_data {
             Some(has_data) => has_data,
+            None if !upstream_health.is_up() => {
+                // Circuit open: serve whatever is cached (stale included) rather
+                // than stalling the request on a known-degraded upstream.
+                log::debug!("Muni: {muni_code}, upstream cooling down; skipping refresh of {year}");
+                break;
+            }
             None => {
-                let refreshed =
-                    refresh_financial_year(&pool, &api_client, &muni_code, year, population_opt).await;
-                let has_data = refreshed.has_any_data();
-                rows.retain(|r| r.year != year);
-                rows.push(refreshed);
-                has_data
+                match refresh_financial_year(&pool, &api_client, &muni_code, year, population_opt).await {
+                    Some(refreshed) => {
+                        let has_data = refreshed.has_any_data();
+                        rows.retain(|r| r.year != year);
+                        rows.push(refreshed);
+                        has_data
+                    }
+                    None => {
+                        // Every upstream call failed at the transport level. Not
+                        // the same as "no data" — nothing is persisted, and we
+                        // stop trying older years against a dead upstream.
+                        upstream_health.mark_down();
+                        break;
+                    }
+                }
             }
         };
 
@@ -183,33 +229,37 @@ pub async fn get_municipality_detail_handler(
 /// Fetches all five metrics for one municipality-year from the Treasury API
 /// (concurrently), recomputes scores, and upserts the result — NULLs included,
 /// so the row doubles as a negative-cache marker. Individual fetch or upsert
-/// failures degrade to NULL fields rather than failing the request; the row is
-/// returned for in-memory use even if persisting it failed.
+/// failures degrade to NULL fields rather than failing the request.
+///
+/// Returns `None` when **every** upstream call failed at the transport level:
+/// that means the Treasury API is unreachable, which must not be cached as
+/// "this year has no data".
 async fn refresh_financial_year(
     pool: &DbPool,
     api_client: &MunicipalMoneyClient,
     muni_code: &str,
     year: i32,
     population: Option<f32>,
-) -> FinancialDataDb {
+) -> Option<FinancialDataDb> {
     log::info!("Muni: {}, refreshing financial data for {} from Treasury API", muni_code, year);
 
-    let (revenue_res, expenditure_res, capex_res, debt_res, audit_res) = tokio::join!(
-        get_total_revenue(api_client, muni_code, year),
-        get_total_expenditure(api_client, muni_code, year),
+    // Revenue and opex share one incexp cube fetch; capex, debt, and audit each
+    // have their own cube. Four concurrent upstream calls in total.
+    let (incexp_res, capex_res, debt_res, audit_res) = tokio::join!(
+        get_revenue_and_expenditure(api_client, muni_code, year),
         get_capital_expenditure(api_client, muni_code, year),
         get_total_debt(api_client, muni_code, year),
         get_audit_outcome(api_client, muni_code, year),
     );
 
-    let revenue = revenue_res
-        .map_err(|e| log::error!("Muni: {muni_code}, Failed Revenue fetch for {year}: {e}"))
-        .ok()
-        .flatten();
-    let operational_expenditure = expenditure_res
-        .map_err(|e| log::error!("Muni: {muni_code}, Failed Expenditure fetch for {year}: {e}"))
-        .ok()
-        .flatten();
+    if incexp_res.is_err() && capex_res.is_err() && debt_res.is_err() && audit_res.is_err() {
+        log::error!("Muni: {muni_code}, all Treasury API calls failed for {year}; upstream unreachable");
+        return None;
+    }
+
+    let (revenue, operational_expenditure) = incexp_res
+        .map_err(|e| log::error!("Muni: {muni_code}, Failed Revenue/Expenditure fetch for {year}: {e}"))
+        .unwrap_or((None, None));
     let capital_expenditure = capex_res
         .map_err(|e| log::error!("Muni: {muni_code}, Failed Capex fetch for {year}: {e}"))
         .ok()
@@ -261,7 +311,7 @@ async fn refresh_financial_year(
     }
 
     let now = Utc::now();
-    FinancialDataDb {
+    Some(FinancialDataDb {
         id: Uuid::new_v4(), // in-memory only; the DB row keeps its own id
         municipality_id: muni_code.to_string(),
         year,
@@ -277,7 +327,7 @@ async fn refresh_financial_year(
         accountability_score,
         created_at: now,
         updated_at: now,
-    }
+    })
 }
 
 // --- Handler for fetching municipality list/summary (GeoJSON) ---

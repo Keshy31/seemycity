@@ -121,12 +121,15 @@
 	});
 
 	// This ensures that if the geojson data arrives after the map has loaded,
-	// the map source is updated correctly.
+	// the map source is updated correctly. Only push to the source when the
+	// prop actually changed — afterUpdate fires on every component update.
+	let lastAppliedGeojson: FeatureCollection | null = null;
 	afterUpdate(() => {
-		if (isMapLoaded && map) {
+		if (isMapLoaded && map && geojson !== lastAppliedGeojson) {
 			const source = map.getSource('municipalities') as GeoJSONSource;
 			if (source) {
 				source.setData(geojson || { type: 'FeatureCollection', features: [] });
+				lastAppliedGeojson = geojson;
 			}
 		}
 	});
