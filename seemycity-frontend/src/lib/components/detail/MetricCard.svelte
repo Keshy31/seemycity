@@ -21,26 +21,27 @@
 	@use '../../../styles/variables' as *;
 
 	.metric-card {
-		background-color: var(--background-offset-light);
+		background-color: var(--surface-color);
 		padding: var(--spacing-lg);
 		border: 1px solid var(--border-color-light);
-		border-radius: var(--border-radius-xl);
+		border-radius: var(--border-radius-lg);
 		text-align: center;
-		box-shadow: var(--box-shadow-md);
+		box-shadow: var(--box-shadow-sm);
 		transition:
-			transform 0.2s ease-in-out,
-			box-shadow 0.2s ease-in-out;
+			transform var(--transition-duration) var(--transition-timing-function),
+			box-shadow var(--transition-duration) var(--transition-timing-function);
 
 		&:hover {
-			transform: translateY(-4px);
-			box-shadow: var(--box-shadow-lg);
+			transform: translateY(-2px);
+			box-shadow: var(--box-shadow-md);
 		}
 	}
 
-	.metric-icon {
-		font-size: 2rem; // Slightly smaller for a cleaner look
+	// :global() because the Icon component's <svg> is outside Svelte's scoping.
+	.metric-card :global(.metric-icon) {
+		font-size: 1.75rem;
 		margin-bottom: var(--spacing-sm);
-		color: var(--color-accent); // Use the main accent color (teal)
+		color: var(--primary-color);
 	}
 
 	.metric-label {

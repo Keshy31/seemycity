@@ -128,16 +128,30 @@
 		height: 100dvh;
 		width: 100%;
 		overflow: hidden; // Prevent page scroll
+
+		// Phones/small tablets: stack — sidebar on top (scrollable, capped),
+		// the map fills whatever remains.
+		@media (max-width: 768px) {
+			grid-template-columns: 1fr;
+			grid-template-rows: auto minmax(0, 1fr);
+		}
 	}
 
 	.sidebar {
-		background-color: var(--background-color);
+		background-color: var(--surface-color);
 		display: flex;
 		flex-direction: column;
 		padding: var(--spacing-lg);
 		border-right: 1px solid var(--border-color);
 		overflow-y: auto; // Allow sidebar to scroll if content overflows
 		gap: var(--spacing-xl);
+
+		@media (max-width: 768px) {
+			border-right: none;
+			border-bottom: 1px solid var(--border-color);
+			max-height: 45dvh;
+			gap: var(--spacing-md);
+		}
 	}
 
 	.sidebar-content {

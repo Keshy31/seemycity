@@ -138,7 +138,8 @@
 		line-height: 1;
 	}
 
-	.score-icon {
+	// :global() because the Icon component's <svg> is outside Svelte's scoping.
+	.score-display :global(.score-icon) {
 		font-size: var(--font-size-xl);
 		margin-top: -2px; // Fine-tune alignment
 	}

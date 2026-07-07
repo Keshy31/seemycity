@@ -24,32 +24,34 @@
 1. **Data Source**:
    - Fetch financial data from the Municipal Money API (http://municipaldata.treasury.gov.za/api) for the latest year (e.g., 2024).
    - Incorporate static population data from external sources (e.g., StatsSA) and GeoJSON boundaries from the [Municipal Demarcation Board ArcGIS Hub](https://spatialhub-mdb-sa.opendata.arcgis.com/) for per-capita metrics and map visualization.
-2. **Scoring System**: 
-   - Calculate a composite score (0-100) for each municipality based on four weighted pillars, detailed below. Pillar scores default to 0 if required data is missing or invalid (e.g., NULL, zero denominator). 
+2. **Scoring System** *(rubric updated July 2026 to match the tuned implementation in `seemycity-backend/src/scoring.rs` — the canonical source; thresholds were calibrated against real 2023 AUDA data)*:
+   - Calculate a composite score (0-100) for each municipality based on four weighted pillars, detailed below.
+   - **Missing data policy**: a pillar whose inputs are missing or invalid (NULL, zero denominator) has **no score** (NULL) — it is *not* scored 0. The overall score exists only when **all four** pillars could be computed; otherwise it is NULL and the UI shows "no data" (grey on the map). "No data" must never be indistinguishable from "worst".
    - **Accountability (20% weight)**:
-     - Metric: Audit Outcome (string from `financial_data.audit_outcome`).
-     - Scoring (0-100): Map outcome string to score:
-       - "Unqualified - No findings": **100**
-       - "Unqualified - Emphasis of Matter items": **75**
-       - "Qualified": **50**
-       - "Adverse", "Disclaimer": **25**
-       - "Outstanding", NULL, or any other value: **0**
+     - Metric: Audit Outcome (string from `financial_data.audit_outcome`). Label matching is case-insensitive and covers the real Treasury/Auditor-General variants (e.g. "Unqualified opinion with no findings", "Disclaimer of opinion").
+     - Scoring (0-100):
+       - Unqualified, no findings: **100**
+       - Unqualified with findings / emphasis of matter / financially unqualified: **75**
+       - Qualified: **50**
+       - Adverse, Disclaimer: **25**
+       - Outstanding / statements not submitted: **0** (an earned zero — the municipality failed to submit)
+       - NULL or unrecognized label: **no score** (treated as missing data, not failure)
    - **Infrastructure Investment (25% weight)**:
      - Metric: Capital Expenditure as a Percentage of Total Expenditure (`CapEx Ratio = capital_expenditure / (operational_expenditure + capital_expenditure)`).
-     - Scoring (0-100): Normalize based on CapEx Ratio. Higher ratio = higher score. Score 100 if Ratio >= 0.30, Score 50 if Ratio == 0.15, Score 0 if Ratio <= 0.05, with linear scaling between these points.
+     - Scoring (0-100): piecewise linear — Score 0 at Ratio 0.00, Score 50 at Ratio 0.10, Score 100 at Ratio >= 0.30.
    - **Efficiency & Service Delivery (25% weight)**:
      - Metric: Operational Expenditure Ratio (`OpEx Ratio = operational_expenditure / revenue`).
-     - Scoring (0-100): Normalize based on OpEx Ratio. Lower ratio = higher score, centered around breakeven (Ratio 1.0 = Score 50). Score 100 if Ratio <= 0.85, Score 0 if Ratio >= 1.15, with linear scaling between these points.
+     - Scoring (0-100): linear from Score 100 at Ratio <= 0.85 down to Score 0 at Ratio >= 1.15, which puts break-even (Ratio 1.0) at exactly 50.
    - **Financial Health (30% weight)**:
      - Combines two sub-metrics (requires `population` from `municipalities` table):
      - Sub-Metric 1: Debt-to-Revenue Ratio (`Debt Ratio = debt / revenue`).
-       - Scoring (0-100): Normalize based on range [0.1, 1.5]. Lower ratio is better. `Debt Score = 100 * (1 - max(0, min(1, (Debt Ratio - 0.1) / (1.5 - 0.1))))`.
+       - Scoring (0-100): Normalize based on range [0.1, 1.0]. Lower ratio is better. `Debt Score = 100 * (1 - max(0, min(1, (Debt Ratio - 0.1) / (1.0 - 0.1))))`.
      - Sub-Metric 2: Revenue per Capita (`Rev Per Capita = revenue / population`).
-       - Scoring (0-100): Normalize based on range [R5,000, R20,000]. Higher is better. `Rev Per Capita Score = 100 * max(0, min(1, (Rev Per Capita - 5000) / (20000 - 5000)))`.
+       - Scoring (0-100): Normalize based on range [R0, R14,000]. Higher is better. `Rev Per Capita Score = 100 * max(0, min(1, Rev Per Capita / 14000))`.
      - Pillar Score (0-100): `Score = (Debt Score * 0.5) + (Rev Per Capita Score * 0.5)`.
    - **Overall Score (0-100)**:
-     - Metric: Weighted average of the four pillar scores.
-     - Scoring: `Overall = (Accountability Score * 0.20) + (Infrastructure Score * 0.25) + (Efficiency Score * 0.25) + (Financial Health Score * 0.30)`.
+     - Metric: Weighted average of the four pillar scores (all four must be present).
+     - Scoring: `Overall = (Accountability Score * 0.20) + (Infrastructure Score * 0.25) + (Efficiency Score * 0.25) + (Financial Health Score * 0.30)`, rounded to 2 decimal places.
 3. **Views**:
    - **Map View**: Display municipalities on a choropleth map, color-coded by the `Overall Score`. Users can click a municipality to navigate to its Single View. (Province/District level views are post-MVP).
    - **Single View**: Show a selected municipality’s `Overall Score`, key metrics, and the breakdown of the four pillar scores.

@@ -26,21 +26,17 @@
 		letter-spacing: 0.05em;
 	}
 
-	.spinner-icon {
+	// The Icon component renders an <svg> that Svelte's scoping can't reach —
+	// target the class globally from within the scoped container.
+	.spinner-container :global(.spinner-icon) {
 		font-size: 2.5rem;
 		color: var(--primary-color);
-		animation: pulse-and-spin 1.5s ease-in-out infinite;
+		animation: spin 0.9s linear infinite;
 	}
 
-	@keyframes pulse-and-spin {
-		0% {
-			transform: rotate(0deg) scale(1);
-		}
-		50% {
-			transform: rotate(180deg) scale(0.9);
-		}
-		100% {
-			transform: rotate(360deg) scale(1);
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
 		}
 	}
 </style>

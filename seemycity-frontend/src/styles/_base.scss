@@ -52,11 +52,30 @@ a {
 	&:hover,
 	&:focus {
 		text-decoration: underline;
-		color: color-mix(
-			in srgb,
-			var(--primary-color) 80%,
-			var(--text-color) 20%
-		); // Slightly darken on hover
+		color: var(--primary-color-dark);
+	}
+}
+
+// Visible, consistent keyboard focus everywhere (mouse clicks stay clean).
+:focus-visible {
+	outline: 2px solid var(--primary-color);
+	outline-offset: 2px;
+	border-radius: var(--border-radius-sm);
+}
+
+::selection {
+	background-color: var(--primary-color-light);
+	color: var(--text-color);
+}
+
+// Respect users who prefer less motion.
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
 	}
 }
 

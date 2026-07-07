@@ -30,7 +30,8 @@
 		color: var(--text-color-default);
 	}
 
-	.error-icon {
+	// :global() because the Icon component's <svg> is outside Svelte's scoping.
+	.error-container :global(.error-icon) {
 		font-size: 2rem;
 		color: var(--error-color);
 		flex-shrink: 0; // Prevent icon from shrinking

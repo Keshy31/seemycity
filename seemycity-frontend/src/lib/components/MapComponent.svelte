@@ -13,8 +13,22 @@
 	let map: Map;
 	let isMapLoaded = false;
 
+	/** Reads a design token off :root so the map ramp always matches the UI. */
+	function token(name: string, fallback: string): string {
+		const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+		return value || fallback;
+	}
+
 	function addDataLayers(mapInstance: Map) {
 		if (!mapInstance) return;
+
+		// Score palette comes from _variables.scss; thresholds mirror
+		// getScoreColorVarName (>=70 high, >=40 medium, <40 low).
+		const scoreLow = token('--score-low-color', '#dc2626');
+		const scoreMedium = token('--score-medium-color', '#d97706');
+		const scoreHigh = token('--score-high-color', '#059669');
+		const scoreHighStrong = token('--score-high-strong-color', '#047857');
+		const scoreNone = token('--score-none-color', '#d6d3d1');
 
 		mapInstance.addSource('municipalities', {
 			type: 'geojson',
@@ -38,20 +52,18 @@
 						['linear'],
 						['coalesce', ['get', 'overall_score'], 0],
 						0,
-						'#e74c3c', // Red
-						30,
-						'#e67e22', // Orange
-						50,
-						'#f1c40f', // Yellow
+						scoreLow,
+						40,
+						scoreMedium,
 						70,
-						'#2ecc71', // Green
+						scoreHigh,
 						100,
-						'#16a085' // Darker Green
+						scoreHighStrong
 					],
-					'#cccccc' // Grey for null/missing scores
+					scoreNone
 				],
-				'fill-opacity': 0.7,
-				'fill-outline-color': 'rgba(0, 0, 0, 0.2)'
+				'fill-opacity': 0.75,
+				'fill-outline-color': 'rgba(28, 25, 23, 0.15)'
 			}
 		});
 
@@ -63,7 +75,7 @@
 			paint: {
 				'line-color': '#ffffff',
 				'line-width': 1,
-				'line-opacity': 0.5
+				'line-opacity': 0.6
 			}
 		});
 

@@ -10,7 +10,15 @@
 
 <div class="search-wrapper">
 	<Icon icon="mdi:magnify" class="search-icon" />
-	<input type="search" class="search-input" {placeholder} bind:value on:input on:keydown />
+	<input
+		type="search"
+		class="search-input"
+		aria-label="Search municipalities by name or code"
+		{placeholder}
+		bind:value
+		on:input
+		on:keydown
+	/>
 </div>
 
 <style lang="scss">
@@ -34,10 +42,12 @@
 		}
 	}
 
-	.search-icon {
+	// :global() because the Icon component's <svg> is outside Svelte's scoping.
+	.search-wrapper :global(.search-icon) {
 		font-size: 1.25rem;
 		color: var(--text-muted-color);
 		margin-right: var(--spacing-sm);
+		flex-shrink: 0;
 	}
 
 	.search-input {

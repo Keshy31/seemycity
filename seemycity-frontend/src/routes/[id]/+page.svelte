@@ -132,7 +132,8 @@
 		}
 	}
 
-	.external-link-icon {
+	// :global() because the Icon component's <svg> is outside Svelte's scoping.
+	.website-link :global(.external-link-icon) {
 		font-size: 0.9em; /* Make icon slightly smaller */
 		opacity: 0.8;
 	}

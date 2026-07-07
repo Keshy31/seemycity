@@ -89,10 +89,10 @@ export function formatScore(score: number | null | undefined): string {
  * @returns A CSS variable name (e.g., "--score-color-high").
  */
 export function getScoreColorVarName(score: number | null | undefined): string {
-	if (score == null) return '--text-color-muted';
-	if (score >= 70) return '--score-color-high';
-	if (score >= 40) return '--score-color-medium';
-	return '--score-color-low';
+	if (score == null) return '--text-muted-color';
+	if (score >= 70) return '--score-high-color';
+	if (score >= 40) return '--score-medium-color';
+	return '--score-low-color';
 }
 
 /**

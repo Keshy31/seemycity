@@ -89,6 +89,7 @@
 			black 95%,
 			transparent 100%
 		);
+		mask-image: linear-gradient(90deg, transparent 0%, black 5%, black 95%, transparent 100%);
 	}
 
 	.card-snap-container {

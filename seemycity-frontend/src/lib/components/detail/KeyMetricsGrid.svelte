@@ -39,7 +39,7 @@
 	$: totalDebt = formatCurrency(financials?.debt);
 </script>
 
-<div class="key-metrics-grid">
+<div class="key-metrics-grid" aria-busy={!financials}>
 	{#if financials}
 		<!-- 💰 Revenue / Capita -->
 		<MetricCard icon="mdi:cash-multiple" label="Revenue / Capita" value={revenuePerCapita} />
