@@ -2,107 +2,47 @@
 
 // Type for the financial data of a single year
 export interface FinancialYearData {
-    year: number;
-    // Scores are serialized as numbers (f64) or null from Rust Decimal
-    overall_score: number | null;
-    financial_health_score: number | null;
-    infrastructure_score: number | null;
-    efficiency_score: number | null;
-    accountability_score: number | null;
-    revenue: number | null;
-    operational_expenditure: number | null;
-    capital_expenditure: number | null;
-    debt: number | null;
-    audit_outcome: string | null;
+	year: number;
+	// Scores are serialized as numbers (f64) or null from Rust Decimal
+	overall_score: number | null;
+	financial_health_score: number | null;
+	infrastructure_score: number | null;
+	efficiency_score: number | null;
+	accountability_score: number | null;
+	revenue: number | null;
+	operational_expenditure: number | null;
+	capital_expenditure: number | null;
+	debt: number | null;
+	audit_outcome: string | null;
 }
 
 // Type for the detailed information of a single municipality returned by the API
 export interface MunicipalityDetail {
-    id: string; // Municipality code e.g., "BUF"
-    name: string; // e.g., "Buffalo City Metropolitan Municipality"
-    province: string; // e.g., "Eastern Cape"
-    population: number | null; // e.g., 834997
-    area_sq_km: number | null; // e.g., 2536
-    classification: string | null; // e.g., "Metro"
-    website: string | null; // URL
-    financials: FinancialYearData[]; // Array of financial data
-    geometry?: any; // Optional GeoJSON geometry if included
-}
-
-// You might also want types for data coming from $page.data in Svelte components
-// For the comparison page:
-export interface ComparisonPageData {
-    municipalities: MunicipalityDetail[];
-    requestedIds: string[];
-    error?: string; // Optional error message from load function
-}
-
-// For the single view page (if not already defined elsewhere):
-export interface SinglePageData {
-    details: MunicipalityDetail | null; // Can be null if fetch failed
-    error?: string; // Optional error message from load function
+	id: string; // Municipality code e.g., "BUF"
+	name: string; // e.g., "Buffalo City Metropolitan Municipality"
+	province: string; // e.g., "Eastern Cape"
+	population: number | null; // e.g., 834997
+	area_sq_km: number | null; // e.g., 2536
+	classification: string | null; // e.g., "Metro"
+	website: string | null; // URL
+	financials: FinancialYearData[]; // Array of financial data
+	geometry?: import('geojson').Geometry | null; // Optional GeoJSON geometry if included
 }
 
 // Properties carried by each GeoJSON feature from GET /api/municipalities
 export interface MunicipalityBaseInfo {
-    id: string;
-    name: string;
-    province: string;
-    population?: number | null;
-    classification?: string | null;
-    overall_score?: number | null; // Latest score; null means "no data" (grey on map)
+	id: string;
+	name: string;
+	province: string;
+	population?: number | null;
+	classification?: string | null;
+	overall_score?: number | null; // Latest score; null means "no data" (grey on map)
 }
 
 /**
  * A lightweight type for representing a municipality in search results.
  */
 export interface MunicipalitySearchResult {
-  id: string; // e.g., 'CPT'
-  name: string; // e.g., 'City of Cape Town'
-}
-
-// --- Detailed Municipality Data Structures ---
-
-export interface CapexVsOpex {
-  capital: number;
-  operational: number;
-}
-
-export interface Indicator {
-  name: string;
-  value: number | string; // Can be a score, ratio, or descriptive text
-}
-
-export interface Pillar {
-  name: string;
-  score: number;
-  indicators: Indicator[];
-}
-
-export type AuditOutcome =
-  | 'unqualified'
-  | 'unqualified_emph'
-  | 'qualified'
-  | 'adverse'
-  | 'disclaimer'
-  | 'outstanding';
-
-export interface FinancialHealth {
-  overall_score: number;
-  revenue_per_capita: number;
-  capex_vs_opex: CapexVsOpex;
-  total_debt: number;
-  pillars: Pillar[];
-}
-
-/**
- * The comprehensive data structure for a single municipality.
- */
-export interface MunicipalityDetailExtended {
-  id: string;
-  name: string;
-  financial_health: FinancialHealth;
-  audit_outcome: AuditOutcome;
-  population: number;
-  area_sq_km: number;
+	id: string; // e.g., 'CPT'
+	name: string; // e.g., 'City of Cape Town'
 }

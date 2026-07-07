@@ -1,7 +1,7 @@
 // src/routes/compare/[ids]/+page.ts
 import type { PageLoad } from './$types';
 // Adjust this path based on your project structure
-import type { MunicipalityDetail } from '$lib/types'; 
+import type { MunicipalityDetail } from '$lib/types';
 
 export const load: PageLoad = async ({ params, fetch }) => {
 	const idsString = params.ids;
@@ -51,7 +51,6 @@ export const load: PageLoad = async ({ params, fetch }) => {
 			municipalities: successfulMunicipalities,
 			requestedIds: muniIds // Optionally return the list of IDs requested
 		};
-
 	} catch (error) {
 		console.error(`Error in compare/+page.ts load function:`, error);
 		// Consider throwing a SvelteKit error for page-level failure

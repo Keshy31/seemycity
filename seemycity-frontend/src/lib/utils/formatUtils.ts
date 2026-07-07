@@ -5,17 +5,17 @@
  * @returns A formatted currency string (e.g., "R 1,234") or "N/A".
  */
 export function formatCurrency(value: number | null | undefined): string {
-  if (value === null || value === undefined) {
-    return 'N/A';
-  }
+	if (value === null || value === undefined) {
+		return 'N/A';
+	}
 
-  // Use Intl.NumberFormat for locale-aware currency formatting
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-    minimumFractionDigits: 0, // No cents
-    maximumFractionDigits: 0, // No cents
-  }).format(value);
+	// Use Intl.NumberFormat for locale-aware currency formatting
+	return new Intl.NumberFormat('en-ZA', {
+		style: 'currency',
+		currency: 'ZAR',
+		minimumFractionDigits: 0, // No cents
+		maximumFractionDigits: 0 // No cents
+	}).format(value);
 }
 
 /**
@@ -26,22 +26,22 @@ export function formatCurrency(value: number | null | undefined): string {
  * @returns A formatted percentage string (e.g., "12.3%") or "N/A".
  */
 export function formatPercentage(
-  numerator: number | null | undefined,
-  denominator: number | null | undefined
+	numerator: number | null | undefined,
+	denominator: number | null | undefined
 ): string {
-  if (
-    numerator === null ||
-    numerator === undefined ||
-    denominator === null ||
-    denominator === undefined ||
-    denominator === 0 // Avoid division by zero
-  ) {
-    return 'N/A';
-  }
+	if (
+		numerator === null ||
+		numerator === undefined ||
+		denominator === null ||
+		denominator === undefined ||
+		denominator === 0 // Avoid division by zero
+	) {
+		return 'N/A';
+	}
 
-  const percentage = (numerator / denominator) * 100;
-  // Format to one decimal place
-  return percentage.toFixed(1) + '%';
+	const percentage = (numerator / denominator) * 100;
+	// Format to one decimal place
+	return percentage.toFixed(1) + '%';
 }
 
 /**
@@ -51,22 +51,22 @@ export function formatPercentage(
  * @returns A cleaned URL string or "N/A".
  */
 export function formatWebsite(url: string | null | undefined): string {
-    if (!url) return 'N/A';
-    // Remove http(s):// and www. for cleaner display
-    return url.replace(/^(https?:\/\/)?(www\.)?/,'').replace(/\/$/, ''); // Also remove trailing slash
-  }
-  
+	if (!url) return 'N/A';
+	// Remove http(s):// and www. for cleaner display
+	return url.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, ''); // Also remove trailing slash
+}
+
 /**
  * Formats a population number with locale-specific separators.
  * @param pop - The population number.
  * @returns A formatted population string (e.g., "1,234,567") or "N/A".
  */
 export function formatPopulation(pop: number | null | undefined): string {
-if (pop === null || pop === undefined) return 'N/A';
-// Use Intl.NumberFormat for locale-aware number formatting without decimals
-return new Intl.NumberFormat('en-ZA', {
-    maximumFractionDigits: 0
-}).format(pop);
+	if (pop === null || pop === undefined) return 'N/A';
+	// Use Intl.NumberFormat for locale-aware number formatting without decimals
+	return new Intl.NumberFormat('en-ZA', {
+		maximumFractionDigits: 0
+	}).format(pop);
 }
 
 /**
@@ -76,10 +76,10 @@ return new Intl.NumberFormat('en-ZA', {
  * @returns A formatted score string (e.g., "75.3") or "N/A".
  */
 export function formatScore(score: number | null | undefined): string {
-  if (score == null) return 'N/A';
-  // Clamp score between 0 and 100 before formatting
-  const clampedScore = Math.max(0, Math.min(100, score));
-  return clampedScore.toFixed(1); // Use one decimal place
+	if (score == null) return 'N/A';
+	// Clamp score between 0 and 100 before formatting
+	const clampedScore = Math.max(0, Math.min(100, score));
+	return clampedScore.toFixed(1); // Use one decimal place
 }
 
 /**
@@ -89,10 +89,10 @@ export function formatScore(score: number | null | undefined): string {
  * @returns A CSS variable name (e.g., "--score-color-high").
  */
 export function getScoreColorVarName(score: number | null | undefined): string {
-  if (score == null) return '--text-color-muted';
-  if (score >= 70) return '--score-color-high';
-  if (score >= 40) return '--score-color-medium';
-  return '--score-color-low';
+	if (score == null) return '--text-color-muted';
+	if (score >= 70) return '--score-color-high';
+	if (score >= 40) return '--score-color-medium';
+	return '--score-color-low';
 }
 
 /**
@@ -102,33 +102,8 @@ export function getScoreColorVarName(score: number | null | undefined): string {
  * @returns A CSS style string (e.g., "color: var(--score-high-color);").
  */
 export function getScoreColorStyle(score: number | null | undefined): string {
-  // Now uses the centralized logic from getScoreColorVarName
-  return `color: var(${getScoreColorVarName(score)});`;
-}
-
-/**
- * Returns an inline CSS style string for score background color based on value.
- * Uses CSS variables defined in _variables.scss.
- * @param score - The score number.
- * @returns A CSS style string (e.g., "background-color: var(--score-high-color);").
- */
-export function getScoreBackgroundStyle(score: number | null | undefined): string {
-  if (score == null) return 'background-color: var(--neutral-grey, #888);'; // Neutral
-  if (score >= 70) return 'background-color: var(--score-high-color, #2E8B57);';
-  if (score >= 40) return 'background-color: var(--score-medium-color, #F28C38);';
-  return 'background-color: var(--score-low-color, #CD5C5C);';
-}
-
-/**
- * Formats a pre-calculated percentage value to one decimal place.
- * @param value - The percentage value.
- * @returns A formatted percentage string (e.g., "12.3%") or "N/A".
- */
-export function formatSimplePercentage(value: number | null | undefined): string {
-  if (value === null || value === undefined) {
-    return 'N/A';
-  }
-  return value.toFixed(1) + '%';
+	// Now uses the centralized logic from getScoreColorVarName
+	return `color: var(${getScoreColorVarName(score)});`;
 }
 
 /**
@@ -138,10 +113,10 @@ export function formatSimplePercentage(value: number | null | undefined): string
  * @returns An Iconify icon name (e.g., "mdi:emoticon-happy-outline").
  */
 export function getScoreStatusIcon(score: number | null | undefined): string {
-  if (score == null) return 'mdi:help-circle-outline'; // No data
-  if (score >= 70) return 'mdi:emoticon-happy-outline';
-  if (score >= 40) return 'mdi:emoticon-neutral-outline';
-  return 'mdi:emoticon-sad-outline';
+	if (score == null) return 'mdi:help-circle-outline'; // No data
+	if (score >= 70) return 'mdi:emoticon-happy-outline';
+	if (score >= 40) return 'mdi:emoticon-neutral-outline';
+	return 'mdi:emoticon-sad-outline';
 }
 
 // Add other formatting functions here as needed (e.g., dates)

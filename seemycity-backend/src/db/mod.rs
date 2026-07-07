@@ -10,7 +10,6 @@ pub type DbPool = PgPool;
 // Declare the new modules
 pub mod municipalities;
 pub mod financials;
-pub mod geo;
 
 // Function to create the database connection pool
 pub async fn create_pool(config: &Config) -> Result<DbPool, sqlx::Error> {

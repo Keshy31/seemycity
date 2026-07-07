@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            municipality_id,\n            year,\n            revenue,\n            operational_expenditure,\n            capital_expenditure,\n            debt,\n            audit_outcome,\n            overall_score,\n            financial_health_score,\n            infrastructure_score,\n            efficiency_score,\n            accountability_score,\n            created_at,\n            updated_at\n        FROM financial_data\n        WHERE municipality_id = $1\n        ORDER BY year DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "municipality_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "year",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "revenue",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 4,
+        "name": "operational_expenditure",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "capital_expenditure",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "debt",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "audit_outcome",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "overall_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "financial_health_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 10,
+        "name": "infrastructure_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 11,
+        "name": "efficiency_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 12,
+        "name": "accountability_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "637181e074d32cccdb20dbb5731d471005a93d32afc88ecb23542e6a014e0b07"
+}

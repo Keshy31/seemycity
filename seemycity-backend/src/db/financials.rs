@@ -8,49 +8,6 @@ use uuid::Uuid; // Import Uuid
 
 // --- Financial Data Query Functions ---
 
-// Checks if financial data for a specific municipality and year exists in the cache (DB)
-pub async fn get_cached_financials(
-    pool: &PgPool,
-    muni_id: &str, 
-    year_to_fetch: i32,
-) -> Result<Option<FinancialDataDb>, AppError> {
-    log::debug!("Checking DB cache for {} year {}", muni_id, year_to_fetch);
-    let result = sqlx::query_as!(
-        FinancialDataDb,
-        r#"
-        SELECT
-            id, municipality_id, year, revenue, operational_expenditure, capital_expenditure, debt, audit_outcome,
-            overall_score, financial_health_score, infrastructure_score, efficiency_score, accountability_score,
-            created_at, updated_at
-        FROM financial_data
-        WHERE municipality_id = $1 AND year = $2
-        "#,
-        muni_id,
-        year_to_fetch
-    )
-    .fetch_optional(pool)
-    .await?;
-
-    if result.is_some() {
-        log::debug!("Cache hit for financial data: muni {}, year {}", muni_id, year_to_fetch);
-    } else {
-        log::debug!("Cache miss for financial data: muni {}, year {}", muni_id, year_to_fetch);
-    }
-    Ok(result)
-}
-
-// Finds the latest year for which financial data is cached for a municipality
-pub async fn get_latest_cached_year(pool: &PgPool, muni_id: &str) -> Result<Option<i32>, AppError> {
-    let result = sqlx::query!(
-        "SELECT MAX(year) as max_year FROM financial_data WHERE municipality_id = $1",
-        muni_id
-    )
-    .fetch_optional(pool)
-    .await?;
-    Ok(result.and_then(|record| record.max_year))
-}
-
-
 // Inserts or updates a complete financial record for a municipality and year in the cache (DB)
 pub async fn upsert_complete_financial_record(
     pool: &PgPool,

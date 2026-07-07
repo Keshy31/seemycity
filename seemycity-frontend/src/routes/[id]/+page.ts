@@ -1,8 +1,7 @@
 // src/routes/[id]/+page.ts
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-// Import shared types
-import type { FinancialYearData, MunicipalityDetail } from '../../lib/types';
+import type { FinancialYearData, MunicipalityDetail } from '$lib/types';
 
 export const load: PageLoad = async ({ params, fetch }) => {
 	// Use muniId for clarity
@@ -25,8 +24,8 @@ export const load: PageLoad = async ({ params, fetch }) => {
 			let errorMessage = `Failed to fetch data: ${response.statusText}`;
 			try {
 				const errorBody = await response.json();
-				errorMessage = errorBody.message || errorMessage; // Use backend message if available
-			} catch (e) {
+				errorMessage = errorBody.error || errorBody.message || errorMessage; // Use backend message if available
+			} catch {
 				// Ignore if response body isn't JSON or empty
 			}
 			console.error(`[+page.ts] API Error (${response.status}): ${errorMessage}`);
@@ -38,40 +37,37 @@ export const load: PageLoad = async ({ params, fetch }) => {
 
 		// Validate the core structure minimally
 		if (!municipalityData || typeof municipalityData !== 'object' || !municipalityData.id) {
-            console.error('[+page.ts] Received unexpected data structure:', municipalityData);
+			console.error('[+page.ts] Received unexpected data structure:', municipalityData);
 			throw error(500, `Received invalid data structure for municipality ID ${muniId}`);
 		}
 
 		// Sort financials array by year descending to easily get the latest
-        // Ensure financials exist and is an array before sorting
-        if (Array.isArray(municipalityData.financials)) {
-            municipalityData.financials.sort((a, b) => b.year - a.year);
-        } else {
-            municipalityData.financials = []; // Ensure it's an empty array if null/undefined
-        }
+		// Ensure financials exist and is an array before sorting
+		if (Array.isArray(municipalityData.financials)) {
+			municipalityData.financials.sort((a, b) => b.year - a.year);
+		} else {
+			municipalityData.financials = []; // Ensure it's an empty array if null/undefined
+		}
 
-        // Extract the latest financial data (first element after sorting)
-        const latestFinancials: FinancialYearData | null = municipalityData.financials.length > 0
-            ? municipalityData.financials[0]
-            : null;
-
-		console.log(`[+page.ts] Successfully fetched data for ${municipalityData.name}`);
+		// Extract the latest financial data (first element after sorting)
+		const latestFinancials: FinancialYearData | null =
+			municipalityData.financials.length > 0 ? municipalityData.financials[0] : null;
 
 		// Return both the full data and the latest financials separately
 		return {
 			municipality: municipalityData,
-            latestFinancials: latestFinancials
+			latestFinancials: latestFinancials
 		};
-
-	} catch (err: any) {
+	} catch (err: unknown) {
 		console.error('[+page.ts] Error loading municipality data:', err);
 
-		// Handle SvelteKit errors specifically (re-throw if it has status)
-		if (err.status) {
-			throw err; // Re-throw SvelteKit error object
+		// Re-throw SvelteKit HttpErrors (thrown above) unchanged
+		if (typeof err === 'object' && err !== null && 'status' in err) {
+			throw err;
 		}
 
 		// Handle generic fetch errors or errors thrown above
-		throw error(500, `An unexpected error occurred while fetching municipality data: ${err.message || 'Unknown error'}`);
+		const message = err instanceof Error ? err.message : 'Unknown error';
+		throw error(500, `An unexpected error occurred while fetching municipality data: ${message}`);
 	}
 };

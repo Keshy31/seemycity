@@ -10,12 +10,6 @@ pub enum AppError {
     #[error("API Client Error: {0}")]
     ApiClientError(#[from] crate::api::muni_money::types::ApiClientError), // Used crate name
 
-    #[error("GeoJSON Error: {0}")]
-    GeoJsonError(#[from] geojson::Error),
-
-    #[error("Configuration error: {0}")]
-    ConfigError(String),
-
     #[error("Not found: {0}")]
     NotFound(String),
 
@@ -34,8 +28,6 @@ impl ResponseError for AppError {
             AppError::SqlxError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             // Upstream Treasury API failures are not our server's fault
             AppError::ApiClientError(_) => StatusCode::BAD_GATEWAY,
-            AppError::GeoJsonError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::ConfigError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,

@@ -37,11 +37,16 @@
 						'interpolate',
 						['linear'],
 						['coalesce', ['get', 'overall_score'], 0],
-						0, '#e74c3c',    // Red
-						30, '#e67e22',   // Orange
-						50, '#f1c40f',   // Yellow
-						70, '#2ecc71',   // Green
-						100, '#16a085'  // Darker Green
+						0,
+						'#e74c3c', // Red
+						30,
+						'#e67e22', // Orange
+						50,
+						'#f1c40f', // Yellow
+						70,
+						'#2ecc71', // Green
+						100,
+						'#16a085' // Darker Green
 					],
 					'#cccccc' // Grey for null/missing scores
 				],
@@ -138,11 +143,11 @@
 <div class="map-container-full" bind:this={mapContainer}></div>
 
 <style lang="scss">
-  .map-container-full {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
+	.map-container-full {
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		top: 0;
+		left: 0;
+	}
 </style>

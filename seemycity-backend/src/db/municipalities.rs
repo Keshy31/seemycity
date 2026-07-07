@@ -1,24 +1,11 @@
 // src/db/municipalities.rs
 use sqlx::PgPool;
-use crate::models::{MunicipalityBasicInfo, MunicipalityDb, MapFeature, MapMunicipalityProperties};
+use crate::models::{MunicipalityDb, MapFeature, MapMunicipalityProperties};
 use crate::errors::AppError;
 use geojson;
 use rust_decimal::Decimal;
 
 // --- Municipality Query Functions ---
-
-// Function to get a simple list of all municipality IDs and names
-pub async fn get_all_municipalities_basic(pool: &PgPool) -> Result<Vec<MunicipalityBasicInfo>, AppError> {
-    log::info!("Fetching basic info for all municipalities");
-    let municipalities = sqlx::query_as!(
-        MunicipalityBasicInfo, 
-        "SELECT id, name, province FROM municipalities ORDER BY name"
-    )
-    .fetch_all(pool)
-    .await?;
-
-    Ok(municipalities)
-}
 
 // Function to get just the base MunicipalityDb info for a single municipality
 // Used by the detail handler before checking cache/API
