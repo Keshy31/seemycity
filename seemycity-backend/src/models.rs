@@ -45,6 +45,10 @@ pub struct FinancialDataDb {
     pub infrastructure_score: Option<Decimal>,
     pub efficiency_score: Option<Decimal>,
     pub accountability_score: Option<Decimal>,
+    // Plausibility grade of the raw figures: "ok" | "suspect" | "unreliable".
+    // None = not yet evaluated (backfilled by the healing pass).
+    pub data_confidence: Option<String>,
+    pub confidence_notes: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>, // Timestamp for cache management
     #[sqlx(default)] // Handle potential missing updated_at if not always set by upsert
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -77,6 +81,8 @@ impl From<&FinancialDataDb> for FinancialYearData {
             infrastructure_score: row.infrastructure_score,
             efficiency_score: row.efficiency_score,
             accountability_score: row.accountability_score,
+            data_confidence: row.data_confidence.clone(),
+            confidence_notes: row.confidence_notes.clone(),
         }
     }
 }
@@ -130,6 +136,9 @@ pub struct FinancialYearData {
     pub efficiency_score: Option<Decimal>,
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
     pub accountability_score: Option<Decimal>,
+    // "ok" | "suspect" | "unreliable" | null (not yet evaluated)
+    pub data_confidence: Option<String>,
+    pub confidence_notes: Option<String>,
 }
 
 // Detailed data structure for the /api/municipality/{id} view

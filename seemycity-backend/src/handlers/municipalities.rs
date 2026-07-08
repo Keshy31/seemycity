@@ -4,8 +4,9 @@ use serde::Deserialize;
 use crate::api::muni_money::audit::get_audit_outcome;
 use crate::api::muni_money::client::MunicipalMoneyClient;
 use crate::api::muni_money::financials::{
-    get_capital_expenditure, get_revenue_and_expenditure, get_total_debt,
+    get_capital_expenditure, get_revenue_and_expenditure, get_total_debt, IncexpFigures,
 };
+use crate::confidence::{evaluate as evaluate_confidence, ConfidenceInput};
 use crate::db::financials::{get_all_financial_years_db, upsert_complete_financial_record};
 use crate::db::municipalities::{
     get_all_municipality_populations, get_municipality_base_info_db,
@@ -171,7 +172,10 @@ pub async fn ensure_financials_fresh(
                 break;
             }
             None => {
-                match refresh_financial_year(pool, api_client, muni_code, year, population_opt).await {
+                let prior = rows.iter().find(|r| r.year == year).cloned();
+                match refresh_financial_year(pool, api_client, muni_code, year, population_opt, prior.as_ref())
+                    .await
+                {
                     Some(refreshed) => {
                         let has_score = refreshed.overall_score.is_some();
                         rows.retain(|r| r.year != year);
@@ -210,16 +214,33 @@ pub async fn ensure_financials_fresh(
             audit_outcome: row.audit_outcome.clone(),
             population: population_opt.map(|p| p as u32),
         });
+        // Confidence backfill from stored values for rows never evaluated.
+        // A grade set at fetch time (which may reflect the revenue checksum)
+        // is kept as-is.
+        let (confidence, confidence_notes) = if row.data_confidence.is_none() {
+            let grade = evaluate_confidence(&ConfidenceInput {
+                revenue: row.revenue,
+                operational_expenditure: row.operational_expenditure,
+                capital_expenditure: row.capital_expenditure,
+                debt: row.debt,
+                population: population_opt.map(|p| p as u32),
+                revenue_checksum: None,
+            });
+            (Some(grade.grade.to_string()), grade.notes)
+        } else {
+            (row.data_confidence.clone(), row.confidence_notes.clone())
+        };
         let up_to_date = row.overall_score == breakdown.overall_score
             && row.financial_health_score == breakdown.financial_health_score
             && row.infrastructure_score == breakdown.infrastructure_score
             && row.efficiency_score == breakdown.efficiency_score
-            && row.accountability_score == breakdown.accountability_score;
+            && row.accountability_score == breakdown.accountability_score
+            && row.data_confidence == confidence;
         if up_to_date {
             continue;
         }
         log::info!(
-            "Muni: {}, healing year {} scores computed under an older formula",
+            "Muni: {}, healing year {} (older formula or missing confidence grade)",
             muni_code, row.year
         );
         row.overall_score = breakdown.overall_score;
@@ -227,23 +248,9 @@ pub async fn ensure_financials_fresh(
         row.infrastructure_score = breakdown.infrastructure_score;
         row.efficiency_score = breakdown.efficiency_score;
         row.accountability_score = breakdown.accountability_score;
-        if let Err(e) = upsert_complete_financial_record(
-            pool,
-            muni_code,
-            row.year,
-            row.revenue,
-            row.operational_expenditure,
-            row.capital_expenditure,
-            row.debt,
-            row.audit_outcome.clone(),
-            row.overall_score,
-            row.financial_health_score,
-            row.infrastructure_score,
-            row.efficiency_score,
-            row.accountability_score,
-        )
-        .await
-        {
+        row.data_confidence = confidence;
+        row.confidence_notes = confidence_notes;
+        if let Err(e) = upsert_complete_financial_record(pool, row).await {
             log::error!("Muni: {}, failed to persist healed scores for {}: {}", muni_code, row.year, e);
         }
     }
@@ -288,19 +295,26 @@ pub async fn warm_all_municipalities(
 }
 
 /// Fetches all five metrics for one municipality-year from the Treasury API
-/// (concurrently), recomputes scores, and upserts the result — NULLs included,
-/// so the row doubles as a negative-cache marker. Individual fetch or upsert
-/// failures degrade to NULL fields rather than failing the request.
+/// (concurrently), recomputes scores, evaluates data confidence, and upserts
+/// the result — NULLs included, so the row doubles as a negative-cache marker.
+/// Individual fetch or upsert failures degrade to NULL fields rather than
+/// failing the request.
 ///
 /// Returns `None` when **every** upstream call failed at the transport level:
 /// that means the Treasury API is unreachable, which must not be cached as
 /// "this year has no data".
+///
+/// When the fetch succeeds but yields **no data at all** while `prior` holds
+/// real data, the prior row is kept untouched: the Treasury API has been
+/// observed returning empty-but-successful responses while degraded, and
+/// stale-but-real beats fresh-but-empty.
 async fn refresh_financial_year(
     pool: &DbPool,
     api_client: &MunicipalMoneyClient,
     muni_code: &str,
     year: i32,
     population: Option<f32>,
+    prior: Option<&FinancialDataDb>,
 ) -> Option<FinancialDataDb> {
     log::info!("Muni: {}, refreshing financial data for {} from Treasury API", muni_code, year);
 
@@ -318,9 +332,9 @@ async fn refresh_financial_year(
         return None;
     }
 
-    let (revenue, operational_expenditure) = incexp_res
+    let IncexpFigures { revenue, operational_expenditure, revenue_checksum } = incexp_res
         .map_err(|e| log::error!("Muni: {muni_code}, Failed Revenue/Expenditure fetch for {year}: {e}"))
-        .unwrap_or((None, None));
+        .unwrap_or_default();
     let capital_expenditure = capex_res
         .map_err(|e| log::error!("Muni: {muni_code}, Failed Capex fetch for {year}: {e}"))
         .ok()
@@ -350,30 +364,35 @@ async fn refresh_financial_year(
         accountability_score,
     } = calculate_financial_score(&scoring_input);
 
-    if let Err(e) = upsert_complete_financial_record(
-        pool,
-        muni_code,
-        year,
+    // Empty-but-successful responses during upstream degradation must not
+    // erase real cached data (observed 2026-07-07: 9 municipalities were
+    // wrongly negative-cached this way, including eThekwini).
+    let fetched_nothing = revenue.is_none()
+        && operational_expenditure.is_none()
+        && capital_expenditure.is_none()
+        && debt.is_none()
+        && audit_outcome.is_none();
+    if fetched_nothing {
+        if let Some(prior_row) = prior.filter(|p| p.has_any_data()) {
+            log::warn!(
+                "Muni: {muni_code}, year {year}: upstream returned no data but real data is cached — keeping the cached row (possible upstream degradation)"
+            );
+            return Some(prior_row.clone());
+        }
+    }
+
+    let grade = evaluate_confidence(&ConfidenceInput {
         revenue,
         operational_expenditure,
         capital_expenditure,
         debt,
-        audit_outcome.clone(),
-        overall_score,
-        financial_health_score,
-        infrastructure_score,
-        efficiency_score,
-        accountability_score,
-    )
-    .await
-    {
-        // Serve the fetched data anyway; the cache simply retries next request.
-        log::error!("Muni: {muni_code}, Failed to upsert data for {year}: {e}");
-    }
+        population: population.map(|p| p as u32),
+        revenue_checksum,
+    });
 
     let now = Utc::now();
-    Some(FinancialDataDb {
-        id: Uuid::new_v4(), // in-memory only; the DB row keeps its own id
+    let row = FinancialDataDb {
+        id: Uuid::new_v4(), // in-memory only; an existing DB row keeps its own id
         municipality_id: muni_code.to_string(),
         year,
         revenue,
@@ -386,9 +405,18 @@ async fn refresh_financial_year(
         infrastructure_score,
         efficiency_score,
         accountability_score,
+        data_confidence: Some(grade.grade.to_string()),
+        confidence_notes: grade.notes,
         created_at: now,
         updated_at: now,
-    })
+    };
+
+    if let Err(e) = upsert_complete_financial_record(pool, &row).await {
+        // Serve the fetched data anyway; the cache simply retries next request.
+        log::error!("Muni: {muni_code}, Failed to upsert data for {year}: {e}");
+    }
+
+    Some(row)
 }
 
 // --- Handler for fetching municipality list/summary (GeoJSON) ---

@@ -5,6 +5,7 @@
 	import PageHeader from '$lib/components/detail/PageHeader.svelte';
 	import KeyMetricsGrid from '$lib/components/detail/KeyMetricsGrid.svelte';
 	import ScoreBreakdown from '$lib/components/detail/ScoreBreakdown.svelte';
+	import ConfidenceBadge from '$lib/components/ui/ConfidenceBadge.svelte';
 	import { formatPopulation, formatWebsite } from '$lib/utils/formatUtils';
 
 	export let data: PageData; // Resolved by the +page.ts load function before render
@@ -34,6 +35,11 @@
 	/>
 
 	{#if data.latestFinancials}
+		<ConfidenceBadge
+			confidence={data.latestFinancials.data_confidence}
+			notes={data.latestFinancials.confidence_notes}
+		/>
+
 		<KeyMetricsGrid financials={data.latestFinancials} population={data.municipality.population} />
 
 		<ScoreBreakdown financials={data.latestFinancials} population={data.municipality.population} />

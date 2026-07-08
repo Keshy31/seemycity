@@ -1,5 +1,8 @@
 // src/lib/types.ts
 
+// Plausibility grade of a year's raw figures; null = not yet evaluated.
+export type DataConfidence = 'ok' | 'suspect' | 'unreliable';
+
 // Type for the financial data of a single year
 export interface FinancialYearData {
 	year: number;
@@ -14,6 +17,8 @@ export interface FinancialYearData {
 	capital_expenditure: number | null;
 	debt: number | null;
 	audit_outcome: string | null;
+	data_confidence: DataConfidence | null;
+	confidence_notes: string | null;
 }
 
 // Type for the detailed information of a single municipality returned by the API

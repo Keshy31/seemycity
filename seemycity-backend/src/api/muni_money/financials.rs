@@ -63,6 +63,16 @@ fn sum_item_range(
     facts_found.then_some(total)
 }
 
+/// Figures extracted from one incexp_v2 aggregate response.
+#[derive(Debug, Clone, Default)]
+pub struct IncexpFigures {
+    pub revenue: Option<Decimal>,
+    pub operational_expenditure: Option<Decimal>,
+    /// The cube's own total-revenue rollup (item 2900), used as a checksum
+    /// against `revenue` by the data-confidence layer.
+    pub revenue_checksum: Option<Decimal>,
+}
+
 /// Fetches total revenue and total operational expenditure together from a
 /// single incexp_v2 aggregate call ('AUDA' figures). Both metrics live in the
 /// same cube, so fetching them separately would download the identical
@@ -71,7 +81,7 @@ pub async fn get_revenue_and_expenditure(
     client: &MunicipalMoneyClient,
     municipality_code: &str,
     year: i32,
-) -> Result<(Option<Decimal>, Option<Decimal>), ApiClientError> {
+) -> Result<IncexpFigures, ApiClientError> {
     log::info!(
         "Fetching incexp aggregate for revenue + expenditure, {} year {}",
         municipality_code, year
@@ -82,11 +92,17 @@ pub async fn get_revenue_and_expenditure(
 
     let revenue = sum_item_range(&response.cells, &REVENUE_ITEM_RANGE, "revenue");
     let expenditure = sum_item_range(&response.cells, &EXPENDITURE_ITEM_RANGE, "expenditure");
+    let revenue_checksum = response
+        .cells
+        .iter()
+        .find(|c| c.item_code.parse::<u32>() == Ok(REVENUE_ROLLUP_ITEM))
+        .and_then(|c| c.amount)
+        .and_then(Decimal::from_f64);
     log::info!(
         "Incexp results for {} in {}: revenue={:?}, expenditure={:?}",
         municipality_code, year, revenue, expenditure
     );
-    Ok((revenue, expenditure))
+    Ok(IncexpFigures { revenue, operational_expenditure: expenditure, revenue_checksum })
 }
 
 #[cfg(test)]
@@ -152,7 +168,7 @@ pub async fn get_total_revenue(
     municipality_code: &str,
     year: i32,
 ) -> Result<Option<Decimal>, ApiClientError> {
-    Ok(get_revenue_and_expenditure(client, municipality_code, year).await?.0)
+    Ok(get_revenue_and_expenditure(client, municipality_code, year).await?.revenue)
 }
 
 /// Fetches the total liabilities (debt) for a given municipality and year.
@@ -214,7 +230,9 @@ pub async fn get_total_expenditure(
     municipality_code: &str,
     year: i32,
 ) -> Result<Option<Decimal>, ApiClientError> {
-    Ok(get_revenue_and_expenditure(client, municipality_code, year).await?.1)
+    Ok(get_revenue_and_expenditure(client, municipality_code, year)
+        .await?
+        .operational_expenditure)
 }
 
 /// Fetches the total capital expenditure for a given municipality and year.

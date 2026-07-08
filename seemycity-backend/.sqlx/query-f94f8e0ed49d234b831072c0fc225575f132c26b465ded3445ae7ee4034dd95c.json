@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id,\n            municipality_id,\n            year,\n            revenue,\n            operational_expenditure,\n            capital_expenditure,\n            debt,\n            audit_outcome,\n            overall_score,\n            financial_health_score,\n            infrastructure_score,\n            efficiency_score,\n            accountability_score,\n            created_at,\n            updated_at\n        FROM financial_data\n        WHERE municipality_id = $1\n        ORDER BY year DESC\n        ",
+  "query": "\n        SELECT\n            id,\n            municipality_id,\n            year,\n            revenue,\n            operational_expenditure,\n            capital_expenditure,\n            debt,\n            audit_outcome,\n            overall_score,\n            financial_health_score,\n            infrastructure_score,\n            efficiency_score,\n            accountability_score,\n            data_confidence,\n            confidence_notes,\n            created_at,\n            updated_at\n        FROM financial_data\n        WHERE municipality_id = $1\n        ORDER BY year DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -70,11 +70,21 @@
       },
       {
         "ordinal": 13,
+        "name": "data_confidence",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "confidence_notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 14,
+        "ordinal": 16,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
@@ -98,9 +108,11 @@
       true,
       true,
       true,
+      true,
+      true,
       false,
       false
     ]
   },
-  "hash": "637181e074d32cccdb20dbb5731d471005a93d32afc88ecb23542e6a014e0b07"
+  "hash": "f94f8e0ed49d234b831072c0fc225575f132c26b465ded3445ae7ee4034dd95c"
 }
