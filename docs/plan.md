@@ -124,7 +124,7 @@
 
 **Sub-phase A — Trust the numbers:**
 - [x] Probe cubes with sample munis (CPT / KZN244 Msinga / FS184 Matjhabeng) — see findings below
-- [ ] **Re-pin revenue/opex item sets against the live 52-item mSCOA catalogue**, validated against published financial statements for 2-3 municipalities. Current ranges (rev 0200-2500, opex 3000-4000) are stale: they miss 2600/2700/2800 (gains), 4100 (operational cost), 4300 (losses); item 2900 "Other expenditure" appears to be a total-expenditure rollup despite `line_item` flag — must not be double-counted.
+- [x] **Re-pin revenue/opex item sets** — done 2026-07-07: revenue = 0200-2800, expenditure = 3000-4300, validated against CPT's audited FY2024 AFS (+0.6% / +0.4% on the mSCOA basis). Item 2900 proven to be a mislabeled **total-revenue rollup** (identity holds at 0.00% across 8 test municipalities) — excluded, and available as a checksum for the confidence layer. Requires a one-time financial_data cache wipe + re-warm so all stored raw figures use the corrected definitions.
 - [ ] Data-confidence layer: plausibility checks per muni-year (impossible ratios, negatives, revenue-vs-population sanity, *sudden-empty-response* detection) → stored confidence grade → shown in UI, respected by rankings
 - [ ] Own-revenue split fetched and stored (item 2200 transfers)
 - [ ] Census 2022 population refresh (per-capita accuracy)

@@ -211,15 +211,32 @@ All financial queries hit `/cubes/{cube}/aggregate` cut by `demarcation.code`, `
 3.  **Debt** — `financial_position_v2`, sum of item codes 310–500 (total-liabilities proxy).
 4.  **Audit Outcome** — `audit_opinions` cube, cut by `financial_year_end.year`, first cell's `opinion.label`.
 
-**⚠ Known-stale item sets (probe findings 2026-07-07 — fix scheduled in plan.md Phase 8-A):**
+**✓ Item sets re-pinned and AFS-validated (2026-07-07, Phase 8-A1b):**
 
-The live `incexp_v2` catalogue has **52 items** and differs from the 2025 assumptions above:
+The `incexp_v2` sums now use numeric ranges validated against Cape Town's audited
+FY2024 AFS (note 37.4.1 budget reconciliation, mSCOA basis) and a rollup-identity
+check across 8 municipalities:
 
-- Operational transfers (grants) are item **`2200` "Transfer and subsidies - Operational"** — *not* `1600`, which is generic "Operational Revenue". Any own-revenue/grant-dependency metric must use 2200.
-- The current revenue range misses real income lines above 2500: `2600` (gains on disposal), `2700` (other gains — R5.1bn for CPT FY2024), `2800` (discontinued operations).
-- The current opex range misses `4100` "Operational Cost and Other Cost" (R3.2bn for CPT FY2024) and `4300` "Other Losses"; `4600`/`4700` (capital transfers) and `4900`+ (tax/minority items) must stay excluded.
-- Item **`2900` "Other expenditure"** is flagged `line_item` in the catalogue but its magnitude (≈ a metro's entire expenditure) suggests it is a **total-expenditure rollup** — it must be verified against published financial statements before the item sets are re-pinned, and never summed alongside granular items.
-- Verification method: reconcile computed sums against 2-3 municipalities' published AFS/S71 totals before changing `REVENUE_ITEM_CODES` / `EXPENDITURE_ITEM_CODES`.
+- **Revenue = items `0200`–`2800`** (mSCOA operating revenue: rates, service
+  charges, transfers, fines, gains). CPT check: cube 61.84bn vs AFS-mSCOA
+  61.47bn (+0.6%).
+- **Expenditure = items `3000`–`4300`** (payroll through other losses, including
+  `4100` operational cost). CPT check: cube 58.67bn vs AFS-mSCOA 58.45bn (+0.4%).
+- **Item `2900` "Other expenditure" is a mislabeled TOTAL-REVENUE rollup** —
+  `|2900 − Σrevenue| = 0.00%` for every municipality tested. Excluded from both
+  ranges; usable as a per-municipality checksum by the data-confidence layer.
+- Operational transfers (grants) are item **`2200`** — the basis for the coming
+  own-revenue metric. (Item `1600` is generic "Operational Revenue", *not*
+  transfers, whatever older notes claimed.)
+- `4600`/`4700` (capital transfers received) and `4900`+ (tax/JV/minorities)
+  stay excluded from operating figures.
+- Note: figures are on the **mSCOA basis** (grossed up ~9% vs GRAP by inventory
+  classification); ratios remain internally consistent since both sides gross up.
+- Beware: **OpenUpSA's `municipal-data` repo `codes.py` does not match the live
+  cube's facts** — the cube itself + published AFS are the only trustworthy
+  references.
+- Unit tests cover range membership and the 2900 exclusion
+  (`src/api/muni_money/financials.rs::tests`).
 
 **Planned additional cubes (validated by probe):**
 
