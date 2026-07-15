@@ -9,7 +9,7 @@ This document defines the core data structures, database schema, and API payload
 > - Map geometry is simplified server-side (`ST_SimplifyPreserveTopology(geom, 0.002)`, 5-dp coords).
 > - An all-NULL `financial_data` row is a **negative-cache marker** ("upstream had no data for this year when checked"), governed by a 7-day TTL.
 > - The authoritative schema lives in `seemycity-backend/migrations/`; structs live in `src/models.rs`. Removed since 2025: `MunicipalityGeometryDb`, `FinancialDataPoint`, `LegacyMunicipality`.
-> - **Planned (Phase 8, see plan.md):** `score_version` column on `financial_data`; a per-row data-confidence grade; own-revenue (transfers item 2200), UIFW, and repairs & maintenance fields.
+> - **Shipped (Phase 8, July 2026):** `financial_data` now carries `data_confidence` + `confidence_notes` (migration 0002) and `transfers_operational`, `uifw_expenditure`, `repairs_maintenance`, `score_version` (migration 0003). All four v2 fields are served in the detail payload's `financials[]` entries as nullable numbers/int.
 
 ## 1. Core Data Structures
 

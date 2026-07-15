@@ -126,15 +126,21 @@
 - [x] Probe cubes with sample munis (CPT / KZN244 Msinga / FS184 Matjhabeng) — see findings below
 - [x] **Re-pin revenue/opex item sets** — done 2026-07-07: revenue = 0200-2800, expenditure = 3000-4300, validated against CPT's audited FY2024 AFS (+0.6% / +0.4% on the mSCOA basis). Item 2900 proven to be a mislabeled **total-revenue rollup** (identity holds at 0.00% across 8 test municipalities) — excluded, and available as a checksum for the confidence layer. Requires a one-time financial_data cache wipe + re-warm so all stored raw figures use the corrected definitions.
 - [x] Data-confidence layer — done 2026-07-08: `src/confidence.rs` grades every muni-year `ok`/`suspect`/`unreliable` (negatives, implausible ratios, revenue-vs-population sanity, one-sided statements, and the item-2900 revenue checksum at fetch time); grades + human-readable notes stored via migration 0002, backfilled by the healing pass, served in the API, and rendered as a plain-English badge on the detail page. Empty-but-200 upstream responses can no longer overwrite real cached data. First catch: Msinga (#2 nationally) reports negative debt — its financial-health pillar is inflated; flagged for scoring v2 (consider nulling pillars fed by unreliable inputs). Current census: 388 ok / 6 suspect / 4 unreliable.
-- [ ] Own-revenue split fetched and stored (item 2200 transfers)
+- [x] Own-revenue split fetched and stored (item 2200 transfers) — done 2026-07-15 as part of scoring v2: `IncexpFigures.transfers_operational`, persisted via migration 0003
 - [x] Census 2022 population check — verified 2026-07-08: the stored populations already ARE Census 2022 figures (JHB 4,803,262 / CPT 4,772,846 / ETH 4,239,901 match StatsSA exactly; ETH off by 1 from the `real` column's f32 rounding — nit only). No refresh needed until the next census.
 - [x] eThekwini mystery solved: Treasury HAS its FY2024 audited data (R170bn incexp); the 9 unscored munis are false negatives from empty-but-200 responses during the 2026-07-07 Treasury degradation → purge + re-warm
 
 **Sub-phase B — Scoring engine v2:**
-- [ ] Pillar redesign: financial health = debt ratio + **own-revenue** strength; efficiency = operating balance vs own revenue; infrastructure = capex per capita or grant-netted (+ R&M vs Treasury 8% norm); accountability = audit outcome + **UIFW** intensity
-- [ ] `score_version` column; healing/warmer migrate old rows automatically
-- [ ] Backtest harness: score all munis old-vs-new, diff rankings, review before shipping
-- [ ] Update prd.md rubric to v2 when it lands
+- [x] Pillar redesign — code complete 2026-07-15 (`SCORE_VERSION = 2`, all 28 unit tests green, clippy clean):
+  - Financial Health = own-revenue share (anchors 0.25→0, 0.75→100; replaces revenue-per-capita, which measured urbanity, r≈0 with health) + debt ratio, averaged.
+  - Infrastructure = capex piecewise (unchanged) blended 70/30 with R&M intensity (100 at Treasury's 8%-of-opex norm) when reported.
+  - Accountability = audit outcome blended 70/30 with UIFW share of opex (0% → 100, ≥10% → 0) when reported.
+  - Efficiency unchanged (opex/revenue linear, break-even = 50).
+  - `data_unreliable` rows (confidence layer) suppress FH/Infra/Efficiency; the audit pillar survives — the AG's opinion is independent of the books. Kills the Msinga negative-debt inflation.
+- [x] `score_version` column (migration 0003, applied to live DB); healing pass in `ensure_financials_fresh` re-derives any row whose stored version ≠ current, using stored v2 inputs — the whole cache migrates lazily, no upstream calls.
+- [x] Fetch pipeline: `refresh_financial_year` now pulls 6 cubes concurrently (incexp incl. item-2200 transfers, capex, debt, audit, uifwexp, repmaint_v2); reachability still judged on the 4 core cubes.
+- [ ] **NEXT SESSION — wipe + re-warm + backtest:** raw v2 inputs (transfers/UIFW/R&M) are NULL for existing rows, so healed v2 scores would lack FH until refetched. Steps: (1) start backend with `CACHE_WARMER=1` against Fly DB via `fly proxy 5432 -a seemycity-db` (approval needed for the cache wipe — it's a DB write), (2) `DELETE FROM financial_data` or force refetch, (3) re-warm all ~208 munis, (4) run backtest diff vs `docs/snapshots/v1-scores-2026-07-08.json` (v1 scores for 208 munis), (5) review ranking moves, calibrate anchors if the distribution looks wrong.
+- [ ] Update prd.md rubric to v2 **after** the backtest confirms the anchors (rubric text currently describes v2 design; verify numbers survive calibration)
 
 **Sub-phase C — Insight UI (journalists first):**
 - [ ] 5-band quantized map + legend with per-band counts

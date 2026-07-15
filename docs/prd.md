@@ -34,34 +34,35 @@
 1. **Data Source**:
    - Fetch financial data from the Municipal Money API (http://municipaldata.treasury.gov.za/api) for the latest year (e.g., 2024).
    - Incorporate static population data from external sources (e.g., StatsSA) and GeoJSON boundaries from the [Municipal Demarcation Board ArcGIS Hub](https://spatialhub-mdb-sa.opendata.arcgis.com/) for per-capita metrics and map visualization.
-2. **Scoring System** *(rubric updated July 2026 to match the tuned implementation in `seemycity-backend/src/scoring.rs` — the canonical source; thresholds were calibrated against real 2023 AUDA data)*:
+2. **Scoring System v2** *(rubric matches `seemycity-backend/src/scoring.rs` (`SCORE_VERSION = 2`, July 2026) — the canonical source. Philosophy: hybrid — absolute anchors where they exist (break-even = 50, clean audit = 100), range endpoints reviewed annually against the observed national distribution. v2 anchors are provisional until the full-cache backtest lands.)*:
    - Calculate a composite score (0-100) for each municipality based on four weighted pillars, detailed below.
    - **Missing data policy**: a pillar whose inputs are missing or invalid (NULL, zero denominator) has **no score** (NULL) — it is *not* scored 0. The overall score exists only when **all four** pillars could be computed; otherwise it is NULL and the UI shows "no data" (grey on the map). "No data" must never be indistinguishable from "worst".
-   - **Accountability (20% weight)**:
-     - Metric: Audit Outcome (string from `financial_data.audit_outcome`). Label matching is case-insensitive and covers the real Treasury/Auditor-General variants (e.g. "Unqualified opinion with no findings", "Disclaimer of opinion").
-     - Scoring (0-100):
+   - **Data-reliability policy**: when the confidence layer grades a year's figures `unreliable`, the three pillars derived from those figures (Financial Health, Infrastructure, Efficiency) are suppressed to NULL — artifacts like negative debt must not earn perfect sub-scores. The Accountability pillar survives: the AG's opinion is a statement *about* the books, not a product of them.
+   - **Accountability (20% weight)** — audit outcome, blended with UIFW when reported:
+     - Sub-metric 1 — Audit Outcome (string from `financial_data.audit_outcome`). Label matching is case-insensitive and covers the real Treasury/Auditor-General variants (e.g. "Unqualified opinion with no findings", "Disclaimer of opinion").
        - Unqualified, no findings: **100**
        - Unqualified with findings / emphasis of matter / financially unqualified: **75**
        - Qualified: **50**
        - Adverse, Disclaimer: **25**
        - Outstanding / statements not submitted: **0** (an earned zero — the municipality failed to submit)
        - NULL or unrecognized label: **no score** (treated as missing data, not failure)
-   - **Infrastructure Investment (25% weight)**:
-     - Metric: Capital Expenditure as a Percentage of Total Expenditure (`CapEx Ratio = capital_expenditure / (operational_expenditure + capital_expenditure)`).
-     - Scoring (0-100): piecewise linear — Score 0 at Ratio 0.00, Score 50 at Ratio 0.10, Score 100 at Ratio >= 0.30.
+     - Sub-metric 2 — UIFW intensity (`uifw_expenditure / operational_expenditure`, from the `uifwexp` cube): linear from **100** at 0% down to **0** at ≥ 10% of opex.
+     - Pillar: audit sub-score alone when UIFW is unreported; `0.7 * audit + 0.3 * uifw` when reported. (No UIFW facts usually means none was identified, but it is treated as *unknown*, never as an earned 100.)
+   - **Infrastructure Investment (25% weight)** — building new assets AND maintaining existing ones:
+     - Sub-metric 1 — CapEx share (`capital_expenditure / (operational_expenditure + capital_expenditure)`): piecewise linear — 0 at ratio 0.00, 50 at 0.10, 100 at ≥ 0.30.
+     - Sub-metric 2 — Repairs & maintenance intensity (`repairs_maintenance / operational_expenditure`, from `repmaint_v2`): linear from 0 at 0% up to **100** at ≥ 8% of opex (proxy for Treasury's 8%-of-asset-value norm; asset registers are out of scope).
+     - Pillar: capex sub-score alone when R&M is unreported; `0.7 * capex + 0.3 * rm` when reported.
    - **Efficiency & Service Delivery (25% weight)**:
      - Metric: Operational Expenditure Ratio (`OpEx Ratio = operational_expenditure / revenue`).
      - Scoring (0-100): linear from Score 100 at Ratio <= 0.85 down to Score 0 at Ratio >= 1.15, which puts break-even (Ratio 1.0) at exactly 50.
-   - **Financial Health (30% weight)**:
-     - Combines two sub-metrics (requires `population` from `municipalities` table):
-     - Sub-Metric 1: Debt-to-Revenue Ratio (`Debt Ratio = debt / revenue`).
-       - Scoring (0-100): Normalize based on range [0.1, 1.0]. Lower ratio is better. `Debt Score = 100 * (1 - max(0, min(1, (Debt Ratio - 0.1) / (1.0 - 0.1))))`.
-     - Sub-Metric 2: Revenue per Capita (`Rev Per Capita = revenue / population`).
-       - Scoring (0-100): Normalize based on range [R0, R14,000]. Higher is better. `Rev Per Capita Score = 100 * max(0, min(1, Rev Per Capita / 14000))`.
-     - Pillar Score (0-100): `Score = (Debt Score * 0.5) + (Rev Per Capita Score * 0.5)`.
+   - **Financial Health (30% weight)** — self-sufficiency + solvency, averaged:
+     - Sub-metric 1 — Own-revenue share (`1 - transfers_operational / revenue`, transfers = incexp item 2200): linear from **0** at share ≤ 0.25 (grant-dependent) up to **100** at share ≥ 0.75 (self-funded). *Replaces v1's revenue-per-capita, which measured urbanity, not health (r ≈ 0 with the overall score across 208 munis).* No population input needed.
+     - Sub-metric 2 — Debt-to-Revenue Ratio (`Debt Ratio = debt / revenue`): normalize on [0.1, 1.0], lower is better. `Debt Score = 100 * (1 - max(0, min(1, (Debt Ratio - 0.1) / (1.0 - 0.1))))`.
+     - Pillar Score (0-100): `Score = (Own-Revenue Score * 0.5) + (Debt Score * 0.5)`.
    - **Overall Score (0-100)**:
      - Metric: Weighted average of the four pillar scores (all four must be present).
      - Scoring: `Overall = (Accountability Score * 0.20) + (Infrastructure Score * 0.25) + (Efficiency Score * 0.25) + (Financial Health Score * 0.30)`, rounded to 2 decimal places.
+   - **Versioning**: every scored row stores `score_version`; the lazy healing pass re-derives rows stamped with an older version from their stored raw inputs, migrating the whole cache without upstream calls.
 3. **Views**:
    - **Map View**: Display municipalities on a choropleth map, color-coded by the `Overall Score`. Users can click a municipality to navigate to its Single View. (Province/District level views are post-MVP).
    - **Single View**: Show a selected municipality’s `Overall Score`, key metrics, and the breakdown of the four pillar scores.
