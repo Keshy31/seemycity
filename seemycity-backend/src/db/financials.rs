@@ -21,17 +21,21 @@ pub async fn upsert_complete_financial_record(
         r#"
         INSERT INTO financial_data (
             id, municipality_id, year, revenue, operational_expenditure, capital_expenditure, debt, audit_outcome,
+            transfers_operational, uifw_expenditure, repairs_maintenance,
             overall_score, financial_health_score, infrastructure_score, efficiency_score, accountability_score,
-            data_confidence, confidence_notes,
+            data_confidence, confidence_notes, score_version,
             created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         ON CONFLICT (municipality_id, year) DO UPDATE SET
             revenue = EXCLUDED.revenue,
             operational_expenditure = EXCLUDED.operational_expenditure,
             capital_expenditure = EXCLUDED.capital_expenditure,
             debt = EXCLUDED.debt,
             audit_outcome = EXCLUDED.audit_outcome,
+            transfers_operational = EXCLUDED.transfers_operational,
+            uifw_expenditure = EXCLUDED.uifw_expenditure,
+            repairs_maintenance = EXCLUDED.repairs_maintenance,
             overall_score = EXCLUDED.overall_score,
             financial_health_score = EXCLUDED.financial_health_score,
             infrastructure_score = EXCLUDED.infrastructure_score,
@@ -39,6 +43,7 @@ pub async fn upsert_complete_financial_record(
             accountability_score = EXCLUDED.accountability_score,
             data_confidence = EXCLUDED.data_confidence,
             confidence_notes = EXCLUDED.confidence_notes,
+            score_version = EXCLUDED.score_version,
             updated_at = EXCLUDED.updated_at
         "#,
         row.id,
@@ -49,6 +54,9 @@ pub async fn upsert_complete_financial_record(
         row.capital_expenditure,
         row.debt,
         row.audit_outcome.as_deref(),
+        row.transfers_operational,
+        row.uifw_expenditure,
+        row.repairs_maintenance,
         row.overall_score,
         row.financial_health_score,
         row.infrastructure_score,
@@ -56,6 +64,7 @@ pub async fn upsert_complete_financial_record(
         row.accountability_score,
         row.data_confidence.as_deref(),
         row.confidence_notes.as_deref(),
+        row.score_version,
         now, // created_at (only set on INSERT)
         now  // updated_at (set on INSERT and UPDATE)
     )
@@ -86,6 +95,9 @@ pub async fn get_all_financial_years_db(pool: &PgPool, muni_id: &str) -> Result<
             capital_expenditure,
             debt,
             audit_outcome,
+            transfers_operational,
+            uifw_expenditure,
+            repairs_maintenance,
             overall_score,
             financial_health_score,
             infrastructure_score,
@@ -93,6 +105,7 @@ pub async fn get_all_financial_years_db(pool: &PgPool, muni_id: &str) -> Result<
             accountability_score,
             data_confidence,
             confidence_notes,
+            score_version,
             created_at,
             updated_at
         FROM financial_data

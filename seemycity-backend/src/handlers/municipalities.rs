@@ -4,9 +4,11 @@ use serde::Deserialize;
 use crate::api::muni_money::audit::get_audit_outcome;
 use crate::api::muni_money::client::MunicipalMoneyClient;
 use crate::api::muni_money::financials::{
-    get_capital_expenditure, get_revenue_and_expenditure, get_total_debt, IncexpFigures,
+    get_capital_expenditure, get_repairs_maintenance, get_revenue_and_expenditure, get_total_debt,
+    get_uifw_total, IncexpFigures,
 };
-use crate::confidence::{evaluate as evaluate_confidence, ConfidenceInput};
+use crate::confidence::{evaluate as evaluate_confidence, ConfidenceInput, CONFIDENCE_UNRELIABLE};
+use crate::scoring::SCORE_VERSION;
 use crate::db::financials::{get_all_financial_years_db, upsert_complete_financial_record};
 use crate::db::municipalities::{
     get_all_municipality_populations, get_municipality_base_info_db,
@@ -46,7 +48,7 @@ pub struct UpstreamHealth {
 impl UpstreamHealth {
     fn is_up(&self) -> bool {
         match self.down_until.read() {
-            Ok(guard) => guard.map_or(true, |t| std::time::Instant::now() >= t),
+            Ok(guard) => guard.is_none_or(|t| std::time::Instant::now() >= t),
             Err(_) => true,
         }
     }
@@ -206,14 +208,6 @@ pub async fn ensure_financials_fresh(
         if !row.has_any_data() {
             continue;
         }
-        let breakdown = calculate_financial_score(&ScoringInput {
-            revenue: row.revenue,
-            operational_expenditure: row.operational_expenditure,
-            capital_expenditure: row.capital_expenditure,
-            debt: row.debt,
-            audit_outcome: row.audit_outcome.clone(),
-            population: population_opt.map(|p| p as u32),
-        });
         // Confidence backfill from stored values for rows never evaluated.
         // A grade set at fetch time (which may reflect the revenue checksum)
         // is kept as-is.
@@ -230,7 +224,21 @@ pub async fn ensure_financials_fresh(
         } else {
             (row.data_confidence.clone(), row.confidence_notes.clone())
         };
-        let up_to_date = row.overall_score == breakdown.overall_score
+        let data_unreliable = confidence.as_deref() == Some(CONFIDENCE_UNRELIABLE);
+        let breakdown = calculate_financial_score(&ScoringInput {
+            revenue: row.revenue,
+            operational_expenditure: row.operational_expenditure,
+            capital_expenditure: row.capital_expenditure,
+            debt: row.debt,
+            audit_outcome: row.audit_outcome.clone(),
+            population: population_opt.map(|p| p as u32),
+            transfers_operational: row.transfers_operational,
+            uifw_expenditure: row.uifw_expenditure,
+            repairs_maintenance: row.repairs_maintenance,
+            data_unreliable,
+        });
+        let up_to_date = row.score_version == Some(SCORE_VERSION)
+            && row.overall_score == breakdown.overall_score
             && row.financial_health_score == breakdown.financial_health_score
             && row.infrastructure_score == breakdown.infrastructure_score
             && row.efficiency_score == breakdown.efficiency_score
@@ -240,8 +248,8 @@ pub async fn ensure_financials_fresh(
             continue;
         }
         log::info!(
-            "Muni: {}, healing year {} (older formula or missing confidence grade)",
-            muni_code, row.year
+            "Muni: {}, healing year {} (score_version {:?} -> {})",
+            muni_code, row.year, row.score_version, SCORE_VERSION
         );
         row.overall_score = breakdown.overall_score;
         row.financial_health_score = breakdown.financial_health_score;
@@ -250,6 +258,7 @@ pub async fn ensure_financials_fresh(
         row.accountability_score = breakdown.accountability_score;
         row.data_confidence = confidence;
         row.confidence_notes = confidence_notes;
+        row.score_version = Some(SCORE_VERSION);
         if let Err(e) = upsert_complete_financial_record(pool, row).await {
             log::error!("Muni: {}, failed to persist healed scores for {}: {}", muni_code, row.year, e);
         }
@@ -318,23 +327,28 @@ async fn refresh_financial_year(
 ) -> Option<FinancialDataDb> {
     log::info!("Muni: {}, refreshing financial data for {} from Treasury API", muni_code, year);
 
-    // Revenue and opex share one incexp cube fetch; capex, debt, and audit each
-    // have their own cube. Four concurrent upstream calls in total.
-    let (incexp_res, capex_res, debt_res, audit_res) = tokio::join!(
+    // Revenue/opex/transfers share one incexp cube fetch; capex, debt, audit,
+    // UIFW, and repairs & maintenance each have their own cube. Six concurrent
+    // upstream calls in total.
+    let (incexp_res, capex_res, debt_res, audit_res, uifw_res, rm_res) = tokio::join!(
         get_revenue_and_expenditure(api_client, muni_code, year),
         get_capital_expenditure(api_client, muni_code, year),
         get_total_debt(api_client, muni_code, year),
         get_audit_outcome(api_client, muni_code, year),
+        get_uifw_total(api_client, muni_code, year),
+        get_repairs_maintenance(api_client, muni_code, year),
     );
 
+    // Reachability judged on the four core cubes; UIFW/R&M are enrichments.
     if incexp_res.is_err() && capex_res.is_err() && debt_res.is_err() && audit_res.is_err() {
         log::error!("Muni: {muni_code}, all Treasury API calls failed for {year}; upstream unreachable");
         return None;
     }
 
-    let IncexpFigures { revenue, operational_expenditure, revenue_checksum } = incexp_res
-        .map_err(|e| log::error!("Muni: {muni_code}, Failed Revenue/Expenditure fetch for {year}: {e}"))
-        .unwrap_or_default();
+    let IncexpFigures { revenue, operational_expenditure, transfers_operational, revenue_checksum } =
+        incexp_res
+            .map_err(|e| log::error!("Muni: {muni_code}, Failed Revenue/Expenditure fetch for {year}: {e}"))
+            .unwrap_or_default();
     let capital_expenditure = capex_res
         .map_err(|e| log::error!("Muni: {muni_code}, Failed Capex fetch for {year}: {e}"))
         .ok()
@@ -347,22 +361,14 @@ async fn refresh_financial_year(
         .map_err(|e| log::error!("Muni: {muni_code}, Failed Audit fetch for {year}: {e}"))
         .ok()
         .flatten();
-
-    let scoring_input = ScoringInput {
-        revenue,
-        operational_expenditure,
-        capital_expenditure,
-        debt,
-        audit_outcome: audit_outcome.clone(),
-        population: population.map(|p| p as u32),
-    };
-    let ScoreBreakdown {
-        overall_score,
-        financial_health_score,
-        infrastructure_score,
-        efficiency_score,
-        accountability_score,
-    } = calculate_financial_score(&scoring_input);
+    let uifw_expenditure = uifw_res
+        .map_err(|e| log::error!("Muni: {muni_code}, Failed UIFW fetch for {year}: {e}"))
+        .ok()
+        .flatten();
+    let repairs_maintenance = rm_res
+        .map_err(|e| log::error!("Muni: {muni_code}, Failed R&M fetch for {year}: {e}"))
+        .ok()
+        .flatten();
 
     // Empty-but-successful responses during upstream degradation must not
     // erase real cached data (observed 2026-07-07: 9 municipalities were
@@ -381,6 +387,7 @@ async fn refresh_financial_year(
         }
     }
 
+    // Confidence first: an `unreliable` grade suppresses raw-derived pillars.
     let grade = evaluate_confidence(&ConfidenceInput {
         revenue,
         operational_expenditure,
@@ -389,6 +396,26 @@ async fn refresh_financial_year(
         population: population.map(|p| p as u32),
         revenue_checksum,
     });
+
+    let scoring_input = ScoringInput {
+        revenue,
+        operational_expenditure,
+        capital_expenditure,
+        debt,
+        audit_outcome: audit_outcome.clone(),
+        population: population.map(|p| p as u32),
+        transfers_operational,
+        uifw_expenditure,
+        repairs_maintenance,
+        data_unreliable: grade.grade == CONFIDENCE_UNRELIABLE,
+    };
+    let ScoreBreakdown {
+        overall_score,
+        financial_health_score,
+        infrastructure_score,
+        efficiency_score,
+        accountability_score,
+    } = calculate_financial_score(&scoring_input);
 
     let now = Utc::now();
     let row = FinancialDataDb {
@@ -400,6 +427,9 @@ async fn refresh_financial_year(
         capital_expenditure,
         debt,
         audit_outcome,
+        transfers_operational,
+        uifw_expenditure,
+        repairs_maintenance,
         overall_score,
         financial_health_score,
         infrastructure_score,
@@ -407,6 +437,7 @@ async fn refresh_financial_year(
         accountability_score,
         data_confidence: Some(grade.grade.to_string()),
         confidence_notes: grade.notes,
+        score_version: Some(SCORE_VERSION),
         created_at: now,
         updated_at: now,
     };

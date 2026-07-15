@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id,\n            municipality_id,\n            year,\n            revenue,\n            operational_expenditure,\n            capital_expenditure,\n            debt,\n            audit_outcome,\n            overall_score,\n            financial_health_score,\n            infrastructure_score,\n            efficiency_score,\n            accountability_score,\n            data_confidence,\n            confidence_notes,\n            created_at,\n            updated_at\n        FROM financial_data\n        WHERE municipality_id = $1\n        ORDER BY year DESC\n        ",
+  "query": "\n        SELECT\n            id,\n            municipality_id,\n            year,\n            revenue,\n            operational_expenditure,\n            capital_expenditure,\n            debt,\n            audit_outcome,\n            transfers_operational,\n            uifw_expenditure,\n            repairs_maintenance,\n            overall_score,\n            financial_health_score,\n            infrastructure_score,\n            efficiency_score,\n            accountability_score,\n            data_confidence,\n            confidence_notes,\n            score_version,\n            created_at,\n            updated_at\n        FROM financial_data\n        WHERE municipality_id = $1\n        ORDER BY year DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -45,46 +45,66 @@
       },
       {
         "ordinal": 8,
-        "name": "overall_score",
+        "name": "transfers_operational",
         "type_info": "Numeric"
       },
       {
         "ordinal": 9,
-        "name": "financial_health_score",
+        "name": "uifw_expenditure",
         "type_info": "Numeric"
       },
       {
         "ordinal": 10,
-        "name": "infrastructure_score",
+        "name": "repairs_maintenance",
         "type_info": "Numeric"
       },
       {
         "ordinal": 11,
-        "name": "efficiency_score",
+        "name": "overall_score",
         "type_info": "Numeric"
       },
       {
         "ordinal": 12,
-        "name": "accountability_score",
+        "name": "financial_health_score",
         "type_info": "Numeric"
       },
       {
         "ordinal": 13,
+        "name": "infrastructure_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 14,
+        "name": "efficiency_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 15,
+        "name": "accountability_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 16,
         "name": "data_confidence",
         "type_info": "Text"
       },
       {
-        "ordinal": 14,
+        "ordinal": 17,
         "name": "confidence_notes",
         "type_info": "Text"
       },
       {
-        "ordinal": 15,
+        "ordinal": 18,
+        "name": "score_version",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 19,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 16,
+        "ordinal": 20,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
@@ -110,9 +130,13 @@
       true,
       true,
       true,
+      true,
+      true,
+      true,
+      true,
       false,
       false
     ]
   },
-  "hash": "f94f8e0ed49d234b831072c0fc225575f132c26b465ded3445ae7ee4034dd95c"
+  "hash": "41092a58c9d9106fde97f7c84970ff18e549d7ad78e4b3085e2e0043ff4a4139"
 }

@@ -34,11 +34,15 @@ pub struct FinancialDataDb {
     pub year: i32,
     pub revenue: Option<Decimal>,
     // Rename this field to match the DB column
-    pub operational_expenditure: Option<Decimal>, 
+    pub operational_expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
     // Make audit_outcome optional to match DB NULLable and query_as SELECT *
     pub audit_outcome: Option<String>,
+    // Scoring v2 inputs
+    pub transfers_operational: Option<Decimal>, // grants within revenue (item 2200)
+    pub uifw_expenditure: Option<Decimal>,      // unauthorised/irregular/fruitless & wasteful
+    pub repairs_maintenance: Option<Decimal>,   // R&M spend (repmaint_v2)
     // Add the new score fields to match the DB table
     pub overall_score: Option<Decimal>,
     pub financial_health_score: Option<Decimal>,
@@ -49,6 +53,9 @@ pub struct FinancialDataDb {
     // None = not yet evaluated (backfilled by the healing pass).
     pub data_confidence: Option<String>,
     pub confidence_notes: Option<String>,
+    // Scoring-formula version the stored scores were computed under; rows with
+    // an older (or missing) version are re-derived by the healing pass.
+    pub score_version: Option<i32>,
     pub created_at: chrono::DateTime<chrono::Utc>, // Timestamp for cache management
     #[sqlx(default)] // Handle potential missing updated_at if not always set by upsert
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -76,6 +83,9 @@ impl From<&FinancialDataDb> for FinancialYearData {
             capital_expenditure: row.capital_expenditure,
             debt: row.debt,
             audit_outcome: row.audit_outcome.clone(),
+            transfers_operational: row.transfers_operational,
+            uifw_expenditure: row.uifw_expenditure,
+            repairs_maintenance: row.repairs_maintenance,
             overall_score: row.overall_score,
             financial_health_score: row.financial_health_score,
             infrastructure_score: row.infrastructure_score,
@@ -125,6 +135,13 @@ pub struct FinancialYearData {
     pub debt: Option<Decimal>,
     // Make audit_outcome optional
     pub audit_outcome: Option<String>,
+    // Scoring v2 inputs (also useful for UI: own-revenue share, wasteful spend)
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub transfers_operational: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub uifw_expenditure: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub repairs_maintenance: Option<Decimal>,
     // Add the new score fields
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
     pub overall_score: Option<Decimal>,

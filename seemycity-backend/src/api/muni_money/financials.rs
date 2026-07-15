@@ -63,11 +63,18 @@ fn sum_item_range(
     facts_found.then_some(total)
 }
 
+/// Operational transfers/grants received (item 2200) — the denominator split
+/// for the own-revenue metric.
+const OPERATIONAL_TRANSFERS_ITEM: u32 = 2200;
+
 /// Figures extracted from one incexp_v2 aggregate response.
 #[derive(Debug, Clone, Default)]
 pub struct IncexpFigures {
     pub revenue: Option<Decimal>,
     pub operational_expenditure: Option<Decimal>,
+    /// Operational grants received (item 2200); part of `revenue`. Feeds the
+    /// own-revenue (self-sufficiency) metric: own = revenue - transfers.
+    pub transfers_operational: Option<Decimal>,
     /// The cube's own total-revenue rollup (item 2900), used as a checksum
     /// against `revenue` by the data-confidence layer.
     pub revenue_checksum: Option<Decimal>,
@@ -92,6 +99,11 @@ pub async fn get_revenue_and_expenditure(
 
     let revenue = sum_item_range(&response.cells, &REVENUE_ITEM_RANGE, "revenue");
     let expenditure = sum_item_range(&response.cells, &EXPENDITURE_ITEM_RANGE, "expenditure");
+    let transfers_operational = sum_item_range(
+        &response.cells,
+        &(OPERATIONAL_TRANSFERS_ITEM..=OPERATIONAL_TRANSFERS_ITEM),
+        "operational transfers",
+    );
     let revenue_checksum = response
         .cells
         .iter()
@@ -102,62 +114,53 @@ pub async fn get_revenue_and_expenditure(
         "Incexp results for {} in {}: revenue={:?}, expenditure={:?}",
         municipality_code, year, revenue, expenditure
     );
-    Ok(IncexpFigures { revenue, operational_expenditure: expenditure, revenue_checksum })
+    Ok(IncexpFigures {
+        revenue,
+        operational_expenditure: expenditure,
+        transfers_operational,
+        revenue_checksum,
+    })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rust_decimal_macros::dec;
-
-    fn fact(code: &str, amount: Option<f64>) -> FinancialItemFact {
-        FinancialItemFact {
-            demarcation_code: "TST".to_string(),
-            demarcation_label: "Test".to_string(),
-            item_code: code.to_string(),
-            item_label: format!("Item {code}"),
-            amount,
+/// Total Unauthorised, Irregular, Fruitless & Wasteful expenditure for a
+/// municipality and financial year. `None` = no UIFW facts reported for the
+/// year (which, per the AG's publication practice, usually means none was
+/// identified — but is treated as "unknown" by scoring, never as an earned 0).
+pub async fn get_uifw_total(
+    client: &MunicipalMoneyClient,
+    municipality_code: &str,
+    year: i32,
+) -> Result<Option<Decimal>, ApiClientError> {
+    let response = client.fetch_uifw_aggregate(municipality_code, year).await?;
+    let mut total = Decimal::ZERO;
+    let mut found = false;
+    for cell in &response.cells {
+        if let Some(amount) = cell.amount.and_then(Decimal::from_f64) {
+            total += amount;
+            found = true;
         }
     }
+    Ok(found.then_some(total))
+}
 
-    #[test]
-    fn revenue_range_includes_gains_and_transfers_excludes_rollup_and_capital() {
-        let cells = vec![
-            fact("1800", Some(100.0)), // property rates — in
-            fact("2200", Some(50.0)),  // operational transfers — in
-            fact("2700", Some(25.0)),  // other gains — in
-            fact("2900", Some(999.0)), // total-revenue rollup — OUT
-            fact("3100", Some(70.0)),  // payroll — expenditure, out
-            fact("4600", Some(40.0)),  // capital transfers — out
-        ];
-        assert_eq!(
-            sum_item_range(&cells, &REVENUE_ITEM_RANGE, "revenue"),
-            Some(dec!(175.0))
-        );
+/// Total repairs & maintenance spend (audited actuals) for a municipality-year.
+pub async fn get_repairs_maintenance(
+    client: &MunicipalMoneyClient,
+    municipality_code: &str,
+    year: i32,
+) -> Result<Option<Decimal>, ApiClientError> {
+    let response = client
+        .fetch_repmaint_aggregate(municipality_code, year, "AUDA")
+        .await?;
+    let mut total = Decimal::ZERO;
+    let mut found = false;
+    for cell in &response.cells {
+        if let Some(amount) = cell.amount.and_then(Decimal::from_f64) {
+            total += amount;
+            found = true;
+        }
     }
-
-    #[test]
-    fn expenditure_range_includes_opcost_and_losses_excludes_rollup() {
-        let cells = vec![
-            fact("2900", Some(999.0)), // rollup — OUT even though numerically < 3000
-            fact("3100", Some(60.0)),  // payroll — in
-            fact("4100", Some(30.0)),  // operational cost — in (missed pre-2026 fix)
-            fact("4300", Some(10.0)),  // other losses — in
-            fact("4600", Some(40.0)),  // capital transfers — out
-            fact("4900", Some(5.0)),   // income tax — out
-        ];
-        assert_eq!(
-            sum_item_range(&cells, &EXPENDITURE_ITEM_RANGE, "expenditure"),
-            Some(dec!(100.0))
-        );
-    }
-
-    #[test]
-    fn no_matching_facts_is_none_not_zero() {
-        let cells = vec![fact("2900", Some(999.0)), fact("bogus", Some(1.0))];
-        assert_eq!(sum_item_range(&cells, &REVENUE_ITEM_RANGE, "revenue"), None);
-        assert_eq!(sum_item_range(&cells, &EXPENDITURE_ITEM_RANGE, "expenditure"), None);
-    }
+    Ok(found.then_some(total))
 }
 
 /// Fetches the total operating and capital revenue for a municipality in a given year.
@@ -188,7 +191,7 @@ pub async fn get_total_debt(
 
     for fact in response.cells.iter() {
          if let Ok(code) = fact.item_code.parse::<u32>() {
-            if code >= 310 && code <= 500 { 
+            if (310..=500).contains(&code) {
                  if let Some(amount_f64) = fact.amount {
                     if let Some(amount_decimal) = Decimal::from_f64(amount_f64) {
                         log::trace!(
@@ -279,4 +282,58 @@ pub async fn get_capital_expenditure(
         );
          Ok(None)
      }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal_macros::dec;
+
+    fn fact(code: &str, amount: Option<f64>) -> FinancialItemFact {
+        FinancialItemFact {
+            demarcation_code: "TST".to_string(),
+            demarcation_label: "Test".to_string(),
+            item_code: code.to_string(),
+            item_label: format!("Item {code}"),
+            amount,
+        }
+    }
+
+    #[test]
+    fn revenue_range_includes_gains_and_transfers_excludes_rollup_and_capital() {
+        let cells = vec![
+            fact("1800", Some(100.0)), // property rates — in
+            fact("2200", Some(50.0)),  // operational transfers — in
+            fact("2700", Some(25.0)),  // other gains — in
+            fact("2900", Some(999.0)), // total-revenue rollup — OUT
+            fact("3100", Some(70.0)),  // payroll — expenditure, out
+            fact("4600", Some(40.0)),  // capital transfers — out
+        ];
+        assert_eq!(
+            sum_item_range(&cells, &REVENUE_ITEM_RANGE, "revenue"),
+            Some(dec!(175.0))
+        );
+    }
+
+    #[test]
+    fn expenditure_range_includes_opcost_and_losses_excludes_rollup() {
+        let cells = vec![
+            fact("2900", Some(999.0)), // rollup — OUT even though numerically < 3000
+            fact("3100", Some(60.0)),  // payroll — in
+            fact("4100", Some(30.0)),  // operational cost — in (missed pre-2026 fix)
+            fact("4300", Some(10.0)),  // other losses — in
+            fact("4600", Some(40.0)),  // capital transfers — out
+            fact("4900", Some(5.0)),   // income tax — out
+        ];
+        assert_eq!(
+            sum_item_range(&cells, &EXPENDITURE_ITEM_RANGE, "expenditure"),
+            Some(dec!(100.0))
+        );
+    }
+
+    #[test]
+    fn no_matching_facts_is_none_not_zero() {
+        let cells = vec![fact("2900", Some(999.0)), fact("bogus", Some(1.0))];
+        assert_eq!(sum_item_range(&cells, &REVENUE_ITEM_RANGE, "revenue"), None);
+        assert_eq!(sum_item_range(&cells, &EXPENDITURE_ITEM_RANGE, "expenditure"), None);
+    }
 }
