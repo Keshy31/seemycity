@@ -3,8 +3,6 @@
 // We need to import items from our actual crate (seemycity_backend)
 // Note: Rust implicitly creates a crate named after your package when running integration tests.
 use seemycity_backend::api::{muni_money, MunicipalMoneyClient}; // Use the re-exported client
-use dotenvy; // Need dotenvy for loading .env
-use env_logger; // Import env_logger for logging
 use rust_decimal::Decimal; // Import Decimal
 
 // This test requires network access and hits the actual Municipal Money API

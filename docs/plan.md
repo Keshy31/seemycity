@@ -95,10 +95,80 @@
 
 ---
 
+**Phase 7: 2026 Revival — Correctness, Speed, Resilience, Refresh**
+**Goal:** Bring the dormant 2025 MVP to a trustworthy, fast, deployable state.
+**Status:** _Completed (July 2026; commits `00dcfda`..`4542da2`)_
+**Delivered:**
+- [x] Scoring correctness: missing data scores NULL (never 0), real Treasury audit-label matching, efficiency midpoint fixed, 16 unit tests, 2-dp rounding aligned with storage
+- [x] Cache & year policy: latest-scorable-year walk (no hardcoded year), 7-day TTL, negative caching, lazy score healing on formula change
+- [x] Treasury-outage resilience: 10s timeouts, transport failures never persisted, 5-minute circuit breaker
+- [x] API contract unified on `overall_score`; map coloring, navigation, and null-score crashes fixed
+- [x] Performance: map payload 18 MB → ~305 KB gzipped (ST_SimplifyPreserveTopology + 5-dp coords), 60s in-memory map cache (~15-30 ms warm in release), gzip middleware, deduped incexp fetch (4 upstream calls/year, not 5)
+- [x] Reproducibility: migrations/, .sqlx offline compile data, .env.example files, all pipelines green (cargo 0 warnings, svelte-check 0/0, prettier+eslint+vitest pass)
+- [x] Deploy path fixed & locally verified (SPA fallback + nginx + env injection; backend Dockerfile + fly.toml prepared — **not deployed by decision**)
+- [x] Modern visual refresh: new token sheet (stone neutrals, teal primary, emerald/amber/red score palette), Inter, token-driven MapLibre ramp, responsive map view; ux.md rewritten
+- [x] Background cache warmer (startup + daily, `CACHE_WARMER` env): 204/213 municipalities scored
+- [x] Data insights report: `docs/data-insights-2026-07.md`
+
+---
+
+**Phase 8: "Consultant's Dream" — Trust, Scoring v2, Insight UI**
+**Goal:** Tight data, effective scoring, striking visuals — transparency that can drive change. Primary audience: journalists & civil society.
+**Status:** _In progress (started 2026-07-07)_
+
+**Locked decisions (2026-07-07):**
+1. **Scoring philosophy:** hybrid — absolute anchors (break-even = 50, clean audit = 100) with range endpoints calibrated annually against the observed national distribution.
+2. **New metrics:** own-revenue split (transfers item **2200**), UIFW (`uifwexp` cube), repairs & maintenance (`repmaint_v2` cube) — validating with sample data at every step, not at the end.
+3. **Map:** 5 quantized score bands + legend with counts (not a continuous ramp).
+4. **UI priority:** journalists & civil society (league tables, shareable dashboard, plain-English verdicts, permalinks).
+
+**Sub-phase A — Trust the numbers:**
+- [x] Probe cubes with sample munis (CPT / KZN244 Msinga / FS184 Matjhabeng) — see findings below
+- [x] **Re-pin revenue/opex item sets** — done 2026-07-07: revenue = 0200-2800, expenditure = 3000-4300, validated against CPT's audited FY2024 AFS (+0.6% / +0.4% on the mSCOA basis). Item 2900 proven to be a mislabeled **total-revenue rollup** (identity holds at 0.00% across 8 test municipalities) — excluded, and available as a checksum for the confidence layer. Requires a one-time financial_data cache wipe + re-warm so all stored raw figures use the corrected definitions.
+- [x] Data-confidence layer — done 2026-07-08: `src/confidence.rs` grades every muni-year `ok`/`suspect`/`unreliable` (negatives, implausible ratios, revenue-vs-population sanity, one-sided statements, and the item-2900 revenue checksum at fetch time); grades + human-readable notes stored via migration 0002, backfilled by the healing pass, served in the API, and rendered as a plain-English badge on the detail page. Empty-but-200 upstream responses can no longer overwrite real cached data. First catch: Msinga (#2 nationally) reports negative debt — its financial-health pillar is inflated; flagged for scoring v2 (consider nulling pillars fed by unreliable inputs). Current census: 388 ok / 6 suspect / 4 unreliable.
+- [x] Own-revenue split fetched and stored (item 2200 transfers) — done 2026-07-15 as part of scoring v2: `IncexpFigures.transfers_operational`, persisted via migration 0003
+- [x] Census 2022 population check — verified 2026-07-08: the stored populations already ARE Census 2022 figures (JHB 4,803,262 / CPT 4,772,846 / ETH 4,239,901 match StatsSA exactly; ETH off by 1 from the `real` column's f32 rounding — nit only). No refresh needed until the next census.
+- [x] eThekwini mystery solved: Treasury HAS its FY2024 audited data (R170bn incexp); the 9 unscored munis are false negatives from empty-but-200 responses during the 2026-07-07 Treasury degradation → purge + re-warm
+
+**Sub-phase B — Scoring engine v2:**
+- [x] Pillar redesign — code complete 2026-07-15 (`SCORE_VERSION = 2`, all 28 unit tests green, clippy clean):
+  - Financial Health = own-revenue share (anchors 0.25→0, 0.75→100; replaces revenue-per-capita, which measured urbanity, r≈0 with health) + debt ratio, averaged.
+  - Infrastructure = capex piecewise (unchanged) blended 70/30 with R&M intensity (100 at Treasury's 8%-of-opex norm) when reported.
+  - Accountability = audit outcome blended 70/30 with UIFW share of opex (0% → 100, ≥10% → 0) when reported.
+  - Efficiency unchanged (opex/revenue linear, break-even = 50).
+  - `data_unreliable` rows (confidence layer) suppress FH/Infra/Efficiency; the audit pillar survives — the AG's opinion is independent of the books. Kills the Msinga negative-debt inflation.
+- [x] `score_version` column (migration 0003, applied to live DB); healing pass in `ensure_financials_fresh` re-derives any row whose stored version ≠ current, using stored v2 inputs — the whole cache migrates lazily, no upstream calls.
+- [x] Fetch pipeline: `refresh_financial_year` now pulls 6 cubes concurrently (incexp incl. item-2200 transfers, capex, debt, audit, uifwexp, repmaint_v2); reachability still judged on the 4 core cubes.
+- [ ] **NEXT SESSION — wipe + re-warm + backtest:** raw v2 inputs (transfers/UIFW/R&M) are NULL for existing rows, so healed v2 scores would lack FH until refetched. Steps: (1) start backend with `CACHE_WARMER=1` against Fly DB via `fly proxy 5432 -a seemycity-db` (approval needed for the cache wipe — it's a DB write), (2) `DELETE FROM financial_data` or force refetch, (3) re-warm all ~208 munis, (4) run backtest diff vs `docs/snapshots/v1-scores-2026-07-08.json` (v1 scores for 208 munis), (5) review ranking moves, calibrate anchors if the distribution looks wrong.
+- [ ] Update prd.md rubric to v2 **after** the backtest confirms the anchors (rubric text currently describes v2 design; verify numbers survive calibration)
+
+**Sub-phase C — Insight UI (journalists first):**
+- [ ] 5-band quantized map + legend with per-band counts
+- [ ] Map lens switcher: composite / audit outcome / per-pillar / (later) trend
+- [ ] Hover tooltips: name, score, one-line plain-English verdict
+- [ ] Detail page as diagnosis: rank badge (#n of 204), pillar waterfall, peer comparison vs province & size-band medians
+- [ ] National dashboard page (live version of the insights report: bands, provincial league, movers)
+- [ ] Compare entry point (button exists but was never wired)
+- [ ] Data-confidence badge on detail + map hatching for low-confidence
+
+**Sub-phase D — Reach:**
+- [ ] Deploy to Fly (backend app creation + secrets + both deploys — awaiting go decision)
+- [ ] "FY2025 results day" (Nov-Dec 2026 when AG publishes; pipeline rolls forward automatically)
+- [ ] Annual "State of Local Government Finances" report from the live data
+
+**Key probe findings (2026-07-07, must inform all Phase 8 work):**
+- Real operational-transfers item is **2200** ("Transfer and subsidies - Operational"); item 1600 is generic "Operational Revenue" — older docs saying 1600 = transfers are wrong.
+- `uifwexp` cube: keyed by `financial_year_end.year` + `item` (unauthorised / irregular / fruitless), no amount_type. Validated: Matjhabeng R1.4bn total UIFW FY2024 vs CPT R634m irregular-only vs Msinga R12m.
+- `repmaint_v2`: standard AUDA/financial_period shape, works.
+- Treasury can return **empty-but-HTTP-200** responses while degraded; indistinguishable from "no data" without heuristics. Negative caching must be confidence-aware.
+
+---
+
 **Future/Deferred:**  
-- [ ] Advanced accessibility audits  
-- [ ] Cross-browser and device testing  
-- [ ] Deep performance optimization  
-- [ ] Province/district drill-down and aggregation
+- [ ] District/province drill-down and aggregation
+- [ ] Collection rates from `aged_debtor_v2`; liquidity from `cflow_v2` (scoring v3 candidates)
+- [ ] Dark mode (token architecture ready)
+- [ ] Advanced accessibility audits, cross-browser testing
+- [ ] Self-hosted fonts
 
 ---

@@ -4,6 +4,7 @@
 // and can be accessed by the binary crate (main.rs) or other consumers.
 pub mod api;
 pub mod config;
+pub mod confidence;
 pub mod db;
 pub mod errors;
 pub mod handlers;

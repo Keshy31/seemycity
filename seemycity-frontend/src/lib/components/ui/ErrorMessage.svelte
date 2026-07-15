@@ -1,51 +1,59 @@
 <script lang="ts">
-    import Icon from '@iconify/svelte';
+	import Icon from '@iconify/svelte';
 
-    export let message: string = 'An error occurred while loading data.'; // Default message
-    export let errorDetails: string | undefined = undefined; // Optional more detailed error
+	export let message: string = 'An error occurred while loading data.'; // Default message
+	export let errorDetails: string | undefined = undefined; // Optional more detailed error
 </script>
 
-<div class="error-container">
-    <Icon icon="mdi:alert-circle-outline" class="error-icon" />
-    <h4>{message}</h4>
-    {#if errorDetails}
-        <p class="error-details">{errorDetails}</p>
-    {/if}
-    <!-- Optionally add a retry button -->
-    <!-- <button on:click={() => dispatch('retry')}>Retry</button> -->
+<div class="error-container" role="alert">
+	<Icon icon="mdi:alert-circle-outline" class="error-icon" />
+	<div class="error-text-content">
+		<h4 class="error-title">{message}</h4>
+		{#if errorDetails}
+			<p class="error-details">{errorDetails}</p>
+		{/if}
+	</div>
 </div>
 
 <style lang="scss">
-    @use '../../../styles/variables' as *; // Use @use
+	@use '../../../styles/variables' as *;
 
-    .error-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem;
-        text-align: center;
-        color: var(--text-muted-color);
-        background-color: var(--error-color-bg); // Use CSS var
-        border: 1px solid var(--error-color-light); // Use CSS var
-        border-radius: var(--border-radius-medium); // Use CSS var
-        gap: 0.75rem;
-    }
+	.error-container {
+		display: flex;
+		align-items: center;
+		padding: var(--spacing-lg);
+		text-align: left;
+		background-color: var(--background-offset-light);
+		border: 1px solid var(--error-color);
+		border-radius: var(--border-radius-lg);
+		gap: var(--spacing-md);
+		color: var(--text-color-default);
+	}
 
-    .error-icon {
-        font-size: 2.5rem;
-        color: var(--error-color); // Already CSS var
-    }
+	// :global() because the Icon component's <svg> is outside Svelte's scoping.
+	.error-container :global(.error-icon) {
+		font-size: 2rem;
+		color: var(--error-color);
+		flex-shrink: 0; // Prevent icon from shrinking
+	}
 
-    h4 {
-        margin: 0;
-        color: var(--error-color-dark); // Use CSS var
-        font-size: 1.1rem;
-    }
+	.error-text-content {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xs);
+	}
 
-    .error-details {
-        font-size: 0.9rem;
-        color: var(--text-muted-color); // Already CSS var
-        max-width: 400px; // Prevent overly wide details
-    }
+	.error-title {
+		margin: 0;
+		color: var(--text-color-default);
+		font-size: var(--font-size-base);
+		font-weight: var(--font-weight-bold);
+	}
+
+	.error-details {
+		margin: 0;
+		font-size: var(--font-size-sm);
+		color: var(--text-color-muted);
+		max-width: 500px;
+	}
 </style>

@@ -6,17 +6,20 @@
 app = 'seemycity-frontend'
 primary_region = 'jnb'
 
-# Use the default build section, Fly will use the Dockerfile
+# Vite inlines env at build time — deploy with build args:
+#   fly deploy \
+#     --build-arg VITE_API_BASE_URL=https://seemycity-backend.fly.dev \
+#     --build-arg VITE_MAPTILER_API_KEY=...
 [build]
 
-# Use http_service as the Dockerfile now runs Nginx on port 80
+# nginx serves the static SPA on port 80 (see nginx.conf for SPA fallback)
 [http_service]
-  internal_port = 80 # Nginx default port
+  internal_port = 80
   force_https = true
-  auto_stop_machines = false # Stop machines when idle
-  auto_start_machines = true # Start machines on new requests
-  min_machines_running = 1 # Allow scaling to zero
-  processes = ["app"] # Matches the default process group
+  auto_stop_machines = true # stop when idle
+  auto_start_machines = true # start on new requests
+  min_machines_running = 0
+  processes = ["app"]
 
 # Keep the vm section for defining machine resources
 [[vm]]

@@ -11,7 +11,16 @@ pub struct Config {
     pub db_user: String,
     pub db_password: String,
     pub db_name: String,
-    // We can add more config options here later, e.g., server_host, server_port
+    /// Address the HTTP server binds to. Defaults to 127.0.0.1 for local dev;
+    /// containers must set SERVER_HOST=0.0.0.0.
+    pub server_host: String,
+    pub server_port: u16,
+    /// Origins allowed by CORS, from the comma-separated CORS_ALLOWED_ORIGINS
+    /// variable. Defaults to the Vite dev server.
+    pub cors_allowed_origins: Vec<String>,
+    /// Background cache warmer (startup + daily). On by default; disable with
+    /// CACHE_WARMER=false, e.g. during local development against the shared DB.
+    pub cache_warmer_enabled: bool,
 }
 
 // Define a custom error type for configuration loading issues
@@ -49,11 +58,30 @@ pub fn load_config() -> Result<Config, ConfigError> {
     let db_port = db_port_str.parse::<u16>()
         .map_err(ConfigError::InvalidPort)?;
 
+    let server_host = env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let server_port = env::var("SERVER_PORT")
+        .unwrap_or_else(|_| "4000".to_string())
+        .parse::<u16>()
+        .map_err(ConfigError::InvalidPort)?;
+    let cors_allowed_origins = env::var("CORS_ALLOWED_ORIGINS")
+        .unwrap_or_else(|_| "http://localhost:5173".to_string())
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    let cache_warmer_enabled = env::var("CACHE_WARMER")
+        .map(|v| v.to_lowercase() != "false")
+        .unwrap_or(true);
+
     Ok(Config {
         db_host,
         db_port,
         db_user,
         db_password,
         db_name,
+        server_host,
+        server_port,
+        cors_allowed_origins,
+        cache_warmer_enabled,
     })
 }

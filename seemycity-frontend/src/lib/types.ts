@@ -1,53 +1,53 @@
 // src/lib/types.ts
 
+// Plausibility grade of a year's raw figures; null = not yet evaluated.
+export type DataConfidence = 'ok' | 'suspect' | 'unreliable';
+
 // Type for the financial data of a single year
 export interface FinancialYearData {
-    year: number;
-    // Scores are serialized as numbers (f64) or null from Rust Decimal
-    overall_score: number | null;
-    financial_health_score: number | null;
-    infrastructure_score: number | null;
-    efficiency_score: number | null;
-    accountability_score: number | null;
-    revenue: number | null;
-    operational_expenditure: number | null;
-    capital_expenditure: number | null;
-    debt: number | null;
-    audit_outcome: string | null;
+	year: number;
+	// Scores are serialized as numbers (f64) or null from Rust Decimal
+	overall_score: number | null;
+	financial_health_score: number | null;
+	infrastructure_score: number | null;
+	efficiency_score: number | null;
+	accountability_score: number | null;
+	revenue: number | null;
+	operational_expenditure: number | null;
+	capital_expenditure: number | null;
+	debt: number | null;
+	audit_outcome: string | null;
+	data_confidence: DataConfidence | null;
+	confidence_notes: string | null;
 }
 
 // Type for the detailed information of a single municipality returned by the API
 export interface MunicipalityDetail {
-    id: string; // Municipality code e.g., "BUF"
-    name: string; // e.g., "Buffalo City Metropolitan Municipality"
-    province: string; // e.g., "Eastern Cape"
-    population: number | null; // e.g., 834997
-    classification: string | null; // e.g., "Metro"
-    website: string | null; // URL
-    financials: FinancialYearData[]; // Array of financial data
-    geometry?: any; // Optional GeoJSON geometry if included
+	id: string; // Municipality code e.g., "BUF"
+	name: string; // e.g., "Buffalo City Metropolitan Municipality"
+	province: string; // e.g., "Eastern Cape"
+	population: number | null; // e.g., 834997
+	area_sq_km: number | null; // e.g., 2536
+	classification: string | null; // e.g., "Metro"
+	website: string | null; // URL
+	financials: FinancialYearData[]; // Array of financial data
+	geometry?: import('geojson').Geometry | null; // Optional GeoJSON geometry if included
 }
 
-// You might also want types for data coming from $page.data in Svelte components
-// For the comparison page:
-export interface ComparisonPageData {
-    municipalities: MunicipalityDetail[];
-    requestedIds: string[];
-    error?: string; // Optional error message from load function
-}
-
-// For the single view page (if not already defined elsewhere):
-export interface SinglePageData {
-    details: MunicipalityDetail | null; // Can be null if fetch failed
-    error?: string; // Optional error message from load function
-}
-
-// Type for the basic municipality info used in the map/list
+// Properties carried by each GeoJSON feature from GET /api/municipalities
 export interface MunicipalityBaseInfo {
-    id: string;
-    name: string;
-    province: string;
-    latest_overall_score?: string | number | null; // Optional latest score for map styling
-    // Include geometry if it comes with this API endpoint
-    geometry?: any;
+	id: string;
+	name: string;
+	province: string;
+	population?: number | null;
+	classification?: string | null;
+	overall_score?: number | null; // Latest score; null means "no data" (grey on map)
+}
+
+/**
+ * A lightweight type for representing a municipality in search results.
+ */
+export interface MunicipalitySearchResult {
+	id: string; // e.g., 'CPT'
+	name: string; // e.g., 'City of Cape Town'
 }

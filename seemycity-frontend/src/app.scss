@@ -14,8 +14,8 @@
 //              @use 'styles/components/buttons';
 
 body {
-  // Example: Add a global transition to body background for potential theme switching
-  transition: background-color var(--transition-duration) var(--transition-timing-function);
+	// Example: Add a global transition to body background for potential theme switching
+	transition: background-color var(--transition-duration) var(--transition-timing-function);
 }
 
 // Add any other truly global styles here, but keep it minimal.

@@ -79,11 +79,3 @@ pub struct AuditApiResponse {
     pub cells: Vec<AuditOpinionFact>,
 }
 
-/// Struct for financial summary.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct FinancialSummary {
-    pub year: i32,
-    pub municipality_code: String,
-    pub total_revenue: Option<f64>,
-    pub total_expenditure: Option<f64>,
-}

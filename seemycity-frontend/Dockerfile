@@ -27,6 +27,13 @@ RUN npm ci --include=dev
 # Copy application code
 COPY . .
 
+# Vite inlines VITE_* variables at build time, so they must be supplied as
+# build args (e.g. fly deploy --build-arg VITE_API_BASE_URL=https://api.example).
+ARG VITE_API_BASE_URL
+ARG VITE_MAPTILER_API_KEY
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_MAPTILER_API_KEY=$VITE_MAPTILER_API_KEY
+
 # Build application
 RUN npm run build
 
@@ -39,6 +46,9 @@ FROM nginx:1.25-alpine AS final
 
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
+
+# SPA routing + caching rules (try_files fallback to /index.html)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy static assets from build stage to Nginx html directory
 COPY --from=build /app/build /usr/share/nginx/html

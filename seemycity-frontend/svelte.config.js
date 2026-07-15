@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-static'; 
+import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -8,14 +8,14 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-		// Adapter configuration
+		// Static SPA: ssr is disabled in src/routes/+layout.ts, and every route
+		// (including /[id] and /compare/[ids]) is served by the fallback page.
+		// nginx must rewrite unknown paths to /index.html (see nginx.conf).
 		adapter: adapter({
-			// default options are suitable for static deployment
 			pages: 'build',
 			assets: 'build',
-			fallback: null, // or 'index.html' or '200.html' if needed for SPA routing
-			precompress: false,
-			strict: false // Recommended, ensures all routes are prerenderable
+			fallback: 'index.html',
+			precompress: false
 		})
 	}
 };

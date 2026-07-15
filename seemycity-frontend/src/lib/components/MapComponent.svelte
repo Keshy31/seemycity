@@ -1,271 +1,165 @@
 <script lang="ts">
-  import maplibregl from 'maplibre-gl'; // Use only default import
-  import type { FeatureCollection } from 'geojson'; // Type-only import
-  import type { LngLatLike, Map, StyleSpecification, MapMouseEvent } from 'maplibre-gl'; // Import types separately
-  import { onMount, onDestroy, tick } from 'svelte';
-  import { page } from '$app/stores'; // For accessing map style URL
-  import { browser } from '$app/environment';
-  import { goto } from '$app/navigation'; // Import goto
+	import { onMount, createEventDispatcher, afterUpdate } from 'svelte';
+	import maplibregl from 'maplibre-gl';
+	import 'maplibre-gl/dist/maplibre-gl.css';
+	import type { Map, GeoJSONSource } from 'maplibre-gl';
+	import type { FeatureCollection } from 'geojson';
 
-  // Unique ID for the map container
-  const mapId = `map-${Math.random().toString(36).substring(2, 15)}`;
+	export let geojson: FeatureCollection | null = null;
 
-  let mapContainer: HTMLElement | undefined;
-  // Destructure needed values from the default import
-  const { Map: MapClass, NavigationControl: NavigationControlClass, Popup: PopupClass } = maplibregl; // Rename all conflicting variables
-  let map: Map | undefined; // Define map instance variable
+	const dispatch = createEventDispatcher();
 
-  // State for fetched data
-  let geojsonData: FeatureCollection | null = null;
-  let isLoading = true;
-  let error: string | null = null;
+	let mapContainer: HTMLElement;
+	let map: Map;
+	let isMapLoaded = false;
 
-  // Define the type for properties based on backend response
-  // Match the JSON keys returned by the API (uses serde rename)
-  interface MunicipalityFeatureProperties {
-    id: string; // Renamed from 'id' in backend model
-    name: string;
-    province: string;
-    financial_score: number | null; // Renamed from 'latest_score', type is number after JSON deserialization
-    population: number | null;
-    classification: string | null;
-    // add other properties as needed
-  }
+	/** Reads a design token off :root so the map ramp always matches the UI. */
+	function token(name: string, fallback: string): string {
+		const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+		return value || fallback;
+	}
 
-  const initialCenter: [number, number] = [24.7, -29]; // Correct order: Lng, Lat
-  const initialZoom = 4.5; // Slightly more zoomed in
+	function addDataLayers(mapInstance: Map) {
+		if (!mapInstance) return;
 
-  // Basic inline style - Plain background
-  const mapStyle: StyleSpecification = {
-    version: 8,
-    name: 'Blank Background',
-    sources: {},
-    layers: [
-      {
-        id: 'background',
-        type: 'background',
-        paint: {
-          'background-color': '#FDF6E3' // Use UX background color
-        }
-      }
-    ]
-  };
+		// Score palette comes from _variables.scss; thresholds mirror
+		// getScoreColorVarName (>=70 high, >=40 medium, <40 low).
+		const scoreLow = token('--score-low-color', '#dc2626');
+		const scoreMedium = token('--score-medium-color', '#d97706');
+		const scoreHigh = token('--score-high-color', '#059669');
+		const scoreHighStrong = token('--score-high-strong-color', '#047857');
+		const scoreNone = token('--score-none-color', '#d6d3d1');
 
-  // Define color scale for scores (0-100)
-  const SCORE_COLORS = [
-    0, 'rgba(215, 25, 28, 0.7)',    // Red (Low Score)
-    25, 'rgba(253, 174, 97, 0.7)', // Orange
-    50, 'rgba(255, 255, 191, 0.7)',// Yellow
-    75, 'rgba(166, 217, 106, 0.7)',// Light Green
-    100, 'rgba(26, 150, 65, 0.7)'  // Dark Green (High Score)
-  ];
-  const DEFAULT_COLOR = 'rgba(150, 150, 150, 0.5)'; // Grey for missing scores
+		mapInstance.addSource('municipalities', {
+			type: 'geojson',
+			data: geojson || { type: 'FeatureCollection', features: [] }
+		});
 
-  // Fetch data when the component mounts
-  onMount(async () => {
-    console.log('MapComponent onMount: Fetching data.');
-    if (!browser) return; // Don't run on server
+		// Add a layer for the municipality fills with data-driven styling for color.
+		mapInstance.addLayer({
+			id: 'municipalities-fill',
+			type: 'fill',
+			source: 'municipalities',
+			paint: {
+				'fill-color': [
+					'case',
+					// A null score means "no data" — render grey, distinct from a low score.
+					// Scores are always 0-100, so coalescing missing/null to -1 lets a
+					// simple >= 0 test separate "has data" from "no data".
+					['>=', ['coalesce', ['get', 'overall_score'], -1], 0],
+					[
+						'interpolate',
+						['linear'],
+						['coalesce', ['get', 'overall_score'], 0],
+						0,
+						scoreLow,
+						40,
+						scoreMedium,
+						70,
+						scoreHigh,
+						100,
+						scoreHighStrong
+					],
+					scoreNone
+				],
+				'fill-opacity': 0.75,
+				'fill-outline-color': 'rgba(28, 25, 23, 0.15)'
+			}
+		});
 
-    isLoading = true;
-    error = null;
-    try {
-      // TEMP: Limit to 5 results for faster development loading
-      const response = await fetch('/api/municipalities?limit=5'); 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      geojsonData = await response.json();
-      console.log('Fetched GeoJSON data:', geojsonData);
-    } catch (e: any) {
-      console.error('Error fetching map data:', e);
-      error = e.message || 'Failed to load map data.';
-      geojsonData = null; // Clear data on error
-    } finally {
-      isLoading = false; // Set loading false whether success or error
-    }
-  });
+		// Add a layer for the outlines
+		mapInstance.addLayer({
+			id: 'municipalities-outline',
+			type: 'line',
+			source: 'municipalities',
+			paint: {
+				'line-color': '#ffffff',
+				'line-width': 1,
+				'line-opacity': 0.6
+			}
+		});
 
-  // Reactive statement to initialize the map *after* loading is complete
-  // and the container element exists.
-  $: if (browser && !isLoading && !error && mapContainer && geojsonData && !map) {
-    console.log('Reactive block: Initializing map.');
+		// Handle clicks on the municipalities layer
+		mapInstance.on('click', 'municipalities-fill', (e) => {
+			if (e.features && e.features.length > 0) {
+				const feature = e.features[0];
+				const muniId = feature.properties.id;
+				if (muniId) {
+					dispatch('municipalityClick', { id: muniId });
+				}
+			}
+		});
 
-    try {
-      map = new MapClass({
-        container: mapContainer, // Use the bound element
-        style: mapStyle,
-        center: initialCenter,
-        zoom: initialZoom
-      });
+		// Change the cursor to a pointer when hovering over the municipalities
+		mapInstance.on('mouseenter', 'municipalities-fill', () => {
+			mapInstance.getCanvas().style.cursor = 'pointer';
+		});
 
-      // Add zoom and rotation controls
-      map.addControl(new NavigationControlClass(), 'top-right');
+		mapInstance.on('mouseleave', 'municipalities-fill', () => {
+			mapInstance.getCanvas().style.cursor = '';
+		});
+	}
 
-      map.on('load', () => {
-        console.log('Map loaded event fired');
-        if (!map || !geojsonData) { // Extra checks
-          console.error('Map or geojsonData not available on load event');
-          return;
-        }
+	onMount(() => {
+		const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
+		if (!apiKey) {
+			console.warn(
+				'VITE_MAPTILER_API_KEY is not set — falling back to the keyless MapLibre demo basemap.'
+			);
+		}
+		// Without a valid style the map never fires `load` and the choropleth layers
+		// are never added, so an explicit keyless fallback keeps the app functional.
+		const styleUrl = apiKey
+			? `https://api.maptiler.com/maps/dataviz/style.json?key=${apiKey}`
+			: 'https://demotiles.maplibre.org/style.json';
 
-        // Add source with fetched data
-        try {
-          map.addSource('municipalities-source', {
-            type: 'geojson',
-            data: geojsonData
-          });
-          console.log('API GeoJSON source added.');
+		map = new maplibregl.Map({
+			container: mapContainer,
+			style: styleUrl,
+			center: [24.5, -28.8],
+			zoom: 4.5
+		});
 
-          // Add layer
-          map.addLayer({
-            id: 'municipalities-layer',
-            type: 'fill',
-            source: 'municipalities-source',
-            paint: {
-              'fill-color': '#cccccc', // Default color before data-driven styling is applied
-              'fill-opacity': 0.6,
-              'fill-outline-color': '#3C2F2F', // Charcoal for outlines
-            }
-          });
+		map.addControl(new maplibregl.NavigationControl({}), 'top-right');
 
-          // Apply data-driven styling based on financial_score
-          map.setPaintProperty('municipalities-layer', 'fill-color', [
-            'step',
-            ['get', 'financial_score'], // Get the score property
-            DEFAULT_COLOR, // Default color for null/missing scores (Grey)
-            ...SCORE_COLORS // Use the defined color scale
-          ]);
+		if (import.meta.env.DEV) {
+			// Dev-only handle for debugging map state from the console.
+			(window as unknown as Record<string, unknown>).__seemycityMap = map;
+		}
 
-          // --- Layer Interaction Logic ---
-          // Click event listener
-          map.on('click', 'municipalities-layer', (e: MapMouseEvent & { features?: any[] }) => {
-            if (!e.features || e.features.length === 0) return;
-            const feature = e.features[0];
-            const props = feature.properties as MunicipalityFeatureProperties;
-            const coordinates = e.lngLat;
-            const featureId = feature.properties.id;
-            const featureName = feature.properties.name || 'Unnamed Municipality';
-            const featureScore = feature.properties.financial_score !== undefined ? `${feature.properties.financial_score} / 100` : 'N/A';
+		map.on('load', () => {
+			isMapLoaded = true;
+			addDataLayers(map);
+		});
 
-            const popupHTML = `
-              <div>
-                <h3 class="popup-nav-link" data-id="${featureId}" style="cursor: pointer; text-decoration: underline; color: var(--primary-color, #008080); margin-bottom: 5px;">${featureName}</h3>
-                <p>Score: ${featureScore}</p>
-                <small>ID: ${featureId}</small>
-              </div>
-            `;
+		return () => {
+			if (map) map.remove();
+		};
+	});
 
-            const popup = new PopupClass()
-              .setLngLat(coordinates)
-              .setHTML(popupHTML);
-            
-            if (map) popup.addTo(map);
-
-            // Add event listener to the popup's content *after* it's added
-            setTimeout(() => {
-              const popupElem = popup.getElement();
-              const header = popupElem.querySelector('.popup-nav-link');
-              if (header) {
-                header.addEventListener('click', () => {
-                  const navId = header.getAttribute('data-id');
-                  if (navId) goto(`/${navId}`);
-                });
-              }
-            }, 0);
-          });
-
-          // Mouse enter/leave for cursor
-          map.on('mouseenter', 'municipalities-layer', () => {
-            if (map) map.getCanvas().style.cursor = 'pointer';
-          });
-          map.on('mouseleave', 'municipalities-layer', () => {
-            if (map) map.getCanvas().style.cursor = '';
-          });
-          // --- End Layer Interaction Logic ---
-
-        } catch (layerError) {
-          console.error('Error adding source or layer:', layerError);
-          error = 'Failed to add map layers.';
-        }
-      });
-
-      // Use 'any' for the event type to safely access potential 'error' property
-      map.on('error', (e: any) => {
-        console.error('MapLibre error:', e);
-        error = e.error?.message || 'An unknown map error occurred.';
-      });
-
-    } catch (initError) {
-      console.error('Failed to initialize map:', initError);
-      error = 'Failed to initialize map.';
-    }
-  }
-
-  onDestroy(() => {
-    if (map) {
-      console.log('MapComponent onDestroy: Removing map.');
-      map.remove(); // Clean up the map instance
-      map = undefined;
-    }
-  });
-
+	// This ensures that if the geojson data arrives after the map has loaded,
+	// the map source is updated correctly. Only push to the source when the
+	// prop actually changed — afterUpdate fires on every component update.
+	let lastAppliedGeojson: FeatureCollection | null = null;
+	afterUpdate(() => {
+		if (isMapLoaded && map && geojson !== lastAppliedGeojson) {
+			const source = map.getSource('municipalities') as GeoJSONSource;
+			if (source) {
+				source.setData(geojson || { type: 'FeatureCollection', features: [] });
+				lastAppliedGeojson = geojson;
+			}
+		}
+	});
 </script>
 
-<!-- Basic Loading/Error UI -->
-{#if isLoading}
-  <p>Loading map data...</p>
-{:else if error}
-  <p>Error loading map: {error}</p>
-{:else}
-  <!-- Bind the actual map container element -->
-  <div id="{mapId}" bind:this={mapContainer} class="map-container"></div>
-{/if}
+<div class="map-container-full" bind:this={mapContainer}></div>
 
-<!-- Simple Legend Placeholder -->
-<div class="legend">
-  <h4>Financial Score</h4>
-  <div><span class="legend-color" style="background-color: rgba(26, 150, 65, 0.7);"></span> High (100)</div>
-  <div><span class="legend-color" style="background-color: rgba(166, 217, 106, 0.7);"></span></div>
-  <div><span class="legend-color" style="background-color: rgba(255, 255, 191, 0.7);"></span> Mid (50)</div>
-  <div><span class="legend-color" style="background-color: rgba(253, 174, 97, 0.7);"></span></div>
-  <div><span class="legend-color" style="background-color: rgba(215, 25, 28, 0.7);"></span> Low (0)</div>
-  <div><span class="legend-color" style="background-color: rgba(150, 150, 150, 0.5);"></span> N/A</div>
-</div>
-
-<style>
-  /* Styles specific to the map container */
-  .map-container {
-    width: 100%;
-    height: 100%; /* Fill the parent wrapper */
-  }
-
-  /* Legend Styling */
-  .legend {
-    position: absolute;
-    bottom: 30px;
-    right: 10px;
-    background-color: rgba(255, 255, 255, 0.8);
-    padding: 10px;
-    border-radius: 5px;
-    font-size: 0.8em;
-    line-height: 1.5;
-    z-index: 1; /* Ensure legend is above map tiles */
-    color: #3C2F2F;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-  }
-  .legend h4 {
-    margin: 0 0 5px 0;
-    text-align: center;
-  }
-  .legend div {
-    display: flex;
-    align-items: center;
-  }
-  .legend-color {
-    display: inline-block;
-    width: 15px;
-    height: 15px;
-    margin-right: 5px;
-    border: 1px solid #ccc;
-  }
+<style lang="scss">
+	.map-container-full {
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		top: 0;
+		left: 0;
+	}
 </style>

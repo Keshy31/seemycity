@@ -1,176 +1,104 @@
-### Revised `ux.md` - User Experience Document
+# `ux.md` — User Experience & Visual Design
 
-#### Overview
-**Product Name**: Municipal Financial Dashboard  
-**Purpose**: The Municipal Financial Dashboard is a warm, approachable web app that invites users to explore South African municipal financial health. With a friendly, community-driven vibe, it sparks curiosity (“Wow, I didn’t know this!”) and inspires action, acting as a helpful guide saying, “Let’s explore this together.”
+**Product**: SeeMyCity — Municipal Financial Dashboard
+**Last major revision**: July 2026 ("modern refresh" — replaces the 2025 warm/playful direction)
 
-**Goals**:  
-- Present financial data in a cozy, engaging way that feels tied to South African pride.  
-- Encourage exploration with playful interactions and clear visuals.  
-- Build trust through transparent breakdowns and a welcoming tone.
+## Overview
 
-**Target Audience**: Citizens, investors, policymakers seeking friendly insights.
+SeeMyCity presents the financial health of South African municipalities with the
+clarity of a modern data product: quiet neutrals, one confident accent, and a
+score palette that does the talking. The interface should feel trustworthy and
+fast — the data is the personality.
 
----
+## Design principles
 
-#### Design Principles
-1. **Warmth**: Earthy tones and rounded edges create a community feel.  
-2. **Curiosity**: Pulsing elements and animations nudge users to dig deeper.  
-3. **Approachability**: Simple layouts and friendly text lower barriers.  
-4. **Pride**: SA-inspired colors and fonts celebrate local identity.
+1. **Data first.** Color is reserved for meaning (scores, audit outcomes,
+   status). Everything else stays neutral.
+2. **Honest about gaps.** "No data" renders grey — visually distinct from a low
+   score, never conflated with failure.
+3. **Fast and calm.** Sub-200ms micro-transitions, no decorative animation.
+   `prefers-reduced-motion` is respected globally.
+4. **One system.** Every color, size, and radius comes from the token sheet
+   (`src/styles/_variables.scss`). The MapLibre choropleth reads the same
+   tokens at runtime, so the map can never drift from the UI.
 
----
+## Visual language
 
-#### Visual Design
+### Color
 
-##### Color Scheme
-- **Primary**:  
-  - Green (#2E8B57): High scores—lush, vibrant SA greenery.  
-  - Orange (#F28C38): Medium scores—warm SA sunset glow.  
-  - Red (#CD5C5C): Low scores—soft, earthy SA soil.  
-- **Neutral**:  
-  - Cream (#FDF6E3): Background—cozy, inviting base.  
-  - Charcoal (#3C2F2F): Text/icons—rich and grounding.  
-- **Accent**:  
-  - Teal (#008080): Buttons/links—SA coastal spirit.  
-- **Usage**: Map gradient (red → orange → green); teal for calls-to-action.
+| Role | Token | Value |
+| --- | --- | --- |
+| App background | `--background-color` | `#f7f6f3` warm stone |
+| Surfaces (cards) | `--surface-color` | `#ffffff` |
+| Text | `--text-color` | `#1c1917` |
+| Muted text | `--text-muted-color` | `#6f6a64` |
+| Primary / actions | `--primary-color` | `#0f766e` teal |
+| Score high (≥70) | `--score-high-color` | `#059669` emerald |
+| Score medium (≥40) | `--score-medium-color` | `#d97706` amber |
+| Score low (<40) | `--score-low-color` | `#dc2626` red |
+| Score missing | `--score-none-color` | `#d6d3d1` grey |
 
-##### Typography
-- **Font**: Ubuntu (SA-designed, open-source).  
-  - Headings: Bold, 24px (views), 18px (subsections)—friendly authority.  
-  - Body: Regular, 16px (metrics), 14px (details)—soft and clear.  
-- **Contrast**: Charcoal on cream (light mode); cream on charcoal (dark mode).
+Audit outcomes: clean = emerald, emphasis-of-matter = sky, qualified = amber,
+adverse/disclaimer = red, outstanding = grey.
 
-##### Icons
-- **Source**: Iconify (`@iconify/svelte`).  
-- **Examples**: 💰 (revenue), 🏡 (infrastructure), ⚖️ (efficiency), 🌟 (audit).  
-- **Style**: 20px, teal or metric-matched (e.g., green for audit “Clean”).
+The map ramp interpolates low → medium → high across 0/40/70/100 using the same
+tokens (read from `:root` in `MapComponent.svelte`).
 
-##### Animations
-- **Transitions**: Svelte `fade` (200ms) for views; `slide` for accordions.  
-- **Micro-Interactions**: Pulsing score badge on load (200ms scale), hover glow on map regions.
+### Typography
 
----
+- **Inter** (Google Fonts, 300–700 variable range) with a system fallback.
+- Headings: semibold/bold, tight tracking (`-0.015em`), ~1.25 scale
+  (36 / 28 / 22 / 18 px).
+- Body 16px / 1.6; small text 14px; labels 12px uppercase with letter-spacing.
+- Numbers are the heroes: scores use 40px bold in the semantic score color.
 
-#### User Interface Layouts
+### Shape & elevation
 
-##### 1. Map View
-**Purpose**: Welcome users with a warm, curious peek at municipal scores.  
-**Layout**:  
-```
------------------------------------------------------
-|                                   [Dark Mode 🌙]  |
------------------------------------------------------
-|                                                   |
-|   [Choropleth Map: Red → Orange → Green]          |
-|   - Tooltip: "Cape Town’s at 84—pretty solid!"    |
-|   - Pulse on hover                                |
-|                                                   |
------------------------------------------------------
-| [Reset Zoom 🔍]                                   |
------------------------------------------------------
-| [KeyMetricsGrid]                                  |
------------------------------------------------------
-```
-- **Interactions**:  
-  - Hover: Pulsing tooltip with friendly text.  
-  - Click: Fade to Single View.  
-  - Zoom: Smooth scale, scores emerge with a gentle bounce.  
-- **Vibe**: “Wow, look at this map—let’s dive in!” (MVP focuses on municipality view; province/district drill-down is a future enhancement).
+- Radii: 6 / 10 / 14 / 20 px (`--border-radius-sm/md/lg/xl`).
+- Shadows are layered and subtle (`--box-shadow-sm/md/lg`); cards sit on
+  hairline borders (`--border-color-light`) plus a small shadow, lifting
+  slightly on hover.
 
-##### 2. Single View (Municipality Profile)
-**Purpose**: Share a municipality’s story in a cozy, approachable way.  
-**Layout**:  
-```
------------------------------------------------------
-| Cape Town            | Score: 84/100    | 🟢       | Website: [🔗]
------------------------------------------------------
-| Province: WC    Pop: 4.7M                          |
------------------------------------------------------
-| [💰 Rev/Cap: R6,200] [🏡 CapEx: 18%] [📊 Debt: R12bn]|
-| [⚖️ OpEx: 82%]        [🌟 Audit: Clean]           |
------------------------------------------------------
-| [ScoreBreakdown]                                  |
------------------------------------------------------
-| [What’s behind this score? ▼]                     |
-|  - **Financial Health (30%):** [||||||||--] 88/100 |
-|    * Debt Ratio: 0.45 | Revenue/Capita: R6,200    |
-|  - **Infrastructure Investment (25%):** [|||||||---] 75/100 |
-|    * CapEx Ratio: 18%                              |
-|  - **Efficiency & Service Delivery (25%):** [||||||----] 70/100 |
-|    * OpEx Ratio: 82%                               |
-|  - **Accountability (20%):** [||||||||||] 100/100 |
-|    * Audit Outcome: Unqualified - No findings    |
------------------------------------------------------
-| [Compare ➕]              [Refresh 🔄]             |
------------------------------------------------------
-```
-- **Interactions**:  
-  - Score Badge: Pulses on load (200ms).  
-  - Expand Breakdown: Slides open showing pillar scores with progress bars and contributing metrics.
-  - Compare/Refresh: Teal buttons with hover bounce.  
-- **Vibe**: “Cape Town’s doing great—let’s see why!”
+### Motion
 
-##### 3. Comparison View
-**Purpose**: Spark curiosity with a warm, side-by-side look using `ComparisonContainer` and `ComparisonCard`.  
- **Layout**:  
-```
------------------------------------------------------
-| [ComparisonCard: Cape Town] | [ComparisonCard: Joburg] |
-|-----------------------------|--------------------------|
-| **Cape Town** (GP)          | **Johannesburg** (WC)    |
-| Pop: 4.7M                   | Pop: 5.6M                |
-| Score: 84 🟢               | Score: 57 🟡            |
-|-----------------------------|--------------------------|
-| 💰 Rev/Cap: R6,200          | 💰 Rev/Cap: R3,100       |
-| 🏡 CapEx: 18%             | 🏡 CapEx: 12%          |
-| ⚖️ OpEx: 82%             | ⚖️ OpEx: 95%         |
-| 📊 Debt: R12bn            | 📊 Debt: R25bn         |
-| 🌟 Audit: Clean           | 🌟 Audit: Qualified    |
------------------------------------------------------
-|                      [Add Another ➕]            |
------------------------------------------------------
-```
-- **Interactions**:  
-  - Add: Teal button returns to map/selection. 
-  - (Future) Highlight: Winning metric gets a soft tint.  
-- **Vibe**: “Let’s see how they compare—cool, right?”
+- Transitions: 180ms, `cubic-bezier(0.2, 0, 0, 1)`.
+- Score display fades/scales in once on load (`pulse-in`).
+- Hover: cards translate −2px with a deeper shadow; map polygons show a pointer
+  cursor.
+- All animation collapses under `prefers-reduced-motion: reduce`.
 
----
+## Views
 
-#### User Flow
-1. **Entry**: Map View loads with a warm “Hey, check out SA’s municipalities!” feel.  
-2. **Exploration**: Hover tooltips pulse, click “Cape Town” → Single View fades in.  
-3. **Detail**: Score pulses, breakdown expands—“Wow, I didn’t know this!”  
-4. **Comparison**: Add “Johannesburg,” swap playfully—“Let’s mix it up!”  
-5. **Refresh**: Teal button triggers “Data refreshed—nice!” toast.
+### Map (`/`)
+Full-viewport split: fixed 380px sidebar (search → results → detail card) and
+the choropleth filling the rest. On ≤768px the layout stacks — sidebar on top
+(scrollable, capped at 45dvh), map below. Clicking a polygon or search result
+opens the sidebar detail card; "View Full Details" navigates to `/{id}`.
 
----
+### Detail (`/{id}`)
+Header (name, score badge with emoticon status icon, website button, province /
+population / financial year) → five metric cards (revenue per capita, capex %,
+opex %, debt, audit outcome) → expandable score breakdown with per-pillar
+progress bars → about section → refresh action. A `null` score renders
+"Insufficient data" — never a fabricated zero.
 
-#### Engagement Features
-- **Pulsing Badges**: Scores animate on load—eye-catching and fun.  
-- **Friendly Text**: Tooltips and breakdowns chat like a guide (e.g., “Top marks!”).  
-- **Warm Map**: Earthy tones feel like home, inviting exploration.  
-- **Teal Accents**: Playful buttons nudge action—“Let’s compare!”  
+### Compare (`/compare/{ids}`)
+Horizontally scroll-snapped cards with edge-fade hints, one card per
+municipality, latest-year metrics and score.
 
----
+### Errors
+Route-level `+error.svelte`: status, message, and a way back to the map.
 
-#### Accessibility
-- **Contrast**: Charcoal on cream (4.5:1 ratio).  
-- **Keyboard**: Tab through map, buttons, dropdowns.  
-- **Screen Readers**: “Cape Town, score 84, good performance.”  
-- **Responsive**: Stack vertically on mobile, map shrinks gracefully.
+## Accessibility
 
----
+- Keyboard: global `:focus-visible` ring in the primary color; search is the
+  keyboard path to any municipality (map polygons are mouse-first).
+- Screen readers: labelled search input, `role="alert"` errors,
+  `role="status"` loading, `aria-busy` skeletons, full ARIA on progress bars.
+- Contrast: text on background ≥ 12:1; muted text ≥ 4.5:1.
 
-#### Assumptions
-- Users love a friendly nudge over sterile data.  
-- Warm tones outweigh sleek minimalism for this audience.  
-- Pulse animations won’t overwhelm—tested for subtlety.
+## Deferred / future
 
-#### Risks
-- **Tone**: Too casual might undercut trust—keep breakdowns factual.  
-- **Mobile**: Warm map needs clear boundaries—test small screens.  
-- **Load**: Animations mustn’t lag—optimize for speed.
-
----
+- Dark mode: the token architecture supports it (single sheet swap); not yet
+  shipped.
+- Map tooltips on hover, province/district drill-down, self-hosted fonts.

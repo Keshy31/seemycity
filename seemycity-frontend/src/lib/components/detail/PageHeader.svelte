@@ -1,114 +1,159 @@
 <script lang="ts">
-  import { getScoreColorStyle, getScoreStatusIcon } from '$lib/utils/colorUtils'; 
-  import Icon from '@iconify/svelte'; 
+	// Corrected import path and added new formatters
+	import { getScoreColorStyle, getScoreStatusIcon, formatPopulation } from '$lib/utils/formatUtils';
+	import Icon from '@iconify/svelte';
 
-  // Props received from the parent page
-  export let municipalityName: string;
-  export let provinceName: string | undefined;
-  export let classification: string | undefined;
-  export let overallScore: number | undefined;
-  export let financialYear: string | undefined;
+	// Props received from the parent page, updated to match ux.md.
+	// Score and population can be null from the API (missing data ≠ zero).
+	export let municipalityName: string;
+	export let provinceName: string | null | undefined = undefined;
+	export let population: number | null | undefined = undefined;
+	export let websiteUrl: string | null | undefined = undefined;
+	export let overallScore: number | null | undefined = undefined;
+	export let financialYear: string | number | null | undefined = undefined;
 
-  // Determine score color style - we pass the score, not the function
-  $: scoreStyle = overallScore !== undefined ? getScoreColorStyle(overallScore) : '';
-  // Determine the status icon based on the score
-  $: scoreIcon = overallScore !== undefined ? getScoreStatusIcon(overallScore) : 'mdi:help-circle-outline'; 
+	$: scoreStyle = getScoreColorStyle(overallScore);
+	$: scoreIcon = getScoreStatusIcon(overallScore);
 </script>
 
-<div class="header-section">
-  <div class="header-info">
-    <h1 class="municipality-name">{municipalityName}</h1>
-    {#if provinceName}
-      <p class="province-name">{provinceName}</p>
-    {/if}
-    {#if classification}
-      <p class="classification">{classification}</p>
-    {/if}
-  </div>
+<header class="page-header">
+	<div class="header-main-row">
+		<h1 class="municipality-name">{municipalityName}</h1>
+		<div class="header-actions">
+			<div class="score-display">
+				{#if overallScore != null}
+					<span class="score-value" style={scoreStyle}>{overallScore.toFixed(0)}</span>
+					<span class="score-label">/ 100</span>
+				{:else}
+					<span class="score-label">Insufficient data</span>
+				{/if}
+				<span class="score-status-icon">
+					<Icon icon={scoreIcon} style={scoreStyle} />
+				</span>
+			</div>
+			{#if websiteUrl}
+				<a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="website-link">
+					<span>Website</span>
+					<Icon icon="mdi:open-in-new" />
+				</a>
+			{/if}
+		</div>
+	</div>
 
-  {#if overallScore !== undefined && financialYear}
-    <div class="score-section">
-      <span class="score-label">Overall Score ({financialYear})</span>
-      <div class="score-display"> 
-        <span class="overall-score" style={scoreStyle}>{overallScore.toFixed(0)}</span>
-        <Icon icon={scoreIcon} class="score-status-icon" style={scoreStyle} /> 
-      </div>
-    </div>
-  {/if}
-</div>
+	<div class="header-sub-row">
+		{#if provinceName}
+			<span class="sub-item">Province: <strong>{provinceName}</strong></span>
+		{/if}
+		{#if population}
+			<span class="sub-item">Population: <strong>{formatPopulation(population)}</strong></span>
+		{/if}
+		{#if financialYear}
+			<span class="sub-item">Financials: <strong>{financialYear}</strong></span>
+		{/if}
+	</div>
+</header>
 
 <style lang="scss">
-  /* Styles moved from [id]/+page.svelte */
-  .header-section {
-    display: flex;
-    flex-wrap: wrap; 
-    justify-content: space-between;
-    align-items: flex-start; 
-    gap: var(--spacing-md); 
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl); 
-    background-color: var(--background-offset-color); 
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--box-shadow-sm);
-  }
+	@use '../../../styles/variables' as *;
 
-  .header-info {
-    flex-grow: 1; 
-  }
+	.page-header {
+		padding: var(--spacing-lg) var(--spacing-xl);
+		background-color: var(--background-offset-light);
+		border-bottom: 1px solid var(--border-color);
+		margin-bottom: var(--spacing-xl);
+	}
 
-  .municipality-name {
-    margin-bottom: var(--spacing-xs); 
-    // Base h1 styles already applied globally via _typography.scss
-    // Re-apply any specific overrides if needed, but base should cover it.
-    // Example: font-size: var(--font-size-h1);
-  }
+	.header-main-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--spacing-lg);
+		flex-wrap: wrap;
+	}
 
-  .province-name,
-  .classification {
-    font-size: var(--font-size-lg);
-    color: var(--text-muted-color);
-    margin-bottom: var(--spacing-sm);
-  }
+	.municipality-name {
+		font-family: var(--font-family-heading);
+		font-size: 2.25rem; // h2 size
+		font-weight: var(--font-weight-bold);
+		color: var(--text-color);
+		margin: 0;
+		line-height: 1.2;
+	}
 
-  .score-section {
-    text-align: right; 
-    min-width: 150px; 
-    flex-shrink: 0; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: flex-end; 
-  }
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xl);
+		flex-wrap: wrap;
+	}
 
-  .score-label {
-    display: block; 
-    font-size: var(--font-size-sm);
-    color: var(--text-muted-color);
-    margin-bottom: var(--spacing-xs);
-  }
+	.score-display {
+		display: flex;
+		align-items: baseline;
+		gap: var(--spacing-xs);
+		animation: pulse-in 0.5s 0.2s ease-out backwards;
+	}
 
-  .score-display { 
-    display: flex;
-    align-items: center; 
-    gap: var(--spacing-sm); 
-  }
+	.score-value {
+		font-size: 2.5rem;
+		font-weight: var(--font-weight-bold);
+		line-height: 1;
+	}
 
-  .overall-score {
-    font-size: 2.8rem; 
-    font-weight: var(--font-weight-bold);
-    line-height: 1.1;
-    // Color is applied via inline style prop
-  }
+	.score-label {
+		font-size: var(--font-size-base);
+		font-weight: var(--font-weight-light);
+		color: var(--text-color-muted);
+		padding-left: 0.1em;
+	}
 
-  .score-status-icon { 
-    font-size: 2.2rem; 
-    // Color is applied via inline style prop to match score
-    // Add animation styles later
-  }
+	.score-status-icon {
+		font-size: 2rem;
+		line-height: 1;
+		margin-left: var(--spacing-sm);
+		display: inline-flex;
+		align-items: center;
+	}
 
-  // Keyframes for the pulse animation
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 0.8;
-     }
-   }
+	.website-link {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		background-color: var(--primary-color);
+		color: var(--text-inverse-color);
+		padding: var(--spacing-sm) var(--spacing-md);
+		border-radius: var(--border-radius-md);
+		text-decoration: none;
+		font-weight: var(--font-weight-medium);
+		transition: background-color 0.2s ease;
+
+		&:hover {
+			background-color: var(--accent-color-hover);
+		}
+	}
+
+	.header-sub-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-lg);
+		margin-top: var(--spacing-md);
+		font-size: var(--font-size-sm);
+		color: var(--text-color-muted);
+	}
+
+	.sub-item strong {
+		color: var(--text-color);
+		font-weight: var(--font-weight-medium);
+	}
+
+	@keyframes pulse-in {
+		from {
+			transform: scale(0.95);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
 </style>

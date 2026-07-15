@@ -1,88 +1,134 @@
-/* src/styles/_variables.scss */
+/* src/styles/_variables.scss
+ *
+ * Design tokens — 2026 refresh.
+ * Clean stone-neutral base, teal primary, data-viz-grade score ramp.
+ * The alias block at the bottom keeps every historically-referenced token name
+ * resolving to something sensible; prefer canonical names in new code.
+ */
 
-// --- SCSS Variables (for SASS functions) ---
-$error-color: #CD5C5C;       // Mirror --error-color
-$accent-color: #F28C38;      // Mirror --accent-color
-$border-radius-md: 0.5rem; // Mirror --border-radius-md (needed in ErrorMessage)
+// --- SCSS variables (for Sass color functions where needed) ---
+$error-color: #dc2626;
+$accent-color: #0f766e;
+$border-radius-md: 0.625rem;
 
-// --- Color Palette (Based on WindsurfRules & UX) ---
 :root {
-  // Primary & Accent
-  --primary-color: #008080; // Teal (From Rules)
-  --accent-color: #F28C38;  // Example accent (Orange - can adjust)
-  --accent-color-hover: #d97c30;    // Darkened accent for hover
-  --accent-color-disabled: #f8c293; // Lightened accent for disabled
+	// --- Color: neutrals ---
+	--background-color: #f7f6f3; // app background (warm stone)
+	--surface-color: #ffffff; // cards, panels
+	--background-offset-color: #f0eee9; // recessed areas, skeletons
+	--background-offset-light: #fbfaf8; // barely-raised sections
+	--background-inverse-color: #1c1917;
 
-  // Text
-  --text-color: #3C2F2F;         // Dark Brown/Black (From Rules)
-  --text-muted-color: #7a6a6a;   // Muted version of text
-  --text-inverse-color: #ffffff; // For dark backgrounds
+	--text-color: #1c1917; // primary text (stone-900)
+	--text-muted-color: #6f6a64; // secondary text
+	--text-heading-color: #171412; // headings, slightly deeper
+	--text-inverse-color: #ffffff;
 
-  // Backgrounds
-  --background-color: #FDF6E3;    // Solarized Light Cream (From Rules)
-  --background-offset-color: #f7efd7; // Slightly darker/lighter for cards/sections
-  --background-offset-light: #fbf7e5; // Lightened offset for specific elements
-  --background-inverse-color: var(--text-color);
+	--border-color: #e4e1d8; // default hairlines
+	--border-color-light: #edebe4; // subtle hairlines
+	--divider-color: #edebe4;
 
-  // Borders & Lines
-  --border-color: #dcd3b8;      // Subtle border based on background
-  --divider-color: #eee6cd;     // Lighter divider
+	// --- Color: brand ---
+	--primary-color: #0f766e; // teal — actions, links, focus
+	--primary-color-dark: #115e59; // hover / active
+	--primary-color-light: #ccfbf1; // tints, selected states
+	--primary-color-translucent: rgba(15, 118, 110, 0.08);
 
-  // Status & Feedback
-  --success-color: #2E8B57;     // Sea Green
-  --warning-color: #F28C38;     // Orange
-  --error-color: #CD5C5C;       // Indian Red
-  --info-color: #4682B4;        // Steel Blue
-  --neutral-grey: #888888;      // Neutral Grey
+	// --- Color: status ---
+	--success-color: #059669; // emerald
+	--warning-color: #d97706; // amber
+	--error-color: #dc2626; // red
+	--info-color: #0284c7; // sky
+	--neutral-grey: #a8a29e;
 
-  // Score Colors (Based on common thresholds)
-  --score-high-color: var(--success-color); // >= 70
-  --score-medium-color: var(--warning-color); // >= 40
-  --score-low-color: var(--error-color);    // < 40
+	// --- Color: scores (must stay in sync with the MapLibre ramp, which reads
+	// these tokens at runtime in MapComponent.svelte) ---
+	--score-high-color: #059669; // >= 70
+	--score-high-strong-color: #047857; // 100 end of the map ramp
+	--score-medium-color: #d97706; // >= 40
+	--score-low-color: #dc2626; // < 40
+	--score-none-color: #d6d3d1; // NULL — "no data", never a judgement
 
-  // Audit Outcome Colors (Specific meanings)
-  --audit-clean-color: var(--success-color);            // Unqualified - No Findings
-  --audit-emphasis-color: var(--info-color);            // Unqualified - Emphasis/Findings
-  --audit-qualified-color: var(--warning-color);        // Qualified
-  --audit-adverse-disclaimer-color: var(--error-color); // Adverse/Disclaimer
-  --audit-outstanding-color: var(--neutral-grey);       // Outstanding
+	// --- Color: audit outcomes ---
+	--audit-clean-color: var(--success-color);
+	--audit-emphasis-color: var(--info-color);
+	--audit-qualified-color: var(--warning-color);
+	--audit-adverse-disclaimer-color: var(--error-color);
+	--audit-outstanding-color: var(--neutral-grey);
 
-  // --- Typography ---
-  --font-family-base: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  --font-family-heading: 'Ubuntu', sans-serif; // Explicitly Ubuntu for headings
+	// --- Typography ---
+	--font-family-base:
+		'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+		sans-serif;
+	--font-family-heading: var(--font-family-base);
+	--font-family-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
 
-  --font-size-base: 1rem; // Base size (usually 16px)
-  --font-size-sm: 0.875rem; // Small text (14px)
-  --font-size-lg: 1.125rem; // Large text (18px)
+	--font-size-xs: 0.75rem; // 12px
+	--font-size-sm: 0.875rem; // 14px
+	--font-size-base: 1rem; // 16px
+	--font-size-md: 1rem;
+	--font-size-lg: 1.125rem; // 18px
+	--font-size-xl: 1.375rem; // 22px
+	--font-size-xxl: 1.75rem; // 28px
 
-  --font-weight-light: 300;
-  --font-weight-normal: 400;
-  --font-weight-medium: 500; // Often used for buttons, labels
-  --font-weight-bold: 700;
+	--font-weight-light: 300;
+	--font-weight-normal: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
 
-  --line-height-base: 1.6;
-  --line-height-heading: 1.3;
+	--line-height-base: 1.6;
+	--line-height-heading: 1.25;
+	--letter-spacing-heading: -0.015em;
 
-  // --- Spacing & Layout ---
-  --spacing-unit: 0.5rem; // Base unit (8px)
-  --spacing-xs: calc(var(--spacing-unit) * 0.5); // 4px
-  --spacing-sm: var(--spacing-unit);           // 8px
-  --spacing-md: calc(var(--spacing-unit) * 2);  // 16px
-  --spacing-lg: calc(var(--spacing-unit) * 3);  // 24px
-  --spacing-xl: calc(var(--spacing-unit) * 4);  // 32px
+	// --- Spacing (8px system) ---
+	--spacing-unit: 0.5rem;
+	--spacing-xs: calc(var(--spacing-unit) * 0.5); // 4px
+	--spacing-sm: var(--spacing-unit); // 8px
+	--spacing-md: calc(var(--spacing-unit) * 2); // 16px
+	--spacing-lg: calc(var(--spacing-unit) * 3); // 24px
+	--spacing-xl: calc(var(--spacing-unit) * 4); // 32px
+	--spacing-xxl: calc(var(--spacing-unit) * 6); // 48px
 
-  --container-max-width: 1200px; // Max width for centered content
-  --container-padding-x: var(--spacing-lg); // Horizontal padding for containers
+	--container-max-width: 1200px;
+	--container-padding-x: var(--spacing-lg);
 
-  // --- Borders & Shadows ---
-  --border-radius-sm: 0.25rem;
-  --border-radius-md: 0.5rem;
-  --border-radius-lg: 0.75rem;
-  --box-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --box-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --box-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+	// --- Shape & elevation ---
+	--border-radius-sm: 0.375rem; // 6px
+	--border-radius-md: 0.625rem; // 10px
+	--border-radius-lg: 0.875rem; // 14px
+	--border-radius-xl: 1.25rem; // 20px
+	--box-shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.06);
+	--box-shadow-md: 0 1px 3px rgba(28, 25, 23, 0.07), 0 8px 24px rgba(28, 25, 23, 0.07);
+	--box-shadow-lg: 0 2px 6px rgba(28, 25, 23, 0.08), 0 16px 40px rgba(28, 25, 23, 0.12);
 
-  // --- Transitions ---
-  --transition-duration: 0.2s;
-  --transition-timing-function: ease-in-out;
+	// --- Motion ---
+	--transition-duration: 0.18s;
+	--transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+
+	// --- Component tokens ---
+	--button-text-color: #ffffff;
+	--progress-height: 0.5rem;
+	--progress-radius: 999px;
+	--progress-bg: var(--background-offset-color);
+
+	// --- Legacy aliases (names referenced across components before the token
+	// sheet was consolidated; keep them resolving until call sites migrate) ---
+	--accent-color: var(--primary-color);
+	--accent-color-hover: var(--primary-color-dark);
+	--accent-color-disabled: #9dbbb8;
+	--color-accent: var(--primary-color);
+	--text-color-muted: var(--text-muted-color);
+	--text-color-default: var(--text-color);
+	--text-primary: var(--text-color);
+	--text-secondary: var(--text-muted-color);
+	--font-family-headings: var(--font-family-heading);
+	--font-family-sans-serif: var(--font-family-base);
+	--font-size-h2: var(--font-size-xl);
+	--border-radius-small: var(--border-radius-sm);
+	--border-radius-medium: var(--border-radius-md);
+	--border-radius-large: var(--border-radius-lg);
+	--background-offset-dark: var(--background-offset-color);
+	--background-offset-darker-color: #e7e4dc;
+	--box-shadow: var(--box-shadow-md);
 }

@@ -1,7 +1,7 @@
 // src/routes/compare/[ids]/+page.ts
 import type { PageLoad } from './$types';
 // Adjust this path based on your project structure
-import type { MunicipalityDetail } from '$lib/types'; 
+import type { MunicipalityDetail } from '$lib/types';
 
 export const load: PageLoad = async ({ params, fetch }) => {
 	const idsString = params.ids;
@@ -15,20 +15,23 @@ export const load: PageLoad = async ({ params, fetch }) => {
 		return { municipalities: [], requestedIds: [] };
 	}
 
-	console.log(`[compare/+page.ts] Loading data for IDs: ${muniIds.join(', ')}`);
-
 	try {
 		const fetchPromises = muniIds.map(async (id) => {
-			console.log(`[compare/+page.ts] Fetching data for ID: ${id}`);
 			try {
 				// Ensure API_BASE_URL is defined or fallback (adjust as needed)
-				const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'; 
+				const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 				const response = await fetch(`${apiUrl}/api/municipalities/${id}`);
 
 				if (!response.ok) {
 					throw new Error(`HTTP error! status: ${response.status} for ID ${id}`);
 				}
 				const data: MunicipalityDetail = await response.json();
+				// Components read financials[0] as "latest" — guarantee the order here.
+				if (Array.isArray(data.financials)) {
+					data.financials.sort((a, b) => b.year - a.year);
+				} else {
+					data.financials = [];
+				}
 				return data;
 			} catch (err) {
 				console.error(`Error fetching or parsing data for ${id}:`, err);
@@ -48,7 +51,6 @@ export const load: PageLoad = async ({ params, fetch }) => {
 			municipalities: successfulMunicipalities,
 			requestedIds: muniIds // Optionally return the list of IDs requested
 		};
-
 	} catch (error) {
 		console.error(`Error in compare/+page.ts load function:`, error);
 		// Consider throwing a SvelteKit error for page-level failure

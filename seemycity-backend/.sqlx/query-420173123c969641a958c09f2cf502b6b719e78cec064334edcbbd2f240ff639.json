@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH LatestScores AS (\n            SELECT\n                municipality_id,\n                overall_score,\n                ROW_NUMBER() OVER(PARTITION BY municipality_id ORDER BY year DESC) as rn\n            FROM financial_data\n            WHERE overall_score IS NOT NULL\n        )\n        SELECT\n            m.id,\n            m.name,\n            m.province,\n            m.population,\n            m.classification,\n            ls.overall_score as latest_score,\n            -- Boundaries average ~5,500 points each (18 MB total raw). For a\n            -- country-level choropleth, simplify to ~200 m tolerance and 5-decimal\n            -- (~1 m) coordinates, cutting the payload by an order of magnitude.\n            ST_AsGeoJSON(ST_SimplifyPreserveTopology(mg.geom, 0.002), 5)::TEXT as geometry_geojson_str\n        FROM municipalities m\n        LEFT JOIN municipal_geometries mg ON m.id = mg.munic_id\n        LEFT JOIN LatestScores ls ON m.id = ls.municipality_id AND ls.rn = 1\n        ORDER BY m.name\n        LIMIT $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "province",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "population",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 4,
+        "name": "classification",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "latest_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "geometry_geojson_str",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "420173123c969641a958c09f2cf502b6b719e78cec064334edcbbd2f240ff639"
+}

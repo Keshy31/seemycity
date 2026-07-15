@@ -10,12 +10,6 @@ pub enum AppError {
     #[error("API Client Error: {0}")]
     ApiClientError(#[from] crate::api::muni_money::types::ApiClientError), // Used crate name
 
-    #[error("GeoJSON Error: {0}")]
-    GeoJsonError(#[from] geojson::Error),
-
-    #[error("Configuration error: {0}")]
-    ConfigError(String),
-
     #[error("Not found: {0}")]
     NotFound(String),
 
@@ -32,18 +26,27 @@ impl ResponseError for AppError {
     fn status_code(&self) -> StatusCode {
         match *self {
             AppError::SqlxError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR, // Or maybe BAD_GATEWAY if appropriate
-            AppError::GeoJsonError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::ConfigError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            // Upstream Treasury API failures are not our server's fault
+            AppError::ApiClientError(_) => StatusCode::BAD_GATEWAY,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
-            AppError::BadRequest(_) => StatusCode::BAD_REQUEST, // Add match arm for BadRequest
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
     fn error_response(&self) -> HttpResponse {
-        log::error!("Responding with error: {}", self); // Log the detailed error
+        log::error!("Responding with error: {}", self); // Log the detailed error server-side
+
+        // NotFound/BadRequest messages are written for clients; everything else
+        // carries internal detail (SQL text, upstream bodies) that must not leak.
+        let client_message = match self {
+            AppError::NotFound(msg) => msg.clone(),
+            AppError::BadRequest(msg) => msg.clone(),
+            AppError::ApiClientError(_) => "The upstream data source is unavailable.".to_string(),
+            _ => "An internal error occurred.".to_string(),
+        };
+
         HttpResponse::build(self.status_code())
-            .json(serde_json::json!({ "error": self.to_string() })) // Return a generic error message
+            .json(serde_json::json!({ "error": client_message }))
     }
 }

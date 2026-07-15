@@ -17,12 +17,12 @@ This document outlines the technical details for the Rust backend of the Municip
   - Use: Interacting with the PostgreSQL database for caching API data and retrieving static information.
   - Error handling leverages `AppError::SqlxError(#[from] sqlx::Error)` for automatic conversion.
   - Key query functions (`src/db/`):
-    *   `municipalities::get_all_municipalities_basic`: Fetches basic info (id, name, province) for all municipalities.
-    *   `municipalities::get_municipality_base_info_db`: Fetches detailed static info for a single municipality from the `municipalities` table (`MunicipalityDb` struct).
-    *   `municipalities::get_municipalities_summary_for_map`: Fetches summary data (id, name, province, latest score, geometry) for the map view. Returns `Vec<MapFeature>`.
-    *   `financials::get_financial_data_for_year`: Fetches cached financial data and scores for a specific municipality and year. Returns `Option<FinancialRecord>`.
-    *   `financials::upsert_complete_financial_record`: Accepts raw financial data and calculated scores. Performs an `INSERT ... ON CONFLICT DO UPDATE SET ...` to save/update the record, including scores, for a given municipality and year.
-    *   `geometries::get_municipality_geojson`: Fetches the GeoJSON geometry for a single municipality.
+    *   `municipalities::get_municipality_base_info_db`: static info for one municipality (`MunicipalityDb`).
+    *   `municipalities::get_municipalities_summary_for_map`: map summary (id, name, province, population, latest score, simplified geometry) → `Vec<MapFeature>`.
+    *   `municipalities::get_all_municipality_populations`: (id, population) list for the cache warmer.
+    *   `financials::get_all_financial_years_db`: all cached year-rows (incl. timestamps) for one municipality.
+    *   `financials::upsert_complete_financial_record`: `INSERT ... ON CONFLICT (municipality_id, year) DO UPDATE` of raw data + scores.
+  - Compile-time checking works offline via the committed `.sqlx/` data (`cargo sqlx prepare` after query changes).
 
 ##### Asynchronous Runtime
 - **Library**: Tokio
@@ -62,12 +62,7 @@ This document outlines the technical details for the Rust backend of the Municip
     *   Chosen for its compile-time query checking and async support.
     *   Connection pooling is managed via `sqlx::postgres::PgPoolOptions`.
     *   Error handling leverages `AppError::SqlxError(#[from] sqlx::Error)` for automatic conversion.
-    *   Key query functions (`src/db/`):
-        *   `municipalities::get_municipality_base_info_db`: Fetches detailed static info for a single municipality from the `municipalities` table (`MunicipalityDb` struct).
-        *   `municipalities::get_municipalities_summary_for_map`: Fetches summary data (id, name, province, latest score, geometry) for the map view. Returns `Vec<MapFeature>`.
-        *   `financials::get_financial_data_for_year`: Fetches cached financial data and scores for a specific municipality and year. Returns `Option<FinancialRecord>`.
-        *   `financials::upsert_complete_financial_record`: Accepts raw financial data and calculated scores. Performs an `INSERT ... ON CONFLICT DO UPDATE SET ...` to save/update the record, including scores, for a given municipality and year.
-        *   `geometries::get_municipality_geojson`: Fetches the GeoJSON geometry for a single municipality.
+    *   Key query functions: see the list under "Database Client" above (single source).
 
 ---
 
@@ -170,29 +165,28 @@ The calculation logic is implemented in `src/scoring.rs` and invoked by API hand
 
 ---
 
-#### Data Flow (`/api/municipalities/{id}` Handler)
+#### Data Flow (`/api/municipalities/{id}` Handler) — *as implemented July 2026*
 
-1.  **Extract ID:** The handler receives the municipality ID (`muni_id`) from the URL path.
-2.  **Fetch Base Info:** It calls `db::municipalities::get_municipality_base_info_db` to retrieve static details (name, province, population) for the `muni_id` from the `municipalities` table. If not found, returns a 404 Not Found.
-3.  **Determine Target Year:** Calculates the most recent financial year needed (e.g., `current_year - 1`).
-4.  **Cache Check:**
-    a.  Calls `db::financials::get_financial_data_for_year` to check for existing data and scores for the `muni_id` and `target_year`.
-    b.  If found, checks the `updated_at` timestamp against `CACHE_TTL_SECONDS`.
-    c.  If recent enough, converts the cached `FinancialRecord` to `FinancialYearData` and stores it in `financial_data_to_use`. Skips to Step 8.
-5.  **Fresh Data Fetch (if Cache Miss or Stale):** If `financial_data_to_use` is `None`:
-    a.  Logs the fetch action.
-    b.  Initiates **concurrent** calls to the `MunicipalMoneyClient` for `muni_id` and `target_year` to get raw financial figures (revenue, operational_expenditure, capex, debt, audit outcome).
-    c.  Awaits results using `tokio::join!`. Propagates errors.
-6.  **Score Calculation:**
-    a.  Constructs a `ScoringInput` struct using the fetched financial data and the population from the base info (Step 2).
-    b.  Calls `scoring::calculate_financial_score` with the `ScoringInput`.
-    c.  Handles the `Option<ScoreBreakdown>` result. If `None`, logs a warning but proceeds (scores will be missing).
-7.  **Upsert Data & Scores:**
-    a.  Calls `db::financials::upsert_complete_financial_record` to save/update the fetched raw financial data *and* the calculated `ScoreBreakdown` (if available) into the `financial_data` table for `muni_id` and `target_year`.
-    b.  Converts the upserted `FinancialRecord` (which includes scores) into `FinancialYearData` and stores it in `financial_data_to_use`.
-8.  **Fetch Geometry:** Calls `db::geometries::get_municipality_geojson` to retrieve the geometry.
-9.  **Construct Response:** Combines `base_info`, `financial_data_to_use`, and `geometry` into the `MunicipalityDetail` response struct.
-10. **Return JSON:** Serializes `MunicipalityDetail` to JSON and returns HTTP 200 OK.
+1.  **Extract ID & base info:** 404 if the municipality is unknown.
+2.  **`ensure_financials_fresh`** (shared with the cache warmer):
+    a.  Loads all cached `financial_data` rows for the municipality.
+    b.  **Walks candidate years newest-first** (`current_year - 1` back through `YEAR_FALLBACK_DEPTH = 3`) until one yields a **scorable** row (all four pillars → `overall_score IS NOT NULL`). The newest year often publishes figures months before its audit opinion, so "any data" is not enough to stop.
+    c.  A cached row younger than **`CACHE_TTL_DAYS = 7`** is trusted as-is — including an all-NULL row, which acts as a **negative cache** ("upstream has no data for this year").
+    d.  A missing/expired row triggers a full refresh: **6 concurrent upstream calls** (`tokio::join!`) — one `incexp_v2` fetch shared by revenue, opex, *and* item-2200 operational transfers (`get_revenue_and_expenditure`), plus capex, debt, audit, `uifwexp`, and `repmaint_v2`. Individual failures degrade to NULL fields; UIFW/R&M are enrichments and don't count toward reachability.
+    e.  If **every core call** (incexp/capex/debt/audit) fails at transport level, nothing is persisted (an outage must never masquerade as "no data") and the **`UpstreamHealth` circuit breaker** opens for 5 minutes — subsequent requests serve cached (even stale) data instantly.
+    f.  **Score healing:** for every cached row, the confidence grade is backfilled if absent and scores are re-derived from stored raw metrics under the current formula (`SCORE_VERSION`, stamped per row). Rows with an older version or drifted scores are upserted with corrected values. Formula changes therefore propagate to all history (and the map) lazily, with zero upstream calls — *provided the stored raw inputs exist; v2's new inputs (transfers/UIFW/R&M) require one refetch pass for rows cached before migration 0003.*
+3.  **Response:** all-NULL negative-cache rows are filtered out; remaining years sorted newest-first into `financials[]`. `geometry` is intentionally `null` (the detail view renders no map; the map endpoint serves simplified geometry).
+
+#### Map endpoint (`GET /api/municipalities`)
+
+- Single SQL query: `ROW_NUMBER()` CTE for each municipality's latest non-NULL score + `ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.002), 5)` — payload ~941 KB raw / ~305 KB gzipped (was 18 MB).
+- Whole response cached in memory for 60 s (`MapResponseCache`), `Cache-Control: public, max-age=60`; ~15-30 ms warm in release builds.
+- Canonical score property name: **`overall_score`** (shared with detail payload and DB column). NULL = "no data" → grey on the map.
+- `?limit=` must be positive (400 otherwise).
+
+#### Background cache warmer
+
+`warm_all_municipalities` runs 15 s after startup and every 24 h (disable with `CACHE_WARMER=false`): iterates all municipalities through `ensure_financials_fresh`, skipping fresh rows (repeat passes are near-free), aborting early if the circuit breaker opens. Keeps the map fully scored without depending on detail-page traffic. Live result 2026-07-07: 204/213 scored in 72 s.
 
 ---
 
@@ -206,53 +200,59 @@ The calculation logic is implemented in `src/scoring.rs` and invoked by API hand
 
 ---
 
-#### Municipal Money API Data Fetching Logic
+#### Municipal Money API Data Fetching Logic — *current implementation + known issues*
 
-The backend retrieves the core financial metrics for scoring as follows. All queries should filter by the target `demarcation.code` (municipality) and `financial_period.period` (year). The appropriate `amount_type.code` should be prioritized (e.g., 'AUDA' - Audited Actual) using the `/aggregate` endpoint.
+All financial queries hit `/cubes/{cube}/aggregate` cut by `demarcation.code`, `financial_period.period` (or `financial_year_end.year` for audits/UIFW) and `amount_type.code:AUDA` (audited actuals).
 
-1.  **Total Revenue ([`get_total_revenue`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:10:0-58:1))**
-    *   **Cube**: `incexp_v2`
-    *   **Method**: Use the `fetch_incexp_aggregate` function which calls the `/aggregate` endpoint with `drilldown=demarcation.code|demarcation.label|item.code|item.label`, `cut=amount_type.code:AUDA|financial_period.period:{year}|demarcation.code:"{muni_code}"`, and `aggregates=amount.sum`. Sum the `amount.sum` for the following `item.code`s observed in the response (example from CPT, 2023, AUDA):
-        *   `0200`: Property rates - *(Added based on CPT 2023 data)*
-        *   `0300`: Service charges - Electricity revenue
-        *   `0400`: Service charges - Water revenue
-        *   `0500`: Service charges - Sanitation revenue
-        *   `0600`: Service charges - Refuse revenue
-        *   `0700`: Rental of facilities and equipment - *(Label updated based on CPT 2023 data)*
-        *   `0800`: Interest earned - external investments
-        *   `1000`: Interest earned - outstanding debtors - *(Label updated based on CPT 2023 data)*
-        *   `1100`: Dividends received - *(Label updated based on CPT 2023 data)*
-        *   `1200`: Fines, Penalties and Forfeits - *(Added based on CPT 2023 data)*
-        *   `1300`: Licences and permits - *(Added based on CPT 2023 data)*
-        *   `1400`: Agency services - *(Label updated based on CPT 2023 data)*
-        *   `1600`: Transfers recognised - operational
-        *   `1700`: Other revenue - *(Added based on CPT 2023 data)*
-        *   `1800`: Gains on disposal of PPE - *(Added based on CPT 2023 data)*
-    *   *Note: This list is based on observed data for CPT/2023/AUDA and may differ for other municipalities/years. Codes like 0900, 1500, 1900-2700 from the previous list were not present or had zero amounts in the test data.*
+**As implemented (`src/api/muni_money/financials.rs`):**
 
-2.  **Total Operational Expenditure ([`get_total_operational_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:60:0-94:1))**
-    *   **Cube**: `incexp_v2`
-    *   **Method**: Sum the `amount.sum` for `item.code` = `2000` (`Operational Expenditure`) filtering by `amount_type.code:AUDA`. This corresponds to the `Total Operating Expenditure` item. Returns `Option<Decimal>`. 
+1.  **Revenue + Operational Expenditure** — one shared `incexp_v2` fetch (`get_revenue_and_expenditure`); revenue sums item codes `0200`–`2500`, opex sums `3000`–`4000`.
+2.  **Capital Expenditure** — `capital_v2`, sum of all returned items.
+3.  **Debt** — `financial_position_v2`, sum of item codes 310–500 (total-liabilities proxy).
+4.  **Audit Outcome** — `audit_opinions` cube, cut by `financial_year_end.year`, first cell's `opinion.label`.
 
-3.  **Capital Expenditure ([`get_capital_expenditure`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/financials.rs:147:0-186:1))**
-    *   **Cube**: `capital_v2`
-    *   **Method**: Sum the `amount.sum` for `item.code` = `4100` (`Total Capital Expenditure`) filtering by `amount_type.code:AUDA`. Returns `Option<Decimal>`. 
-4.  **Audit Outcome ([`get_audit_outcome`](cci:1://file:///c:/Users/kesha/CascadeProjects/seemycity/seemycity-backend/src/api/muni_money/audit.rs:9:0-50:1))**
-    *   **Cube**: `audit_opinions_v2`
-    *   **Method**: Uses the `fetch_audit_opinion` function, which queries the `/facts` endpoint with filters for `demarcation.code`, `financial_year.year`, and `latest_opinion.label`. It extracts the `latest_opinion.label` value from the first fact in the response.
-    *   *Note: Assumes the API returns a single, relevant fact.* Returns `Option<String>`.
+**✓ Item sets re-pinned and AFS-validated (2026-07-07, Phase 8-A1b):**
+
+The `incexp_v2` sums now use numeric ranges validated against Cape Town's audited
+FY2024 AFS (note 37.4.1 budget reconciliation, mSCOA basis) and a rollup-identity
+check across 8 municipalities:
+
+- **Revenue = items `0200`–`2800`** (mSCOA operating revenue: rates, service
+  charges, transfers, fines, gains). CPT check: cube 61.84bn vs AFS-mSCOA
+  61.47bn (+0.6%).
+- **Expenditure = items `3000`–`4300`** (payroll through other losses, including
+  `4100` operational cost). CPT check: cube 58.67bn vs AFS-mSCOA 58.45bn (+0.4%).
+- **Item `2900` "Other expenditure" is a mislabeled TOTAL-REVENUE rollup** —
+  `|2900 − Σrevenue| = 0.00%` for every municipality tested. Excluded from both
+  ranges; usable as a per-municipality checksum by the data-confidence layer.
+- Operational transfers (grants) are item **`2200`** — the basis for the coming
+  own-revenue metric. (Item `1600` is generic "Operational Revenue", *not*
+  transfers, whatever older notes claimed.)
+- `4600`/`4700` (capital transfers received) and `4900`+ (tax/JV/minorities)
+  stay excluded from operating figures.
+- Note: figures are on the **mSCOA basis** (grossed up ~9% vs GRAP by inventory
+  classification); ratios remain internally consistent since both sides gross up.
+- Beware: **OpenUpSA's `municipal-data` repo `codes.py` does not match the live
+  cube's facts** — the cube itself + published AFS are the only trustworthy
+  references.
+- Unit tests cover range membership and the 2900 exclusion
+  (`src/api/muni_money/financials.rs::tests`).
+
+**Planned additional cubes (validated by probe):**
+
+- **`uifwexp`** — unauthorised / irregular / fruitless & wasteful expenditure; keyed by `financial_year_end.year` + `item` (no amount_type). Feeds accountability v2.
+- **`repmaint_v2`** — repairs & maintenance, standard AUDA shape. Feeds infrastructure v2 (Treasury norm: 8% of asset value).
+- `aged_debtor_v2` (collection rates) and `cflow_v2` (liquidity) are v3 candidates.
+
+**Upstream reliability caveat:** the Treasury API can return **empty-but-HTTP-200 responses while degraded** (observed 2026-07-07 — it produced 9 false "no data" municipalities including eThekwini). Transport failures are handled by the circuit breaker; *empty successes are not detectable today* and are a requirement on the Phase 8-A data-confidence layer.
 
 ---
 
 #### Handlers (`src/handlers/municipalities.rs`)
 
-*   **`get_municipality_detail_handler`**: 
-    *   Handles `GET /api/municipalities/{municipality_code}`.
-    *   Fetches base static municipality details using `get_municipality_base_info_db`.
-    *   Fetches financial details (revenue, operational_expenditure, debt, audit) for the specified year from the Municipal Money API via the `MunicipalMoneyClient`.
-    *   Combines the base info and fetched financial data into a `MunicipalityDetail` response.
-    *   Uses `upsert_complete_financial_record` to save the fetched financial metrics to the database.
-    *   Currently, caching logic using `crate::utils::cache::Cache` is commented out.
+*   **`get_municipality_detail_handler`** — `GET /api/municipalities/{id}`; see "Data Flow" above.
+*   **`get_municipalities_list_handler`** — `GET /api/municipalities`; see "Map endpoint" above.
+*   **Shared plumbing in the same module:** `ensure_financials_fresh` (year-walk + healing, used by handler and warmer), `refresh_financial_year` (one muni-year fetch/score/upsert round), `warm_all_municipalities`, `MapResponseCache`, `UpstreamHealth` (circuit breaker).
 
 ---
 

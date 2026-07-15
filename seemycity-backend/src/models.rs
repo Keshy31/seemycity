@@ -1,7 +1,6 @@
 use serde::{Serialize, Deserialize};
 use sqlx::{FromRow, types::chrono};
 use uuid::Uuid;
-use serde_json::Value;
 use rust_decimal::Decimal;
 use geojson::Geometry;
 
@@ -26,17 +25,6 @@ pub struct MunicipalityDb {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-// Maps directly to the 'municipal_geometries' table (if you need it separately)
-#[derive(Serialize, Deserialize, Debug, Clone, FromRow)]
-pub struct MunicipalityGeometryDb {
-    pub ogc_fid: i32, // Serial primary key
-    pub municipality_id: String, // Foreign key
-    // Changed to Value for better JSONB handling with sqlx
-    pub geometry_geojson: Option<Value>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-}
-
 // Maps directly to the 'financial_data' table
 // Corresponds to data-spec.md section 2
 #[derive(Serialize, Deserialize, Debug, Clone, FromRow)]
@@ -46,32 +34,71 @@ pub struct FinancialDataDb {
     pub year: i32,
     pub revenue: Option<Decimal>,
     // Rename this field to match the DB column
-    pub operational_expenditure: Option<Decimal>, 
+    pub operational_expenditure: Option<Decimal>,
     pub capital_expenditure: Option<Decimal>,
     pub debt: Option<Decimal>,
     // Make audit_outcome optional to match DB NULLable and query_as SELECT *
     pub audit_outcome: Option<String>,
+    // Scoring v2 inputs
+    pub transfers_operational: Option<Decimal>, // grants within revenue (item 2200)
+    pub uifw_expenditure: Option<Decimal>,      // unauthorised/irregular/fruitless & wasteful
+    pub repairs_maintenance: Option<Decimal>,   // R&M spend (repmaint_v2)
     // Add the new score fields to match the DB table
     pub overall_score: Option<Decimal>,
     pub financial_health_score: Option<Decimal>,
     pub infrastructure_score: Option<Decimal>,
     pub efficiency_score: Option<Decimal>,
     pub accountability_score: Option<Decimal>,
+    // Plausibility grade of the raw figures: "ok" | "suspect" | "unreliable".
+    // None = not yet evaluated (backfilled by the healing pass).
+    pub data_confidence: Option<String>,
+    pub confidence_notes: Option<String>,
+    // Scoring-formula version the stored scores were computed under; rows with
+    // an older (or missing) version are re-derived by the healing pass.
+    pub score_version: Option<i32>,
     pub created_at: chrono::DateTime<chrono::Utc>, // Timestamp for cache management
     #[sqlx(default)] // Handle potential missing updated_at if not always set by upsert
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl FinancialDataDb {
+    /// True when the row carries at least one real metric or score. Rows that are
+    /// all-NULL exist only as negative-cache markers and are not user-facing data.
+    pub fn has_any_data(&self) -> bool {
+        self.revenue.is_some()
+            || self.operational_expenditure.is_some()
+            || self.capital_expenditure.is_some()
+            || self.debt.is_some()
+            || self.audit_outcome.is_some()
+            || self.overall_score.is_some()
+    }
+}
+
+impl From<&FinancialDataDb> for FinancialYearData {
+    fn from(row: &FinancialDataDb) -> Self {
+        FinancialYearData {
+            year: row.year,
+            revenue: row.revenue,
+            operational_expenditure: row.operational_expenditure,
+            capital_expenditure: row.capital_expenditure,
+            debt: row.debt,
+            audit_outcome: row.audit_outcome.clone(),
+            transfers_operational: row.transfers_operational,
+            uifw_expenditure: row.uifw_expenditure,
+            repairs_maintenance: row.repairs_maintenance,
+            overall_score: row.overall_score,
+            financial_health_score: row.financial_health_score,
+            infrastructure_score: row.infrastructure_score,
+            efficiency_score: row.efficiency_score,
+            accountability_score: row.accountability_score,
+            data_confidence: row.data_confidence.clone(),
+            confidence_notes: row.confidence_notes.clone(),
+        }
+    }
+}
+
 
 // --- API Response / Query Result Models ---
-
-// Basic info used in get_all_municipality_basic_info
-#[derive(Serialize, Deserialize, Debug, Clone, FromRow)]
-pub struct MunicipalityBasicInfo {
-    pub id: String,
-    pub name: String,
-    pub province: String,
-}
 
 // Data structure for the /api/municipalities map view properties
 // Corresponds to data-spec.md section 3.1 properties
@@ -84,9 +111,11 @@ pub struct MapMunicipalityProperties {
     #[serde(serialize_with = "crate::utils::serialize_option_f32_as_f64")]
     pub population: Option<f32>,
     pub classification: Option<String>,
-    #[serde(rename = "financial_score")]
+    // Canonical name across the API: matches the financial_data column and the
+    // detail endpoint's field, and is what the map's data-driven styling reads.
+    #[serde(rename = "overall_score")]
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
-    pub latest_score: Option<Decimal>, // Changed from Option<f64> to Option<Decimal>
+    pub latest_score: Option<Decimal>,
 }
 
 // Data structure for individual financial year data within MunicipalityDetail
@@ -106,6 +135,13 @@ pub struct FinancialYearData {
     pub debt: Option<Decimal>,
     // Make audit_outcome optional
     pub audit_outcome: Option<String>,
+    // Scoring v2 inputs (also useful for UI: own-revenue share, wasteful spend)
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub transfers_operational: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub uifw_expenditure: Option<Decimal>,
+    #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
+    pub repairs_maintenance: Option<Decimal>,
     // Add the new score fields
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
     pub overall_score: Option<Decimal>,
@@ -117,14 +153,9 @@ pub struct FinancialYearData {
     pub efficiency_score: Option<Decimal>,
     #[serde(serialize_with = "crate::utils::serialize_option_decimal_as_f64")]
     pub accountability_score: Option<Decimal>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FinancialDataPoint {
-    pub municipality_code: String,
-    pub year: i32,
-    pub metric_name: String,
-    pub amount: Option<Decimal>,
+    // "ok" | "suspect" | "unreliable" | null (not yet evaluated)
+    pub data_confidence: Option<String>,
+    pub confidence_notes: Option<String>,
 }
 
 // Detailed data structure for the /api/municipality/{id} view
@@ -147,17 +178,7 @@ pub struct MunicipalityDetail {
     // pub last_updated: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-// Original struct - might be useful as a simplified API model if needed,
-// but doesn't map directly to DB tables easily.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct LegacyMunicipality {
-    pub code: String,          // e.g., "BUF"
-    pub name: String,          // e.g., "Buffalo City Metropolitan Municipality"
-    pub province: String,      // e.g., "Eastern Cape"
-    pub financial_score: Option<f64>, // Score from 0.0 to 100.0
-}
-
-// --- GeoJSON Structures for Map Summary --- 
+// --- GeoJSON Structures for Map Summary ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MapFeature {

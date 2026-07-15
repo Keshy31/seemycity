@@ -1,4 +1,4 @@
-use actix_web::{App, HttpServer, web, middleware::Logger, http};
+use actix_web::{App, HttpServer, web, middleware::{Compress, Logger}, http};
 use dotenvy::dotenv; // To load .env file
 use seemycity_backend::db; // Import db module (which contains create_pool and queries)
 use seemycity_backend::config; // Import config module
@@ -6,6 +6,9 @@ use seemycity_backend::api::muni_money::client::MunicipalMoneyClient; // Import 
 use seemycity_backend::handlers::municipalities::{ // Import handlers
     get_municipality_detail_handler,
     get_municipalities_list_handler, // Import the new handler
+    warm_all_municipalities,
+    MapResponseCache,
+    UpstreamHealth,
 };
 use std::sync::Arc; // Import Arc if needed for Cache later, good practice
 use actix_cors::Cors; // Import CORS
@@ -51,32 +54,60 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let server_port: u16 = 4000; 
-    log::info!("Starting HTTP server at http://127.0.0.1:{}", server_port); 
+    let server_host = config_arc.server_host.clone();
+    let server_port = config_arc.server_port;
+    log::info!("Starting HTTP server at http://{}:{}", server_host, server_port);
+
+    // Shared across workers so the map payload is built once per TTL, not per worker
+    let map_cache = web::Data::new(MapResponseCache::default());
+    // Circuit breaker for the Treasury API, shared across workers
+    let upstream_health = web::Data::new(UpstreamHealth::default());
+
+    // Background cache warmer: keeps every municipality scored so the map is
+    // fully colored without depending on detail-page traffic. Fresh rows are
+    // skipped, so each daily pass is cheap.
+    if config_arc.cache_warmer_enabled {
+        let warm_pool = pool.clone();
+        let warm_client = api_client.clone();
+        let warm_health = upstream_health.clone();
+        tokio::spawn(async move {
+            // Short delay so startup traffic settles first.
+            tokio::time::sleep(std::time::Duration::from_secs(15)).await;
+            loop {
+                warm_all_municipalities(&warm_pool, &warm_client, &warm_health).await;
+                tokio::time::sleep(std::time::Duration::from_secs(24 * 60 * 60)).await;
+            }
+        });
+    } else {
+        log::info!("Cache warmer disabled via CACHE_WARMER=false");
+    }
 
     // Start Actix Web server
+    let cors_origins = config_arc.cors_allowed_origins.clone();
     HttpServer::new(move || {
-        // Define CORS settings
-        let cors = Cors::default()
-              .allowed_origin("http://localhost:5173") // Allow frontend dev origin
-              // In production, you might want to restrict this further or use allowed_origin_fn
-              // .allowed_origin("YOUR_PRODUCTION_FRONTEND_URL") 
+        // Origins come from CORS_ALLOWED_ORIGINS (comma-separated)
+        let mut cors = Cors::default()
               .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
               .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT, http::header::CONTENT_TYPE])
-              .supports_credentials()
               .max_age(3600);
+        for origin in &cors_origins {
+            cors = cors.allowed_origin(origin);
+        }
 
         App::new()
             .wrap(Logger::default()) // Add logger middleware
+            .wrap(Compress::default()) // gzip/brotli — GeoJSON compresses ~5-10x
             .wrap(cors) // Add CORS middleware
             .app_data(web::Data::new(pool.clone())) // Share the pool
             .app_data(web::Data::new(api_client.clone())) // Share the API client
+            .app_data(map_cache.clone()) // Shared map response cache
+            .app_data(upstream_health.clone()) // Treasury API circuit breaker
             // Explicitly register the detail route
             .route("/api/municipalities/{id}", web::get().to(get_municipality_detail_handler))
              // Keep using .service() for the list handler as its path is defined by its macro
             .service(get_municipalities_list_handler)
     })
-    .bind(("127.0.0.1", server_port))? 
+    .bind((server_host.as_str(), server_port))?
     .run()
     .await
 }
