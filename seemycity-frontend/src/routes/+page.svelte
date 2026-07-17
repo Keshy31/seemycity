@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import MapComponent from '$lib/components/MapComponent.svelte';
+	import MapLegend from '$lib/components/MapLegend.svelte';
 	import PageHeader from '$lib/components/ui/PageHeader.svelte';
 	import SearchBar from '$lib/components/ui/SearchBar.svelte';
 	import ErrorMessage from '$lib/components/ui/ErrorMessage.svelte';
@@ -112,6 +113,7 @@
 				geojson={data.municipalityGeoJSON}
 				on:municipalityClick={handleMunicipalityClick}
 			/>
+			<MapLegend geojson={data.municipalityGeoJSON} />
 		{/if}
 	</main>
 </div>

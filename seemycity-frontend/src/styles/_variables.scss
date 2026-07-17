@@ -49,6 +49,17 @@ $border-radius-md: 0.625rem;
 	--score-low-color: #dc2626; // < 40
 	--score-none-color: #d6d3d1; // NULL — "no data", never a judgement
 
+	// --- Color: 5 quantized score bands (map ramp + legend; definitions live in
+	// src/lib/utils/scoreBands.ts). CVD-validated as a set: worst all-pairs
+	// Machado ΔE 16.6 under deuteranopia (target ≥ 12), no-data grey ≥ 14.3
+	// from every band. Amber/emerald sit below 3:1 on light surfaces — the
+	// relief channels are the hover tooltip, the legend, and the table views. ---
+	--band-critical-color: #b91c1c; // 0–19
+	--band-trouble-color: #ea580c; // 20–39
+	--band-strained-color: #f59e0b; // 40–59
+	--band-healthy-color: #10b981; // 60–79
+	--band-thriving-color: #047857; // 80–100
+
 	// --- Color: audit outcomes ---
 	--audit-clean-color: var(--success-color);
 	--audit-emphasis-color: var(--info-color);

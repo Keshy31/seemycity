@@ -17,6 +17,10 @@ export interface FinancialYearData {
 	capital_expenditure: number | null;
 	debt: number | null;
 	audit_outcome: string | null;
+	// Scoring v2 inputs (also drive UI: own-revenue share, wasteful spend, maintenance)
+	transfers_operational: number | null;
+	uifw_expenditure: number | null;
+	repairs_maintenance: number | null;
 	data_confidence: DataConfidence | null;
 	confidence_notes: string | null;
 }
